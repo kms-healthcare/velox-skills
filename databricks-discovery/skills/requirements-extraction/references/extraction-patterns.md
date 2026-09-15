@@ -128,7 +128,7 @@ because "real-time" is the single most expensive word in a Databricks requiremen
 Dictionary row: `STG_POS_TXN.STORE_CD — Store code, FK to DIM_STORE`.
 
 This is **not** a requirement. It is a name mapping. Use it to read other sources accurately, and
-to seed `inventory_tables.jsonl` *if* the dictionary is trusted (check its date against the DDL).
+to seed `inventory.jsonl` *if* the dictionary is trusted (check its date against the DDL).
 Do not create requirements from a dictionary alone.
 
 ---

@@ -12,152 +12,82 @@ description: >
   brief needs to be decomposed into functional, data, security, non-functional, scope and
   integration requirements. Not for reading source code (use legacy-etl-archaeology) and not for
   writing the final report (use assessment-synthesis).
-compatibility: Runs outside Databricks. Filesystem only; no network required.
+compatibility: Runs outside Databricks. Filesystem only.
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
 parent: discovery-intake
 ---
 
 # Requirements extraction — documents in, register out
 
-## What this skill produces, and why not a narrative
+A narrative requirements document fails in a specific way: it is fluent, and nobody can tell which
+sentence came from the 2016 spec, which from the DBA, and which the model filled in. This skill
+produces a **register** instead — one record per requirement with locator, `stated`/`inferred`,
+confidence, conflicts, and the question it leaves open. Schemas and the record budget:
+`../discovery-intake/references/run-layout.md`. Read it first. Rules 1–3 of `discovery-intake`
+apply.
 
-The naive approach — read everything, write a requirements document — fails in a specific way:
-the output is fluent and internally consistent, and nobody can tell which sentences came from the
-2016 spec, which from the DBA interview, and which the model filled in. On a data project that
-means a Gold table gets built on a rule nobody asked for.
+Inputs: `intake.md` (the decision to serve — without it you get 200 rows and no priorities) and
+the source list. Register each source in `manifest.json` (path, sha256) **before** reading. Do not
+copy files.
 
-This skill produces a **register**: one record per requirement, each carrying where it came from
-(`locator`), whether the source said it or the agent inferred it, how confident the agent is, what
-other sources disagree, and what question it leaves open. Reviewable by a human, splittable across
-people, honest about what is not known. Schemas are in
-`../discovery-intake/references/run-layout.md` — read it before writing a single record.
+## Reading order — reliability about actual behaviour, high to low
 
-## Inputs this skill expects
+1. UAT scripts, test plans, acceptance sheets (literal input/output — rarely offered, always ask)
+2. Runbooks, user manuals, training decks
+3. Tickets, change requests, incidents — the only record of *why* something changed
+4. Interview transcripts, minutes — attribute to person + timestamp
+5. Design documents · 6. Requirements docs / RFPs — intent, not behaviour
+7. AI-generated or draft wiki pages — **hypothesis only**; verify every identifier elsewhere
 
-From `discovery-intake`: `intake.md` (project type and the decision to serve) and the list of
-sources with `source_id`s. If intake has not run, run it first — extracting requirements without
-knowing the decision they serve produces a register with 200 rows and no priorities.
+Glossaries and data dictionaries may be read first: they map names, not behaviour. If
+`legacy-etl-archaeology` is also running, **do not load its code-derived rules while reading
+documents** — extract, then diff. Both in context smooths over exactly the disagreements that matter.
 
-Register every source in `manifest.json` with `source_id`, path and sha256 **before** reading it.
-Do not copy files that already exist on disk into `sources/` — reference them by path; only
-originals that may move (email bodies, chat exports) get a copy. Copying thirty files costs
-minutes and proves nothing.
+## Procedure
 
-## Reading order — and why it matters
+Per source: skim for structure and choose the locator scheme → extract **atomic, testable**
+statements (split "and") → `type` ∈ functional | data | security | nonfunctional | scope |
+integration → evidence with `kind` (`inferred` **always** raises an open question) → `confidence`
+→ `priority` and `owner` only when the source states them (departments are not owners).
 
-**Tier documents by how reliable they are about actual behaviour**, then read most-reliable first
-so that later, weaker documents are diffed against stronger ones rather than the reverse:
+Across sources of the same tier: merge duplicates (two evidence entries, higher confidence);
+**record conflicts, never pick a side** — doc says 5,000, interview says 10,000 → both in
+`conflicts[]`, one question with `ask` set to who can settle it; write `findings` for what is not
+a requirement but matters (stale source, missing stakeholder, stated assumption contradicted).
 
-1. **UAT scripts, test plans, acceptance sheets** — literal input/output pairs. Rarely provided,
-   always ask.
-2. **Operational runbooks, user manuals, training decks** — describe what people actually do.
-3. **Tickets, change requests, incident reports** — the only place that records *why* something
-   changed. Read the last 2–3 years.
-4. **Interview transcripts and meeting minutes** — current intent; attribute every statement to a
-   named person and timestamp.
-5. **Design documents** — the system as intended at some date.
-6. **Requirements documents and RFPs** — written before anything existed; least reliable about
-   behaviour, most reliable about original intent.
-7. **AI-generated documentation, wiki pages marked draft** — *tier zero: hypothesis only.* Use for
-   orientation; verify every identifier and number elsewhere before it enters the register.
+`target_mapping.layer` may follow the requirement's nature (ingestion → bronze; conformance,
+history, quality → silver; metrics, access → gold). `target_mapping.object` stays a placeholder.
+Metric definitions: record measure and dimensions separately — they belong in Unity Catalog metric
+views.
 
-**Glossaries and data dictionaries may be read first** — they map names, not behaviour, and make
-everything downstream more accurate.
+## Requirements that are never written down — look for their absence
 
-If `legacy-etl-archaeology` is also in play: **do not load its code-derived rules while reading
-documents.** Extract from documents alone, then diff. Same reason as code-first over there: with
-both in context the model smooths over exactly the disagreements that matter.
+Create an open question, never a value, for each one no source states:
 
-## Extraction procedure
-
-Work one source at a time. For each source:
-
-1. **Skim for structure**, note sections and the locator scheme you will use (`page:section`,
-   `slide N`, `hh:mm:ss`, `ticket-id`).
-2. **Extract candidate requirements** — one record per atomic, testable statement. "The platform
-   must be secure" is not a requirement; "CCCD and phone must be masked for all groups except
-   Customer Care" is. Split compound sentences.
-3. **Classify `type`**: `functional | data | security | nonfunctional | scope | integration`.
-   `data` covers grain, history, quality, retention, lineage; `scope` covers what is explicitly in
-   or out; `integration` covers systems that must connect.
-4. **Attach evidence** with `kind`:
-   - `stated` — the source says it; `excerpt` quotes it (≤ 200 chars), `locator` points at it.
-   - `inferred` — you derived it (e.g. a 07:00 report deadline implies a data SLA before 06:30);
-     record the basis in `excerpt`, and **create an open question** — every inference needs a
-     confirmer.
-5. **Set `confidence`** (0–1): how sure you are the record reflects what the source means. Use it to
-   order review, never to skip it.
-6. **Leave `priority` null** unless the source states it. Priorities come from the sponsor in
-   `assessment-synthesis`, not from the document's tone.
-7. **`owner` is null** unless a named person is given. Departments are not owners.
-
-Then, after all sources of the same tier are done, **cross-source diff**:
-
-8. **Merge duplicates** — same requirement from two sources → one record, two evidence entries.
-   Agreement raises confidence.
-9. **Record conflicts** — two sources disagree → one record, `conflicts[]` filled, and an
-   `open_question` with `ask` set to whoever can settle it. **Never pick a side.** Document says
-   5,000, interview says 10,000: record both; the answer is a business decision.
-10. **Write `findings`** for anything that is not a requirement but matters: a stated assumption
-    that contradicts evidence, a source that is out of date, a stakeholder who is missing.
-
-## Requirements that are never in the documents — look for their absence
-
-Data projects fail on requirements nobody wrote down. For each of these, if no source states it,
-create an `open_question` rather than inventing a value:
-
-| Missing requirement | Why it is always missing | Question to raise |
+| Missing | Why always missing | Question |
 |---|---|---|
-| **Grain** of each reporting object | Business people think in reports, not rows | "One row in this report is one what?" |
-| **Exclusions** (test orders, intercompany, cancelled, internal accounts) | Applied silently in today's report | "Which records do you deliberately leave out today?" |
-| **History depth and point-in-time semantics** | Assumed to be "whatever the system has" | "When an attribute changes, do old reports change?" |
-| **Restatement** — can published numbers change, how far back | Nobody thinks about it until month 2 | "Do last month's numbers ever get corrected?" |
-| **Freshness as a deadline** ("before 07:00") vs latency ("within 1 h") | Both get written as "daily" | "By what time must it be ready, in which timezone?" |
-| **Tolerance** — how wrong is acceptable | Assumed zero, never true | "If this is off by 2%, what happens?" |
-| **Consumers** beyond the named report | Excel, Access, downstream systems | "Who complains when it is late?" |
-| **Access model** — who may see which columns | Discovered after Gold is built | "Who is *not* allowed to see this?" |
-| **Definitions in conflict** between departments | Each department assumes theirs is the one | Measure the gap when data is available; ask which is official |
+| Grain | people think in reports, not rows | "One row here is one what?" |
+| Exclusions (test, intercompany, cancelled) | applied silently today | "Which records do you deliberately leave out?" |
+| History depth / point-in-time semantics | assumed "whatever exists" | "When an attribute changes, do old reports change?" |
+| Restatement | nobody thinks of it before month 2 | "Do last month's numbers ever get corrected?" |
+| Deadline vs latency | both written as "daily" | "Ready by what time, which timezone?" |
+| Tolerance | assumed zero | "If this is 2% off, what happens?" |
+| Consumers beyond the named report | Excel, ODBC, downstream apps | "Who complains when it is late?" |
+| Access model | found after Gold exists | "Who must *not* see this?" |
+| Definitions in conflict across departments | each assumes theirs | measure the gap when data exists; ask which is official |
 
-## Mapping to the target — only when the evidence supports it
+## Output and calibration
 
-`target_mapping.layer` (`bronze | silver | gold`) may be set from the requirement's nature:
-ingestion/retention → bronze; conformance, dedup, history, quality → silver; metrics, aggregates,
-access views → gold. `target_mapping.object` stays a **placeholder** (`<catalog>.silver.<entity>`)
-until a name is verified in Unity Catalog. Never write a name that looks real.
+`runs/<run>/`: `requirements.jsonl`, `findings.jsonl`, `open_questions.jsonl`, `manifest.json`,
+`review.md` (what a human must decide now · confidence distribution · **deliberately not
+concluded**). Never write into `registers/`.
 
-Metric definitions are a special case: they should ultimately land in **Unity Catalog metric
-views**, so record measure and dimension separately when the source allows.
+Before thirty documents, do one the client knows well and have them correct the register. The
+correction rate is this project's error rate; fix the method (locator scheme, granularity) before
+scaling.
 
-## Output of a run
+## References
 
-Under `runs/<date>_run-NN/`: `requirements.jsonl`, `findings.jsonl`, `open_questions.jsonl`,
-`manifest.json`, `review.md`. Never write into `registers/` — the human merges.
-
-`review.md` leads with what a human must decide now, then the confidence distribution, then what
-was **deliberately not concluded**. Template in `run-layout.md`.
-
-## Calibrate before scaling
-
-Before processing thirty documents, process one that the client knows well. Have them review the
-register for that document. The fraction of records they correct is this project's error rate;
-if it is high, fix the approach — usually the locator scheme or the granularity — before
-continuing. This measurement is cheap and worth more than any planning.
-
-## Failure modes
-
-| Failure | Sign |
-|---|---|
-| Narrative instead of register | Paragraphs; no `locator` |
-| Smoothing conflicts | Two sources, one confident sentence, empty `conflicts[]` |
-| Inference without a question | `kind: inferred` with no `open_questions` entry |
-| Priorities from tone | `priority: must` on a record whose source never says so |
-| Department as owner | `owner: "Finance"` |
-| Reading tier-zero docs as truth | Identifiers copied from a draft wiki, never verified |
-| Granularity too coarse | Records with "and" in `statement` |
-
-## Reference files
-
-- `../discovery-intake/references/run-layout.md` — schemas, templates. Required reading.
-- `references/extraction-patterns.md` — worked examples by source type (spec, transcript,
-  ticket, deck), including how to write locators for each.
+`../discovery-intake/references/run-layout.md` (required) · `references/extraction-patterns.md`
+— worked examples per source type (spec, transcript, ticket, deck, dictionary) with locator formats.

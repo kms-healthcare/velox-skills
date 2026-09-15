@@ -33,8 +33,10 @@
         "Does NOT turn 'real-time dashboard' (slide 7) into a latency NFR; instead raises a question about what action needs sub-15-minute data; and records the 08:00 (spec) vs 07:00 (Finance now) freshness CONFLICT",
         "Every business rule / requirement / finding presented carries a locator (file:line, §section, or transcript timestamp); no numbers without a source",
         "Open questions name a person or role (e.g. Head of Accounting, Finance, Anh Tuấn/DBA), include a default and impact, and the user is given at most 3–5 blocking questions in the main response",
-        "Produces the register files (requirements.jsonl / business_rules.jsonl / findings.jsonl / open_questions.jsonl, or clearly equivalent structured output) plus a sufficiency table showing what cannot be concluded (e.g. POS data quality without source access, effort without Lakebridge trial)",
-        "Does not invent Unity Catalog / Databricks object names as if they exist; any target names are explicit placeholders like <catalog>.silver.transactions"
+        "Produces the register files (requirements.jsonl / business_rules.jsonl / inventory.jsonl / findings.jsonl / open_questions.jsonl, or clearly equivalent structured output) plus a sufficiency table showing what cannot be concluded (e.g. POS data quality without source access, effort without Lakebridge trial)",
+        "Does not invent Unity Catalog / Databricks object names as if they exist; any target names are explicit placeholders like <catalog>.silver.transactions",
+        "Generates the human deliverables from the registers — a single discovery-<project>.xlsx workbook and one assessment-report.md (plus .docx if pandoc) — and does NOT hand-write a second, parallel report",
+        "Does not copy the input source files into the output tree; references them by path and sha256 in manifest.json"
       ]
     }
   ]
