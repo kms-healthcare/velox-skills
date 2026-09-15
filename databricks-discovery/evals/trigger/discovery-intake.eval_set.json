@@ -1,0 +1,22 @@
+[
+  {"query": "khách bên Ngân hàng X vừa ký SOW, họ đang chạy Teradata 15 năm, license hết tháng 6 sang năm, muốn lên Databricks trên Azure. mình là tech lead kiêm luôn phần requirement vì team ko có BA. tuần sau kickoff, mình nên chuẩn bị gì và hỏi họ những gì trước", "should_trigger": true},
+  {"query": "sếp quăng cho mình 1 folder ~200 file .sql stored proc với 30 package SSIS của khách retail, bảo 'đánh giá xem migrate lên databricks mất bao lâu'. bắt đầu từ đâu đây", "should_trigger": true},
+  {"query": "We've been asked to consolidate 7 Databricks workspaces after the merger with Acme — nobody knows who owns half of them and finance says the bill doubled. I need to write up a current-state assessment for the steering committee by end of month. Where do I even start and what data should I pull?", "should_trigger": true},
+  {"query": "client nói muốn 'data platform hiện đại có AI', nhưng hỏi kỹ thì họ chưa có gì ngoài mấy file excel của phòng kế toán và 1 con CRM. mình cần scope cái này lại thành cái gì làm được trong 3 tháng, và cần hỏi họ gì để chốt", "should_trigger": true},
+  {"query": "có transcript 3 buổi phỏng vấn với DBA + trưởng phòng kế toán bên khách và 1 cái spec từ 2017. giúp mình lôi ra requirement thật với chỗ nào doc và người nói khác nhau", "should_trigger": true},
+  {"query": "Databricks bill went from 40k to 95k/month in 6 months, CFO wants to know why and what to cut. I have system tables access. How do I approach this assessment properly instead of just eyeballing the usage dashboard?", "should_trigger": true},
+  {"query": "khách đòi dashboard doanh thu real-time, team mình thấy ko cần nhưng ko biết argue sao cho có cơ sở. đang ở giai đoạn discovery, chưa build gì", "should_trigger": true},
+  {"query": "viết giúp mình assessment report cho dự án migrate SQL Server -> Databricks, mình đã có inventory bảng, danh sách rule trích từ stored proc, và list câu hỏi chưa ai trả lời. cần bản cho CTO quyết scope wave 1", "should_trigger": true},
+  {"query": "the DBA who built our entire DW is retiring in March. Before he goes I need to capture what the 87 stored procedures actually do and what's not in any spec. We're going to Databricks eventually but right now it's about not losing the knowledge", "should_trigger": true},
+  {"query": "partner muốn mình share data giao dịch cho họ qua Delta Sharing, legal đang lo. mình cần assess xem share được gì, ở grain nào, và cần hỏi ai trước khi hứa gì với partner", "should_trigger": true},
+  {"query": "viết cho mình 1 DLT pipeline load bảng customer từ bronze lên silver có SCD type 2, dùng AUTO CDC, source là Auto Loader đọc parquet từ ADLS", "should_trigger": false},
+  {"query": "job nightly của mình chạy 5 tiếng trên cluster 8 node, chủ yếu là 1 cái MERGE vào bảng 2 tỷ dòng. tune giúp mình — nên partition kiểu gì, liquid clustering hay z-order", "should_trigger": false},
+  {"query": "set up databricks asset bundle cho repo này để deploy job qua github actions, 3 target dev/staging/prod, chạy bằng service principal", "should_trigger": false},
+  {"query": "viết grant statement unity catalog cho team analyst: chỉ SELECT trên schema gold, ko thấy schema bronze silver, mask cột email", "should_trigger": false},
+  {"query": "Write user stories and acceptance criteria for the customer onboarding screens in our mobile app — KYC upload, OTP verification, consent checkbox. Need them in Jira format.", "should_trigger": false},
+  {"query": "DLT pipeline báo lỗi 'duplicate key in APPLY CHANGES INTO' trên bảng customer khi chạy full refresh, source có sequence_by là updated_at. debug giúp mình", "should_trigger": false},
+  {"query": "so sánh chi phí Databricks vs Snowflake vs Fabric cho workload ~5TB/ngày, cần 1 bảng để đưa vào slide cho sếp chọn vendor", "should_trigger": false},
+  {"query": "viết SQL trên bảng gold.fact_sales tính doanh thu theo tháng theo region 12 tháng gần nhất, có so sánh cùng kỳ năm trước, cho báo cáo tuần này", "should_trigger": false},
+  {"query": "làm slide 15 trang present cho ban lãnh đạo về lộ trình chuyển đổi số 2027, có phần về data platform nhưng chủ yếu là tổng quan", "should_trigger": false},
+  {"query": "our Databricks pipeline finished migrating last quarter; now I need to set up Lakehouse Monitoring / data quality monitoring on the gold tables and alerting to Slack when drift is detected", "should_trigger": false}
+]

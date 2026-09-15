@@ -120,7 +120,7 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
              ["  of which blocking (impact high)", len(hi)], [],
              ["Rationalization", ""]] + [[d, disp.get(d, 0)] for d in DISPOSITIONS + ["undecided"]] + [[],
              ["rule_status", ""]] + [[k, v] for k, v in sorted(rs.items())] + [[],
-             ["Evidence gaps (❌/⚠️)", len(suff_bad)]] + [["", l.strip()] for l in suff_bad[:10]]
+             ["Evidence gaps (❌/⚠️)", len(suff_bad)]] + [["", " — ".join(c.strip() for c in l.strip().strip("|").split("|")[:2] if c.strip())] for l in suff_bad[:10]]
     for l in lines:
         ws.append(l)
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 34, 110
@@ -248,7 +248,14 @@ def build_md(regs, root, axis_c, suff_bad, author):
     else:
         md += ["_rationalization.jsonl not present._\n"]
 
-    md += ["\n## 4. What the evidence does not yet support\n\n"] + ([l + "\n" for l in suff_bad] or ["_no ❌/⚠️ rows in sufficiency.md — confirm that is true._\n"])
+    md += ["\n## 4. What the evidence does not yet support\n\n"]
+    if suff_bad:
+        hdr = next((l for l in md_text(root / "sufficiency.md").splitlines() if l.startswith("|") and "Conclusion" in l), None)
+        if hdr:
+            md += [hdr + "\n", "|" + "---|" * (hdr.count("|") - 1) + "\n"]
+        md += [l + "\n" for l in suff_bad]
+    else:
+        md += ["_no ❌/⚠️ rows in sufficiency.md — confirm that is true._\n"]
 
     md += ["\n## 5. Key findings\n\n| # | Severity | Finding | Impact | Evidence |\n|---|---|---|---|---|\n"]
     md += [f"| {f.get('id')} | {f.get('severity')} | {f.get('title')} | {f.get('impact', '')} | {locs(f)} |\n"
@@ -278,7 +285,7 @@ def build_md(regs, root, axis_c, suff_bad, author):
             waves[r["wave"]].append(r.get("name"))
     md += [f"- Wave {w}: {len(v)} objects\n" for w, v in sorted(waves.items())]
     comp = Counter((i.get("complexity"), i.get("complexity_source") or "unknown") for i in inv if i.get("complexity"))
-    md += ["\nComplexity (inventory, by source): " + ", ".join(f"{k}/{s}: {v}" for (k, s), v in comp.items()) + "\n"]
+    md += ["\nComplexity (inventory, by source): " + ", ".join(f"{k}/{s}: {v}" for (k, s), v in comp.items()) + "\n"] if comp else ["\nComplexity: not assessed — no Lakebridge Analyzer output; `complexity` left null.\n"]
     md += [A("drivers")]
 
     md += ["\n## 10. Risks and cost flags\n\n", A("risks")]
