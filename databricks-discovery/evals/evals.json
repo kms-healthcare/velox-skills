@@ -1,0 +1,41 @@
+{
+  "skill_name": "databricks-discovery",
+  "evals": [
+    {
+      "id": 0,
+      "name": "migration-minhphat-full-discovery",
+      "prompt": "Khách hàng Minh Phát Retail muốn chuyển data warehouse SQL Server lên Databricks. Tôi có folder sources/ gồm DDL, stored proc, 1 package SSIS, 1 report SSRS, export SQL Agent, Query Store, SSRS log, row count, spec 2016, ghi chú kickoff và 1 transcript phỏng vấn DBA. Giúp tôi làm discovery & assessment: xác định loại project, kiểm tra input đủ chưa, trích requirements và business rule, và cho tôi bản nháp assessment với danh sách câu hỏi cần hỏi khách.",
+      "files": [
+        "evals/fixtures/minhphat-migration/sources/"
+      ],
+      "expected_output": "Intake with 3 axes, source request, sufficiency table, registers with locators, rationalization draft, ≤5 blocking questions, no fabricated inventory or Lakebridge output.",
+      "assertions": [
+        "Classifies the project as migration/modernization AND identifies the REAL driver as the SQL Server license ending Dec 2026 (not 'modernization'), with performance/nightly window as secondary",
+        "States the Axis C decision explicitly: CTO decides wave-1 scope and budget by 2026-10-15 (from kickoff notes slide 5)",
+        "Records input levels per source: L2/L3 for MP_DWH (code + Query Store + job exports), and notes SAP PO and POS source system are L0 (no export) — does not treat them as known",
+        "Does NOT claim 340 tables / 87 procedures / 23 SSIS as inventory facts; notes the fixture contains 15 DDL, 6 procs, 1 SSIS, 1 SSRS and that slide 9's counts are unverified",
+        "Does NOT fabricate Lakebridge Analyzer output or complexity tiers; states the Analyzer was not run and recommends running it (`databricks labs lakebridge analyze`)",
+        "Extracts the HCM-99 exclusion, status<>9 exclusion, and 7-day return window from sp_Calc_Daily_Revenue with code locators, and marks them CODE-ONLY or CONFLICT against spec 2016 §4.1 (which says returns are subtracted on processing day)",
+        "Identifies the MIN_TXN_AMOUNT conflict: spec §4.2 says 5,000; code reads CFG_PARAM; dump shows 10,000 changed 2021 by nguyen.t — marked CONFLICT and CONFIG-ONLY, with an open question, NOT resolved unilaterally",
+        "Flags the INNER JOIN to DIM_STORE in sp_Calc_Daily_Revenue as silent data loss (finding), and notes the SSIS Lookup Store IgnoreFailure inconsistency",
+        "Identifies TEST-01 exclusion (spec §4.3) as DOC-ONLY / not in code, and that the SSRS report applies region<>'TEST' filter and net_amt_adj zeroing (<5 txns) as report-level business rules",
+        "Identifies Loyalty points (spec §6) as DOC-ONLY: RPT_LOYALTY_POINTS has 0 rows, 0 reads, 0 report executions, DBA confirms never built",
+        "Does NOT call FACT_YEAREND_INVENTORY orphan: recognises JOB_YEAREND yearly schedule (freq_type 32), 6 reads, last 2026-01-05, and DBA statement at 00:38:20",
+        "Does NOT call TMP_REV_2019_BACKUP orphan despite its name: recognises JOB_MONTHEND_CLOSE writes it monthly and it has 12 reads / last read 2026-09-01",
+        "Identifies ARCH_POS_TXN_2015 and OLD_CUSTOMER_IMPORT as retire candidates with usage evidence (0 reads in 396-day Query Store window), and sp_Archive_Txn_2015 as DEAD/unscheduled — while stating that retire requires owner confirmation",
+        "Flags sp_Rebuild_Customer_Segment as critical-path / modernize: TRUNCATE + cursor full rebuild ~4h (step 4 in job history) for ~50k daily changes; and notes the CONFLICT that spec §5 says monthly while the job runs daily",
+        "Notes segment thresholds are hard-coded (10/1) while CFG_PARAM has SEGMENT_VIP_THRESHOLD=10 that the proc does not read (config not wired) — as a finding or question",
+        "Captures sp_Load_POS_Txn rules: linked server [POSSRV01] dependency, DATEADD(hour,7) timezone conversion, UPPER/TRIM on store_cd",
+        "Flags sp_Apply_Promo mutating STG_POS_TXN.amount in place before revenue calc (contradicting its own comment) and the Excel-based promo upload as shadow ETL / finding",
+        "Security findings: hard-coded svc_etl password in pkg_pos_load.dtsx (ProtectionLevel 0), single shared account for all jobs, CCCD/phone in clear text readable by all logins — and maps them to SEC- requirements",
+        "Identifies external consumers from the interview: Finance Excel via ODBC on FACT_DAILY_REVENUE with manual adjustments, and a vendor pulling STG_SAP_PO nightly",
+        "Uses the 396-day Query Store window (covers month/quarter/year-end) for usage conclusions and notes that dm_exec stats would only cover since the 2026-09-01 restart",
+        "Does NOT turn 'real-time dashboard' (slide 7) into a latency NFR; instead raises a question about what action needs sub-15-minute data; and records the 08:00 (spec) vs 07:00 (Finance now) freshness CONFLICT",
+        "Every business rule / requirement / finding presented carries a locator (file:line, §section, or transcript timestamp); no numbers without a source",
+        "Open questions name a person or role (e.g. Head of Accounting, Finance, Anh Tuấn/DBA), include a default and impact, and the user is given at most 3–5 blocking questions in the main response",
+        "Produces the register files (requirements.jsonl / business_rules.jsonl / findings.jsonl / open_questions.jsonl, or clearly equivalent structured output) plus a sufficiency table showing what cannot be concluded (e.g. POS data quality without source access, effort without Lakebridge trial)",
+        "Does not invent Unity Catalog / Databricks object names as if they exist; any target names are explicit placeholders like <catalog>.silver.transactions"
+      ]
+    }
+  ]
+}

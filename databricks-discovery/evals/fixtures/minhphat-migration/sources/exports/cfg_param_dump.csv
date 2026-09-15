@@ -1,0 +1,4 @@
+param_key,param_val,updated_by,updated_at
+MIN_TXN_AMOUNT,10000,nguyen.t,2021-06-30
+REPORT_TZ,UTC+7,svc_etl,2016-03-11
+SEGMENT_VIP_THRESHOLD,10,le.h,2019-11-02

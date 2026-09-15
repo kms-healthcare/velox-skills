@@ -1,0 +1,16 @@
+table_name,read_count_396d,last_read_at,distinct_readers,window_start,window_end,note
+dbo.STG_POS_TXN,39000,2026-09-12,8,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.STG_POS_RETURN,12000,2026-09-12,3,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.DIM_STORE,41000,2026-09-12,5,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.DIM_CUSTOMER,9000,2026-09-12,5,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.DIM_PRODUCT,8000,2026-09-12,5,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.FACT_DAILY_REVENUE,18400,2026-09-12,3,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.FACT_CUSTOMER_SEGMENT,2100,2026-09-12,2,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.CFG_PARAM,400,2026-09-12,2,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.STG_SAP_PO,3000,2026-09-12,3,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.STG_PROMO_UPLOAD,380,2026-09-12,6,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.FACT_YEAREND_INVENTORY,6,2026-01-05,1,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.RPT_LOYALTY_POINTS,0,,1,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.TMP_REV_2019_BACKUP,12,2026-09-01,1,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.OLD_CUSTOMER_IMPORT,0,,1,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01
+dbo.ARCH_POS_TXN_2015,0,,1,2025-08-12,2026-09-12,Query Store enabled 2025-08-12; sqlserver_start_time 2026-09-01

@@ -1,0 +1,14 @@
+{
+  "name": "velox-skills",
+  "owner": {
+    "name": "Hieu Le",
+    "email": "hieunle@kms-technology.com"
+  },
+  "plugins": [
+    {
+      "name": "databricks-discovery",
+      "source": "./databricks-discovery",
+      "description": "Discovery & assessment cho data project trên Databricks — intake theo loại project, trích requirements/business rule có evidence, ma trận rationalization, assessment report."
+    }
+  ]
+}

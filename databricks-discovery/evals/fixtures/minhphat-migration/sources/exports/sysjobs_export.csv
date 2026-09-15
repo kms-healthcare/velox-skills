@@ -1,0 +1,8 @@
+job_name,step_id,step_name,command,schedule,freq_type,owner
+JOB_NIGHTLY_DWH,1,Load POS,EXEC dbo.sp_Load_POS_Txn @load_dt,daily 01:00,4,svc_etl
+JOB_NIGHTLY_DWH,2,Run pkg_pos_load,/FILE pkg_pos_load.dtsx,daily 01:00,4,svc_etl
+JOB_NIGHTLY_DWH,3,Load SAP PO,EXEC dbo.sp_Load_SAP_PO,daily 01:00,4,svc_etl
+JOB_NIGHTLY_DWH,4,Rebuild segments,EXEC dbo.sp_Rebuild_Customer_Segment,daily 01:00,4,svc_etl
+JOB_NIGHTLY_DWH,5,Refresh SSRS cache,"EXEC ReportServer.dbo.AddEvent @EventType='TimedSubscription', @EventData='...'",daily 01:00,4,svc_etl
+JOB_YEAREND,1,Inventory valuation,EXEC dbo.sp_Yearend_Inventory_Valuation @fy,yearly Jan-2 03:00,32,svc_etl
+JOB_MONTHEND_CLOSE,1,Month close snapshot,"INSERT INTO dbo.TMP_REV_2019_BACKUP SELECT rev_dt, store_cd, net_amt FROM dbo.FACT_DAILY_REVENUE WHERE MONTH(rev_dt)=MONTH(DATEADD(month,-1,GETDATE()))",monthly day-1 04:00,16,svc_etl

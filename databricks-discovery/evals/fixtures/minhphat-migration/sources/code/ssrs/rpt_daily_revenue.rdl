@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<Report xmlns="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition">
+  <DataSets><DataSet Name="Rev"><Query><CommandText>
+    SELECT r.rev_dt, r.store_cd, s.region_cd, r.net_amt, r.txn_cnt
+    FROM dbo.FACT_DAILY_REVENUE r JOIN dbo.DIM_STORE s ON s.store_cd = r.store_cd
+    WHERE r.rev_dt BETWEEN @From AND @To
+  </CommandText></Query>
+  <Filters><Filter><FilterExpression>=Fields!region_cd.Value</FilterExpression><Operator>NotEqual</Operator><FilterValues><FilterValue>TEST</FilterValue></FilterValues></Filter></Filters>
+  <Fields><Field Name="net_amt_adj"><Value>=IIF(Fields!txn_cnt.Value &lt; 5, 0, Fields!net_amt.Value)</Value></Field></Fields>
+  </DataSet></DataSets>
+</Report>

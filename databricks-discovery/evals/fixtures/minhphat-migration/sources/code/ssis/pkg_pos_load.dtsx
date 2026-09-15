@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts" DTS:ObjectName="pkg_pos_load" DTS:ProtectionLevel="0" DTS:CreationDate="2016-03-11">
+  <DTS:ConnectionManagers>
+    <DTS:ConnectionManager DTS:ObjectName="POS_FILES" DTS:CreationName="FILE"><DTS:ObjectData><DTS:ConnectionManager DTS:ConnectionString="\\fs01\pos_drop\" /></DTS:ObjectData></DTS:ConnectionManager>
+    <DTS:ConnectionManager DTS:ObjectName="MP_DWH" DTS:CreationName="OLEDB"><DTS:ObjectData><DTS:ConnectionManager DTS:ConnectionString="Data Source=DWHSRV01;Initial Catalog=MP_DWH;User ID=svc_etl;Password=Etl@2016!;Provider=SQLNCLI11" /></DTS:ObjectData></DTS:ConnectionManager>
+  </DTS:ConnectionManagers>
+  <DTS:Variables>
+    <DTS:Variable DTS:ObjectName="LoadDate" DTS:Expression="DATEADD(\"dd\", -1, GETDATE())" />
+    <DTS:Variable DTS:ObjectName="MaxRejectPct" DTS:Namespace="User"><DTS:VariableValue>2</DTS:VariableValue></DTS:Variable>
+  </DTS:Variables>
+  <DTS:Executables>
+    <DTS:Executable DTS:ObjectName="EST Load Txn" DTS:CreationName="Microsoft.ExecuteSQLTask">
+      <DTS:ObjectData><SQLTask:SqlTaskData SQLTask:SqlStatementSource="EXEC dbo.sp_Load_POS_Txn ?" /></DTS:ObjectData>
+    </DTS:Executable>
+    <DTS:Executable DTS:ObjectName="DFT Returns" DTS:CreationName="Microsoft.Pipeline">
+      <component name="Derived Column 1"><outputColumns><outputColumn name="reason_cd" expression="ISNULL([reason_raw]) ? \"UNK\" : UPPER([reason_raw])" /></outputColumns></component>
+      <component name="Conditional Split 1"><outputs><output name="Reject" expression="[amount] &lt;= 0 || [return_dt] &lt; [txn_dt]" /></outputs></component>
+      <component name="Lookup Store" NoMatchBehavior="IgnoreFailure" />
+    </DTS:Executable>
+    <DTS:Executable DTS:ObjectName="EST Calc Revenue" DTS:CreationName="Microsoft.ExecuteSQLTask">
+      <DTS:ObjectData><SQLTask:SqlTaskData SQLTask:SqlStatementSource="EXEC dbo.sp_Apply_Promo ?; EXEC dbo.sp_Calc_Daily_Revenue ?" /></DTS:ObjectData>
+    </DTS:Executable>
+  </DTS:Executables>
+  <DTS:PrecedenceConstraints>
+    <DTS:PrecedenceConstraint DTS:From="EST Load Txn" DTS:To="DFT Returns" />
+    <DTS:PrecedenceConstraint DTS:From="DFT Returns" DTS:To="EST Calc Revenue" />
+  </DTS:PrecedenceConstraints>
+</DTS:Executable>
