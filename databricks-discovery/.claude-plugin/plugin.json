@@ -1,5 +1,5 @@
 {
   "name": "databricks-discovery",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Skill pack bao trọn giai đoạn discovery & assessment của data project trên Databricks: intake theo loại project, yêu cầu source, trích requirements và business rule có evidence, tổng hợp thành ma trận rationalization và assessment report."
 }
