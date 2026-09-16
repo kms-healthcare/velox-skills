@@ -1,5 +1,5 @@
 {
   "name": "databricks-discovery",
-  "version": "0.2.0",
-  "description": "Skill pack covering the discovery & assessment phase of a data project on Databricks: intake by project type, the source request, evidence-backed requirements and business rules, a rationalization matrix, and a generated assessment report."
+  "version": "0.3.0",
+  "description": "Skill pack covering the discovery & assessment phase of a data project on Databricks: intake by project type, the source request, evidence-backed requirements and business rules, a rationalization matrix, success criteria, and a generated client-facing assessment report written in business language with a glossary."
 }

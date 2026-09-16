@@ -1,19 +1,16 @@
 ---
 name: legacy-etl-archaeology
 description: >
-  Recover the business rules, dependencies, and inventory hidden in legacy data-warehouse and ETL
-  code before migrating it to Databricks — T-SQL / PL/SQL / Teradata stored procedures, views,
-  SSIS packages, Informatica and DataStage exports, SQL Agent and Control-M job definitions, SSRS
-  and Cognos report logic. Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY /
-  CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory records with real usage, all with
-  code locators. Use when the user has legacy DW/ETL code and asks to "understand what these stored
-  procedures do", "find the business rules", "what is not in the spec", "map dependencies", "which
-  tables are orphan", "prepare for Lakebridge", or "the DBA is leaving and nobody knows this
-  system". Works alongside Lakebridge Analyzer (inventory/complexity) and the legacy-spec-extraction
-  skill (rule-register method) — it does not convert code and does not replace either.
-compatibility: Runs outside Databricks. Filesystem; Python 3.9+ optional. Uses legacy-spec-extraction's method and scripts when installed.
+  Use when legacy data-warehouse or ETL code has to be understood before it moves to Databricks —
+  T-SQL, PL/SQL or Teradata stored procedures and views, SSIS packages, Informatica or DataStage
+  exports, SQL Agent or Control-M job definitions, SSRS or Cognos report logic. Triggers:
+  "understand what these stored procedures do", "read this SSIS package", "find the business
+  rules", "what is not in the spec", "map dependencies", "which tables are orphan", "prepare for
+  Lakebridge", "the DBA is leaving and nobody knows this system". Not for converting code
+  (Lakebridge Transpiler) or designing the target platform (assessment-synthesis).
+compatibility: Runs outside Databricks. Filesystem; Python 3.9+ optional. Uses legacy-spec-extraction's scripts when installed.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 parent: discovery-intake
 ---
 
@@ -29,6 +26,15 @@ If `legacy-spec-extraction` is installed, read its `SKILL.md` and `references/ru
 first and use `scripts/anchor_hash.py`. Schemas and record budget:
 `../discovery-intake/references/run-layout.md`. Rules 1–3 of `discovery-intake` apply.
 
+## The Iron Law
+
+```
+CODE FIRST, DOCUMENTS SECOND — NEVER IN THE SAME PASS
+```
+
+**Violating the letter of this rule is violating the spirit of this rule.** "Just the glossary" is
+fine. "Just a quick look at the spec to name this rule" is the violation.
+
 ## The rule that matters most: code first, documents second
 
 **Never read documentation and code in the same pass.** With both in context the model uses the
@@ -40,6 +46,30 @@ or data dictionary may be loaded first — names, not behaviour.
 `CONFLICT` and `CODE-ONLY` are the highest-value output of the whole assessment. `sp_Calc_Daily_Revenue`
 excludes `store_cd = 'HCM-99'`; the spec never mentions it; Lakebridge will transpile the predicate
 faithfully and nobody will ask why. This skill exists so that someone asks.
+## Red Flags — stop and start the pass again
+
+- The spec, the requirements register, or a wiki page is in context while you are reading code
+- A rule marked `VERIFIED` when you never actually diffed it against a document
+- `orphan: true` from a window under 90 days, or one that misses month-end and quarter-end
+- An `anchor` that is a line number and nothing else
+- A complexity tier you judged by eye, recorded without `complexity_source: "manual"`
+- You resolved a `CONFLICT` yourself because one side was obviously right
+- A credential, a secret, or unexpected PII found and parked for the end-of-run summary
+
+**Every one of these means: the finding is contaminated, or someone is not being told in time.**
+
+## Rationalizations
+
+| Excuse | Reality |
+|---|---|
+| "Loading the spec alongside helps me name the rules correctly" | It does. It also smooths over every place the code drifted from the spec — and that drift is the entire output of this skill. |
+| "That `INNER JOIN` is just SQL, not a business rule" | It silently drops facts with no matching dimension row. Somebody decided that. Nobody wrote it down. Rule **and** finding. |
+| "Nothing read it in 90 days — mark it orphan" | A year-end report is invisible in a 90-day window. Below the bar it is `orphan: null` plus a question, never `true`. |
+| "Line numbers are a fine anchor, the file is stable" | They break silently on the first reformat, and the register then points at the wrong statement. Identifier + content hash. |
+| "The Analyzer wasn't run — I'll call these medium and move on" | A manual tier is triage. It carries `complexity_source: "manual"` and `review.md` says the Analyzer was not run. |
+| "The spec is clearly wrong here, I'll mark it CODE-ONLY not CONFLICT" | Deciding which side is right is the domain owner's job. That decision is the value; do not spend it. |
+| "Found a password in the package — I'll put it in review.md" | Interrupt the batch now. Holding a live credential until the end of a run is negligence. |
+| "87 procedures — I'll start at A and work through" | Start on the critical path and behind the most-used reports. The budget may run out before Z. |
 
 ## Inputs
 
@@ -99,6 +129,24 @@ PII in clear text, cursors on large tables, timezone-naive timestamps, linked-se
 invocations of the same load. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless `CONFIG-ONLY`,
 and `orphan: null` → an open question with a named role and a default; top 3–5 to the user.
 
+## Working in a chat — checkpoints and interrupts
+
+`../discovery-intake/references/interaction-protocol.md` binds here too. Reading a large estate is
+the case it was written for: **state the batch plan in one line before starting** (order, batch
+size, what each batch returns), then deliver batch by batch — a partial register a human can merge
+beats a complete one that arrives after the budget is gone.
+
+**Interrupt the batch immediately** for a credential or secret in the code, PII where nobody
+expected it, or evidence that the decision date cannot be met. These are the three things it would
+be negligent to hold until the end of a run, and this code is where they surface.
+
+**Checkpoint at the end of a batch** when a source is not what it was labelled, when an assumption
+would change the reading of everything already done, or when the record budget is close.
+
+Extracting from a live system — a query-log export, a scanner run, reading configuration table
+contents — is a gate: ask first, record the grant in `manifest.json` `approvals[]`. Ask for the
+client's own export before asking to connect.
+
 ## Calibrate, then output
 
 Before 87 procedures, do one well-documented unit, diff, have the client's expert correct it;
@@ -110,7 +158,8 @@ reconciliation check.
 
 ## References
 
-`../discovery-intake/references/run-layout.md` (required) · `references/dw-artifact-guide.md` —
+`../discovery-intake/references/run-layout.md` (required) ·
+`../discovery-intake/references/interaction-protocol.md` (required) · `references/dw-artifact-guide.md` —
 where rules hide in T-SQL / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export
 queries, the month-end trap · `legacy-spec-extraction` (if installed): `rule-register.md`,
 `extraction.md`, `tests.md`, `anchor_hash.py`.
