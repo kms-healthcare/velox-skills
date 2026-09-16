@@ -8,7 +8,7 @@
     {
       "name": "databricks-discovery",
       "source": "./databricks-discovery",
-      "description": "Discovery & assessment cho data project trên Databricks — intake theo loại project, trích requirements/business rule có evidence, ma trận rationalization, assessment report."
+      "description": "Discovery & assessment for data projects on Databricks — intake by project type, evidence-backed requirements and business rules, a rationalization matrix, and an assessment report."
     }
   ]
 }
