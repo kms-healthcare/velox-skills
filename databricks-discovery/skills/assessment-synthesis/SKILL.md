@@ -26,7 +26,8 @@ sixty that describe the current state.
 
 **Nothing is hand-written except four author sections.** The workbook and the report are generated
 by `scripts/build_deliverables.py` from `registers/`; you write `author-sections.md` with
-`## decision`, `## architecture`, `## drivers`, `## risks`, and pass it in. A statement with no
+`## decision` (≤ 400 words), `## architecture` (≤ 500), `## drivers` (≤ 300), `## risks` (≤ 400),
+and pass it in — the generator warns when a section runs over. A statement with no
 record behind it is either given a record (with a locator) or deleted. Schemas:
 `../discovery-intake/references/run-layout.md`.
 

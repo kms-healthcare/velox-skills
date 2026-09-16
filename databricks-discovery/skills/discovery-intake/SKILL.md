@@ -54,6 +54,12 @@ Read `references/run-layout.md` once; load **one** project-type module; do not c
 generator's — and write only the four author sections. Last iteration spent a quarter of its output
 on a second hand-written report and 32 file copies. None of it improved the assessment.
 
+**The reply itself is not a deliverable.** The user is about to open the report and the workbook;
+summarising them in chat writes the same content a third time. Keep the turn under ~300 words:
+what you concluded, what you wrote (paths), the ≤ 5 blocking questions, and what you deliberately
+did not conclude. Findings, rule tables and inventory belong in the registers, where they carry a
+locator and can be merged — in chat they are read once and lost.
+
 ---
 
 ## Step 1 — Three-axis intake → `intake.md`

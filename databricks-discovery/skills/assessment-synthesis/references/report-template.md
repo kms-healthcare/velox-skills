@@ -15,7 +15,7 @@
 | 8 Target architecture | `## architecture` + Mermaid from `dependency_edges` | placeholders stay visible |
 | 9 Waves, pilot, drivers | `rationalization.wave`, `inventory.complexity(_source)`, `## drivers` | |
 | 10 Risks and cost flags | `## risks` | |
-| 11 Open questions by person | `open_questions` grouped by `ask` | |
+| 11 Open questions by person | `open_questions` grouped by `ask` | routing list only — id + first clause; high-impact ones point at §2 rather than repeating it |
 | App. C Sufficiency | `sufficiency.md` verbatim | |
 | App. D Sources | `runs/*/manifest.json`; count of records still `extracted` | |
 

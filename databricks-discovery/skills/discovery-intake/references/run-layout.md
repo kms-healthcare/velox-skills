@@ -39,6 +39,8 @@ move (email bodies, chat exports) get a copy under `sources/`.
 | `findings.detail`, `requirements.statement` | ≤ 300 chars | If it needs more, it is two records |
 | `open_questions` sent to the user per turn | ≤ 5 | The rest stay in the register |
 | Reports | **one**, generated; author fills `## decision`, `## architecture`, `## drivers`, `## risks` in an `author-sections.md` passed to the generator | Writing a second report by hand doubled the output last time and added nothing |
+| Author sections | `decision` ≤ 400 · `architecture` ≤ 500 · `drivers` ≤ 300 · `risks` ≤ 400 words (the generator warns past these) | Uncapped, they grew to 1,900 words and pushed the report past twelve pages. Prose past the budget is description; a decision is short |
+| The chat reply | ≤ ~300 words: conclusion · files written · ≤ 5 questions · what you did not conclude | The report and workbook are the deliverables. Restating them in chat is a third copy that carries no locator |
 
 ## Three fields every register carries
 

@@ -27,6 +27,10 @@ except ImportError:  # pragma: no cover
 REVIEWED = {"reviewed", "confirmed", "deferred"}
 SEV = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 DISPOSITIONS = ["migrate", "modernize", "retire", "defer"]
+# Word budgets for the four hand-written sections. The registers cap excerpts and details; without
+# a cap here the prose grew to ~1,900 words and pushed the report past the twelve pages the skill
+# argues for. Over budget is a warning, not an error — the author decides.
+AUTHOR_CAPS = {"decision": 400, "architecture": 500, "drivers": 300, "risks": 400}
 
 
 # ---------- loading ----------
@@ -72,6 +76,17 @@ def locs(rec):
     if not ls and rec.get("source", {}).get("locator"):
         ls = [rec["source"]["locator"]]
     return "; ".join(ls) if ls else "NO LOCATOR"
+
+
+def stem(text, limit=90):
+    """First clause of a question, for routing lists where the full text lives elsewhere.
+    Multi-part questions ('X? And who owns it?') cut at the first sentence end."""
+    t = " ".join(str(text or "").split())
+    for mark in ("? ", "; "):
+        i = t.find(mark)
+        if 0 < i <= limit:
+            return t[: i + 1]
+    return t if len(t) <= limit else t[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
 def md_text(p: Path):
@@ -234,6 +249,13 @@ def build_md(regs, root, axis_c, suff_bad, author):
 
     md += ["\n## 3. Scope — rationalization summary\n\n"]
     if rat:
+        # Scope is the decision this report exists to settle, so it leads with how much of it is
+        # actually settled. An undecided share is a number the reader can act on; a table is not.
+        dec = sum(1 for r in rat if r.get("disposition") in DISPOSITIONS and r.get("disposition") != "defer")
+        und = len(rat) - dec
+        blocked = sum(1 for r in rat if r.get("blocking"))
+        md += [f"**{dec} of {len(rat)} objects decided ({dec * 100 // max(len(rat), 1)}%). "
+               f"{und} undecided or deferred; {blocked} blocked on an open question.**\n\n"]
         by = defaultdict(Counter)
         for r in rat:
             by[r.get("kind", "?")][r.get("disposition") or "undecided"] += 1
@@ -272,7 +294,9 @@ def build_md(regs, root, axis_c, suff_bad, author):
     md += [f"| {t} | " + " | ".join(str(c.get((t, s), 0)) for s in ("reviewed", "confirmed", "deferred", "extracted")) + " |\n"
            for t in ("functional", "data", "security", "nonfunctional", "scope", "integration")]
     inf = [r for r in req if r.get("inferred")]
-    md += [f"\nInferred, awaiting confirmation: {len(inf)}\n"] + [f"- {r.get('id')} {r.get('title')} → {', '.join(r.get('open_questions', []))}\n" for r in inf[:10]]
+    conf = [r for r in req if r.get("conflicts")]
+    md += [f"\n{len(req)} requirements · {len(inf)} inferred, awaiting confirmation · {len(conf)} carry a source conflict.\n"]
+    md += [f"- {r.get('id')} {r.get('title')} → {', '.join(r.get('open_questions', []))}\n" for r in inf[:10]]
 
     md += ["\n## 8. Target architecture outline\n\n", A("architecture")]
     if edges:
@@ -290,13 +314,22 @@ def build_md(regs, root, axis_c, suff_bad, author):
 
     md += ["\n## 10. Risks and cost flags\n\n", A("risks")]
 
-    md += ["\n## 11. Open questions by person\n"]
+    # Section 2 already prints the high-impact questions in full. Repeating them here doubled the
+    # longest section of the report, so this is a routing list: who to ask, what about, where the
+    # full text lives (§2, or the workbook tab *Open Questions*, which carries the email draft).
+    md += ["\n## 11. Open questions by person\n\nRouting list. Full text: §2 for high-impact, workbook tab *Open Questions* for all.\n"]
+    hi_ids = {q.get("id") for q in hi}
     byp = defaultdict(list)
     for q in oq:
         if q.get("status", "open") == "open":
             byp[q.get("ask") or "unassigned"].append(q)
     for p, qs in sorted(byp.items()):
-        md += [f"\n**{p}**\n"] + [f"- {q.get('id')}: {q.get('question')} [{locs(q)}]\n" for q in qs]
+        md += [f"\n**{p}** — {len(qs)}\n"]
+        for q in qs:
+            if q.get("id") in hi_ids:
+                md += [f"- {q.get('id')}: {stem(q.get('question'))} — full text §2\n"]
+            else:
+                md += [f"- {q.get('id')}: {stem(q.get('question'))} [{locs(q)}]\n"]
 
     md += ["\n## Appendix C — Evidence sufficiency\n\n", md_text(root / "sufficiency.md") or "_missing_\n"]
     pend = sum(1 for f in (root / "runs").glob("*/*.jsonl") for r in read_jsonl(f) if r.get("status") == "extracted") if (root / "runs").exists() else 0
@@ -319,6 +352,12 @@ def parse_author_sections(p: Path):
             buf.append(l)
     if key:
         out[key] = "\n".join(buf).strip() + "\n"
+    for k, cap in AUTHOR_CAPS.items():
+        n = len(out.get(k, "").split())
+        if n > cap:
+            print(f"warning: author section '{k}' is {n} words, over the {cap}-word budget. "
+                  f"Prose past the budget is usually description, not decision — cut it or move it "
+                  f"into a record with a locator.", file=sys.stderr)
     return out
 
 
