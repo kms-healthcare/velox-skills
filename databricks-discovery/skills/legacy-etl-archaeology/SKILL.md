@@ -1,20 +1,10 @@
 ---
 name: legacy-etl-archaeology
-description: >
-  Recover the business rules, dependencies, and inventory hidden in legacy data-warehouse and ETL
-  code before migrating it to Databricks — T-SQL / PL/SQL / Teradata stored procedures, views,
-  SSIS packages, Informatica and DataStage exports, SQL Agent and Control-M job definitions, SSRS
-  and Cognos report logic. Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY /
-  CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory records with real usage, all with
-  code locators. Use when the user has legacy DW/ETL code and asks to "understand what these stored
-  procedures do", "find the business rules", "what is not in the spec", "map dependencies", "which
-  tables are orphan", "prepare for Lakebridge", or "the DBA is leaving and nobody knows this
-  system". Works alongside Lakebridge Analyzer (inventory/complexity) and the legacy-spec-extraction
-  skill (rule-register method) — it does not convert code and does not replace either.
-compatibility: Runs outside Databricks. Filesystem; Python 3.9+ optional. Uses legacy-spec-extraction's method and scripts when installed.
+description: "Recover business rules, dependencies, and inventory from legacy DW/ETL code before migrating it to Databricks - T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic. Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 metadata:
   version: "0.2.0"
-parent: discovery-intake
+  parent: discovery-intake
+  compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Uses legacy-spec-extraction's method and scripts when installed."
 ---
 
 # Legacy ETL archaeology — what the code does, and what nobody wrote down

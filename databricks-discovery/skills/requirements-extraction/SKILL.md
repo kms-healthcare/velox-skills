@@ -1,21 +1,10 @@
 ---
 name: requirements-extraction
-description: >
-  Turn raw project inputs — specs, decks, meeting minutes, interview transcripts, tickets, emails,
-  RFPs, data dictionaries — into a traceable requirements register for a Databricks data project:
-  every requirement with type, source locator, stated-vs-inferred label, confidence, conflicts
-  between sources, and the open questions it raises. Use after discovery-intake has classified the
-  project, whenever the user has documents to read for a data / lakehouse / migration / analytics
-  project and asks to "extract requirements", "what does this spec actually ask for", "build the
-  requirements register", "find what the documents contradict", "turn these interview notes into
-  requirements", or hands over a folder of client documents. Also use when a Databricks project
-  brief needs to be decomposed into functional, data, security, non-functional, scope and
-  integration requirements. Not for reading source code (use legacy-etl-archaeology) and not for
-  writing the final report (use assessment-synthesis).
-compatibility: Runs outside Databricks. Filesystem only.
+description: "Turn project documents - specs, decks, minutes, interview transcripts, tickets, RFPs, data dictionaries - into a traceable requirements register for a Databricks data project: each requirement with type, source locator, stated-vs-inferred label, confidence, cross-source conflicts, and the open questions it raises. Use after discovery-intake, when the user has documents to read and asks to extract requirements, build the requirements register, or find what the sources contradict. Not for reading source code (use legacy-etl-archaeology) or writing the report (use assessment-synthesis)."
 metadata:
   version: "0.2.0"
-parent: discovery-intake
+  parent: discovery-intake
+  compatibility: "Runs outside Databricks. Filesystem only."
 ---
 
 # Requirements extraction — documents in, register out

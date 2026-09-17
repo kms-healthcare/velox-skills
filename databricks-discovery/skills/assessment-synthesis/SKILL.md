@@ -1,21 +1,10 @@
 ---
 name: assessment-synthesis
-description: >
-  Turn the discovery registers of a Databricks data project — requirements, business rules,
-  inventory with usage, dependencies, findings, open questions — into decisions: a rationalization
-  matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture
-  outline, risks, and the client deliverables generated from the registers — an Excel workbook, an
-  assessment report in Markdown and .docx — with an evidence-sufficiency appendix. Use when the user
-  asks to "write the assessment report", "what do we migrate and what do we retire", "estimate the
-  migration", "build the roadmap / waves", "summarise discovery for the steering committee",
-  "prioritise the backlog from discovery", "give me the Excel for the client", or when
-  discovery-intake's sufficiency gate says the registers are ready. Also use to turn SAT output and
-  system-table analysis into client-facing requirements and risks. Not for extracting requirements
-  or reading code — those registers must already exist.
-compatibility: Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx.
+description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 metadata:
   version: "0.2.0"
-parent: discovery-intake
+  parent: discovery-intake
+  compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 ---
 
 # Assessment synthesis — from registers to decisions

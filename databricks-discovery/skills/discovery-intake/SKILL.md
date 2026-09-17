@@ -1,23 +1,10 @@
 ---
 name: discovery-intake
-description: >
-  Mandatory entry point for the discovery & assessment phase of a data project on Databricks.
-  Identifies the project type from the real driver, inventories what inputs exist, pins down the
-  decision the assessment must serve, then produces the source request list, an evidence-sufficiency
-  gate, and confirmation questions before handing off to requirements extraction, legacy code
-  archaeology, or report synthesis. Use this skill as soon as a user starts a new data or Databricks
-  project, or mentions discovery, assessment, current-state review, evaluating a legacy system,
-  migrating a data warehouse / SSIS / Informatica / Teradata / SQL Server to Databricks, consolidating
-  workspaces, rising Databricks cost, building a new lakehouse, streaming, ML platform, Delta Sharing,
-  or hands over a pile of client documents / stored procedures / DDL and asks "where do I start",
-  "what should I ask the client", "how do I estimate this", "write the assessment report". Trigger
-  even when the words discovery or assessment are absent — "client wants to move to Databricks",
-  "boss asked me to evaluate system X", "we have 300 stored procs to understand" all belong here.
-  Do not use for writing pipelines, deploying bundles, tuning queries, or operating a workspace.
-compatibility: Runs outside Databricks (Claude Code or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx.
+description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
 metadata:
   version: "0.2.0"
   audience: engineers who also own requirements on data projects
+  compatibility: "Runs outside Databricks (Claude Code or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 ---
 
 # Discovery intake — the entry point for every assessment
