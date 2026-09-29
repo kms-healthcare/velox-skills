@@ -1,10 +1,10 @@
 ---
 name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
+compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
   version: "0.2.0"
   parent: discovery-intake
-  compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 ---
 
 # Assessment synthesis — from registers to decisions
@@ -76,9 +76,16 @@ module with the breaker question and the client's answer.
 ## 6. Generate
 
 ```
-python3 scripts/build_deliverables.py discovery/<project> --author-sections author-sections.md
+python3 scripts/build_deliverables.py discovery/<project> --author-sections author-sections.md \
+  --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
+
+`--built-with` names what the assessment was built on, under the report title, so a reader weeks
+later can tell which skills shaped it. Fill it from what you know, and leave out what you do not:
+this pack's version is in its `plugin.json`; where the skills catalog names the Databricks agent
+skills and CLI versions (Velox: "Databricks (official) v…", "Databricks CLI in use: v…"), use those;
+elsewhere `databricks --version` and `databricks aitools version` say. Never guess a version.
 
 Workbook tabs in reading order: Summary · Decisions · Rationalization · Findings · Business Rules ·
 Requirements · Inventory · Open Questions (grouped by person, with an email draft) · Traceability ·
@@ -86,6 +93,14 @@ Dependencies · Sufficiency · Sources. Report sections 1–4 (decision, decisio
 what evidence does not support) must fit five pages; if not, the assessment is describing, not
 deciding. Numbers carry locators; no adjective without a number; recommendations are imperative
 and owned ("Retire 112 tables — owner: DBA lead, confirm by 10-01").
+
+## Related skills
+
+`discovery-intake`, `requirements-extraction`, `legacy-etl-archaeology` (the registers this reads) ·
+Databricks' own skills for the architecture section, when listed — `databricks-unity-catalog`
+(topology, tags, masks), `databricks-metric-views` (measures), `databricks-pipelines` /
+`databricks-jobs` / `databricks-dabs` (ingestion, orchestration, deployment),
+`databricks-serverless-migration` (compute). Name the one you used.
 
 ## References
 
