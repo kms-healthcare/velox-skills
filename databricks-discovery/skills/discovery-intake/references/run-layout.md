@@ -7,7 +7,7 @@ the report, the docx — is **generated** from them by
 
 Records link by `id`. Prefixes: `FR-` functional, `DR-` data, `SEC-` security, `NFR-`
 non-functional, `SCOPE-`, `INT-` integration, `BR-` rule, `obj-` inventory, `FND-` finding,
-`OQ-` question, `src-` source.
+`OQ-` question, `src-` source, `RDY-` readiness.
 
 ## Layout
 
@@ -17,7 +17,7 @@ discovery/<project>/
 ├── registers/            # source of truth — only a human merges here
 │   ├── requirements.jsonl        business_rules.jsonl     inventory.jsonl
 │   ├── dependency_edges.jsonl    findings.jsonl           open_questions.jsonl
-│   └── rationalization.jsonl     (set by assessment-synthesis)
+│   └── rationalization.jsonl · readiness.jsonl   (set by assessment-synthesis)
 └── runs/<date>_run-NN/   # the agent writes here, never into registers/
     ├── manifest.json     # sources (path + sha256), external access, counts
     ├── *.jsonl           # new / changed records only, status = extracted
@@ -38,8 +38,8 @@ move (email bodies, chat exports) get a copy under `sources/`.
 | `evidence[]` per record | 1, or 2 when two sources agree; conflicts go in `conflicts[]` | A third quote adds cost, not certainty |
 | `findings.detail`, `requirements.statement` | ≤ 300 chars | If it needs more, it is two records |
 | `open_questions` sent to the user per turn | ≤ 5 | The rest stay in the register |
-| Reports | **one**, generated; author fills `## decision`, `## architecture`, `## drivers`, `## risks` in an `author-sections.md` passed to the generator | Writing a second report by hand doubled the output last time and added nothing |
-| Author sections | `decision` ≤ 400 · `architecture` ≤ 500 · `drivers` ≤ 300 · `risks` ≤ 400 words (the generator warns past these) | Uncapped, they grew to 1,900 words and pushed the report past twelve pages. Prose past the budget is description; a decision is short |
+| Reports | **one**, generated; author fills `## decision`, `## architecture`, `## roadmap`, `## drivers`, `## risks` in an `author-sections.md` passed to the generator | Writing a second report by hand doubled the output last time and added nothing |
+| Author sections | `decision` ≤ 400 · `architecture` ≤ 500 · `roadmap` ≤ 400 · `drivers` ≤ 300 · `risks` ≤ 400 words (the generator warns past these) | Uncapped, they grew to 1,900 words and pushed the report past twelve pages. Prose past the budget is description; a decision is short |
 | The chat reply | ≤ ~300 words: conclusion · files written · ≤ 5 questions · what you did not conclude | The report and workbook are the deliverables. Restating them in chat is a third copy that carries no locator |
 
 ## Three fields every register carries
@@ -84,6 +84,7 @@ evidence — disagreement is a finding, not proof).
  "last_read_at":"2026-09-09","last_write_at":"2026-09-13","orphan":false,
  "pii_candidates":[],"complexity":null,"complexity_source":null,"disposition":null,
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"status":"extracted"}
+// every record may carry owner (a person or role who answers for it) — the workload catalogue counts the ones without
 // pipelines add: schedule, avg_runtime_min, run_as, reads[], writes[] ; reports add: consumers[], exec_count_90d, last_exec_at
 // api_endpoint / ui_view add: reads[], fallback (what it serves when its source fails or is empty), consumers[]
 
@@ -107,10 +108,17 @@ evidence — disagreement is a finding, not proof).
  "impact_if_wrong":"high","blocking":["FR-01","BR-014"],"status":"open","answer":null}
 
 // rationalization.jsonl   disposition ∈ migrate|modernize|retire|defer ; set only by assessment-synthesis
-{"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,
+// target_component = what it becomes on the target (placeholders until agreed) — the report's component mapping
+{"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,"target_component":"<catalog>.bronze.pos_txn (Lakeflow Connect)",
  "criteria":{"used":true,"usage_window_days":396,"covers_month_end":true,"complexity":null,"complexity_source":null,
              "on_critical_path":false,"rule_status_max":"CODE-ONLY","owner_agreed":null},
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"blocking":[],"notes":null}
+
+// readiness.jsonl   dimension ∈ data|logic|governance|security|operations ; set only by assessment-synthesis
+// score 1–5 counts only with a locator; security counts only with basis sat|workspace ; unscored → score null + needs
+{"id":"RDY-security","dimension":"security","score":null,"basis":"code","needs":"a SAT run on the target workspace",
+ "rationale":"Shared service account and plaintext secrets found in code; posture itself not observed.",
+ "evidence":[{"source_id":"src-cfg","locator":"config/app.yml:12","kind":"stated"}],"status":"extracted"}
 
 // manifest.json   external_access lists every call beyond local files (endpoint, statement, rows) — empty = pure file read
 // executions[] lists every command the agent RAN against the project (command, cwd, data, exit, log) — the basis of `reproduced`
@@ -147,5 +155,5 @@ any usage comes from DMVs (`dm_exec_*` resets on restart).
 `rule_status` distribution · unsure (confidence < 0.6) · **what was run, and which findings stayed
 unreproduced and why** · **deliberately not concluded** · how to merge.
 
-**`author-sections.md`** (input to the generator) — four headings, prose only:
-`## decision` · `## architecture` · `## drivers` · `## risks`.
+**`author-sections.md`** (input to the generator) — five headings, prose only:
+`## decision` · `## architecture` · `## roadmap` · `## drivers` · `## risks`.

@@ -13,10 +13,12 @@ Done means: the person in Axis C can make the decision in Axis C and defend it w
 someone else can check. Not: every template section has text. Twelve pages that settle scope beat
 sixty that describe the current state.
 
-**Nothing is hand-written except four author sections.** The workbook and the report are generated
+**Nothing is hand-written except five author sections.** The workbook and the report are generated
 by `scripts/build_deliverables.py` from `registers/`; you write `author-sections.md` with
-`## decision` (≤ 400 words), `## architecture` (≤ 500), `## drivers` (≤ 300), `## risks` (≤ 400),
-and pass it in — the generator warns when a section runs over. A statement with no
+`## decision` (≤ 400 words — the executive summary's recommendation), `## architecture` (≤ 500),
+`## roadmap` (≤ 400), `## drivers` (≤ 300 — the cost estimate), `## risks` (≤ 400), and pass it in — the generator warns when a section runs over. Write for the client: name the
+object ("the nightly orders load"), never the record id (`obj-38`) — the generator replaces
+inventory ids with names anyway, and adds the table of contents. A statement with no
 record behind it is either given a record (with a locator) or deleted. Schemas:
 `../discovery-intake/references/run-layout.md`.
 
@@ -52,23 +54,35 @@ design decision that justifies it:
 | `redesign` | the target must be designed differently for it — the pilot or a wave carries the change | the design decision, and the wave |
 
 A finding with no disposition is not done. `carried` findings are what a "just migrate it" plan
-would ship; the report lists them before anything else in §5.
+would ship; the report lists them first — in the top 5 risks, the debt register and the risk register.
+
+## 1c. Readiness → `readiness.jsonl`
+
+One record per dimension — `data`, `logic`, `governance`, `security`, `operations` — with a 1–5
+`score`, the `basis` it came from, a one-line `rationale` and a locator. The generator enforces the
+rules (`references/report-template.md`): no locator, no score; overall is the lowest dimension;
+**Security is scored only from a SAT run or workspace evidence** — reading code finds gaps, it
+cannot see the posture. Leave `score` null and write `needs` rather than guessing: "not scored —
+needs a SAT run" is a finding the client can act on, a guessed 3 is not.
 
 ## 2. Waves and pilot
 
-Order by dependency depth, business criticality, rule certainty. The pilot is **a business-visible
+Order by dependency depth, business criticality, rule certainty. Give each object in scope its
+`target_component` in `rationalization.jsonl` — the component mapping in §10 is generated from it. The pilot is **a business-visible
 report of moderate complexity with a clean dependency cone** — the CFO's revenue report, not the
 easiest table. Each wave: objects, data prerequisites (access, CDC, conflicts settled),
 reconciliation baseline, exit criterion. Waves without prerequisites are fiction.
 
-## 3. Estimate drivers, not prices
+## 3. Estimate drivers, not prices (`## drivers`)
 
 Object counts by kind × complexity (Analyzer) · **trial transpile rate on 10–20 objects across
 tiers — run it during assessment; without it give a range and say so** · count of `CONFLICT` and
 high-impact `CODE-ONLY` (calendar time with owners, not effort) · critical-path re-architecture items
 · sources without CDC/watermark · `CONFIG-ONLY` migration · backfill depth × volume · missing
 reconciliation baselines · consumers to re-point. Each with confidence and evidence; a driver from
-L1 documents is labelled a guess.
+L1 documents is labelled a guess. The cost estimate is these drivers plus a **range** and the
+assumptions it rests on — the report labels it an estimate; the price is the delivery lead's.
+`## roadmap` orders the waves into phases, each with its exit criterion.
 
 ## 4. Target architecture outline (`## architecture`)
 
@@ -101,11 +115,16 @@ this pack's version is in its `plugin.json`; where the skills catalog names the 
 skills and CLI versions (Velox: "Databricks (official) v…", "Databricks CLI in use: v…"), use those;
 elsewhere `databricks --version` and `databricks aitools version` say. Never guess a version.
 
-Workbook tabs in reading order: Summary · Decisions · Rationalization · Findings · Business Rules ·
-Requirements · Inventory · Open Questions (grouped by person, with an email draft) · Traceability ·
-Dependencies · Sufficiency · Sources. Report sections 1–4 (decision, decisions required, scope,
-what evidence does not support) must fit five pages; if not, the assessment is describing, not
-deciding. Numbers carry locators; no adjective without a number; recommendations are imperative
+The report follows the delivery template — Part A Discovery (1 executive summary, 2 business
+context and target-state requirements, 3 data landscape, 4 workload catalogue, 5 dependencies and
+lineage), Part B Assessment (6 governance and PII, 7 security posture, 8 technical debt, 9
+complexity and scope, 10 target architecture and component mapping, 11 roadmap and cost estimate,
+12 risks, assumptions and open decisions), Appendix (evidence, best-practice references,
+stakeholder questionnaire). `references/report-template.md` maps each section to its register.
+Workbook tabs in reading order: Summary · Readiness · Decisions · Rationalization · Findings ·
+Business Rules · Requirements · Inventory · Open Questions (grouped by person, with an email draft)
+· Traceability · Dependencies · Sufficiency · Sources. §1 with §9–§12 is the decision part and must
+fit five pages; if not, the assessment is describing, not deciding. Numbers carry locators; no adjective without a number; recommendations are imperative
 and owned ("Retire 112 tables — owner: DBA lead, confirm by 10-01").
 
 ## Related skills

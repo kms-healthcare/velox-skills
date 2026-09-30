@@ -39,7 +39,7 @@ step (Velox does) runs this skill after it. Never answer "give me more informati
 
 Read `references/run-layout.md` once; load **one** project-type module; do not copy source files
 (reference by path + sha256); respect the record budget in run-layout; produce **one** report — the
-generator's — and write only the four author sections.
+generator's — and write only the five author sections.
 
 **The reply itself is not a deliverable.** The user is about to open the report and the workbook;
 summarising them in chat writes the same content a third time. Keep the turn under ~300 words:
