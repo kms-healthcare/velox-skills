@@ -16,7 +16,9 @@ sixty that describe the current state.
 **Nothing is hand-written except five author sections.** The workbook and the report are generated
 by `scripts/build_deliverables.py` from `registers/`; you write `author-sections.md` with
 `## decision` (≤ 400 words — the executive summary's recommendation), `## architecture` (≤ 500),
-`## roadmap` (≤ 400), `## drivers` (≤ 300 — the cost estimate), `## risks` (≤ 400), and pass it in — the generator warns when a section runs over. A statement with no
+`## roadmap` (≤ 400), `## drivers` (≤ 300 — the cost estimate), `## risks` (≤ 400), and pass it in — the generator warns when a section runs over. Write for the client: name the
+object ("the nightly orders load"), never the record id (`obj-38`) — the generator replaces
+inventory ids with names anyway, and adds the table of contents. A statement with no
 record behind it is either given a record (with a locator) or deleted. Schemas:
 `../discovery-intake/references/run-layout.md`.
 

@@ -302,16 +302,39 @@ def volume(i):
     return ", ".join(p for p in parts if p)
 
 
-def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake=""):
+def slug(heading):
+    """GitHub's heading anchor — pandoc's gfm reader makes the same one, so the links work in the .docx too."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+
+
+def toc(md):
+    """Table of contents from the report's own Part and section headings."""
+    out = ["\n## Contents\n\n"]
+    for l in md.splitlines()[1:]:
+        m = re.match(r"^(#{1,2}) (.+)$", l)
+        if m:
+            out.append(("" if m.group(1) == "#" else "  ") + f"- [{m.group(2)}](#{slug(m.group(2))})\n")
+    return "".join(out)
+
+
+def name_refs(md, names):
+    """An inventory id means nothing to a reader — `obj-35` becomes the object's name, in generated
+    tables and in the author's prose alike. Ids nobody can resolve are left visible, never guessed."""
+    return re.sub(r"\bobj-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*\b",
+                  lambda m: f"`{names[m.group(0)]}`" if m.group(0) in names else m.group(0), md)
+
+
+def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", names=None):
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
     ev = lambda r: f"{evidence_kind(r)}: {locs(r)}"
-    md = [f"# {root.name} — Discovery & Assessment\n"]
+    head = [f"# {root.name} — Discovery & Assessment\n"]
+    md = []
     # What the assessment was built on, so a reader weeks later can tell which
     # skills and CLI shaped it — the agent passes what its session knows.
     if built_with:
-        md += [f"\n> Built with: {built_with}\n"]
+        head += [f"\n> Built with: {built_with}\n"]
     hi = [q for q in oq if q.get("impact_if_wrong") == "high" and q.get("status", "open") == "open"]
 
     # ---------- 1 ----------
@@ -546,7 +569,8 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake=""):
         md += [f"\n**{p}** — {len(qs)}\n"]
         md += [f"- {q.get('id')}: {stem(q.get('question'))} — §12\n" if q.get("id") in hi_ids
                else f"- {q.get('id')}: {q.get('question')} [{locs(q)}]\n" for q in qs]
-    return "".join(md)
+    body = name_refs("".join(md), {k: v.replace("|", "/").replace("`", "'") for k, v in (names or {}).items()})
+    return "".join(head) + toc(head[0] + body) + body
 
 
 def parse_author_sections(p: Path):
@@ -597,11 +621,15 @@ def main():
     xlsx = out / f"discovery-{root.name}.xlsx"
     build_xlsx(regs, root, xlsx, axis_c, suff_bad)
     md_path = out / "assessment-report.md"
-    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with, intake), encoding="utf-8")
+    # Names come from every record, reviewed or not: an id pointing at an unreviewed object still
+    # deserves its name rather than a bare tag.
+    names = {r.get("id") or r.get("object_id"): r.get("name") for n in ("inventory", "rationalization")
+             for r in load_registers(root, True)[n] if r.get("name")}
+    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with, intake, names), encoding="utf-8")
     print(f"wrote {xlsx}\nwrote {md_path}")
     if not a.no_docx and shutil.which("pandoc"):
         docx = out / "assessment-report.docx"
-        r = subprocess.run(["pandoc", str(md_path), "-o", str(docx)], capture_output=True, text=True)
+        r = subprocess.run(["pandoc", "-f", "gfm", str(md_path), "-o", str(docx)], capture_output=True, text=True)
         print(f"wrote {docx}" if r.returncode == 0 else f"pandoc failed: {r.stderr.strip()}")
     elif not a.no_docx:
         print("pandoc not found — .docx skipped")

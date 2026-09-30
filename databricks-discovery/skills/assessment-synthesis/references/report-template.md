@@ -4,7 +4,8 @@
 `author-sections.md` (`## decision`, `## architecture`, `## roadmap`, `## drivers`, `## risks`).
 Part A describes what is there and is generated tables only; Part B is what to do about it. A
 section with no records behind it prints one sentence — *insufficient evidence; needs X; risk if
-skipped Y* — never filler.
+skipped Y* — never filler. The report opens with a table of contents (links work in the .docx:
+pandoc reads it as GFM), and every inventory id (`obj-…`) is printed as the object's name.
 
 | Report section | Register / file | Notes |
 |---|---|---|
