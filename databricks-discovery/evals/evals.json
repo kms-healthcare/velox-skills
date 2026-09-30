@@ -38,6 +38,64 @@
         "Generates the human deliverables from the registers — a single discovery-<project>.xlsx workbook and one assessment-report.md (plus .docx if pandoc) — and does NOT hand-write a second, parallel report",
         "Does not copy the input source files into the output tree; references them by path and sha256 in manifest.json"
       ]
+    },
+    {
+      "id": 1,
+      "name": "vague-first-ask",
+      "prompt": "Our client wants to move to Databricks. Where do we start?",
+      "files": [],
+      "expected_output": "A provisional classification, a source request and ≤ 5 questions with defaults — no fabricated inventory, no request for 'more information'.",
+      "assertions": [
+        "Classifies provisionally (migration, marked provisional) and says the evidence level is L0",
+        "Proposes an Axis C sentence for the user to edit",
+        "Emits a source request with required/recommended tiers and why each is needed",
+        "Asks at most 5 questions, each with why and a recommended default",
+        "Does not answer 'give me more information' and invents no system, table or number"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cost-performance-not-migration",
+      "prompt": "Our Databricks bill went up 40% in two quarters and the nightly jobs now overrun. The CFO wants to know why before the budget review. What do we look at first?",
+      "files": [],
+      "expected_output": "Classified as cost & performance (not migration); the cost-performance module drives the source request; workspace evidence (system tables) is requested, not invented.",
+      "assertions": [
+        "Classifies the project as cost & performance, with the CFO's budget review as the real driver",
+        "Loads the cost-performance module, not the migration one",
+        "Requests system-table evidence (billing/usage, job run history) and says it needs a connected workspace",
+        "Names no cause of the cost rise before evidence",
+        "Proposes an Axis C sentence naming the CFO and the budget review"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "multi-turn-answers-applied",
+      "prompt": "Earlier in this conversation you asked: (1) the decision the assessment serves, (2) whether Query Store is available, (3) who owns revenue rules. My answers: (1) the CTO decides wave-1 scope and budget by 2026-10-15; (2) yes — the export is in sources/exports/querystore_table_reads_396d.csv; (3) the finance lead, Ms. Lan. Continue the discovery.",
+      "files": [
+        "evals/fixtures/minhphat-migration/sources/"
+      ],
+      "expected_output": "The answers become records: Axis C updated, the Query Store window used for usage (with its window recorded), revenue-rule questions addressed to the finance lead — and the same questions not asked again.",
+      "assertions": [
+        "Writes the Axis C sentence with the CTO, wave-1 scope and budget, 2026-10-15",
+        "Uses the Query Store export as the usage source and records its window in sufficiency.md",
+        "Addresses revenue-rule open questions to the finance lead",
+        "Does not re-ask any of the three answered questions"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "vietnamese-member",
+      "prompt": "Khách hàng Minh Phát muốn chuyển kho dữ liệu SQL Server lên Databricks. Thư mục sources/ có DDL, stored procedure và ghi chú kickoff. Giúp tôi bắt đầu discovery.",
+      "files": [
+        "evals/fixtures/minhphat-migration/sources/"
+      ],
+      "expected_output": "The intake, the questions and every artifact in Vietnamese; identifiers, object names and code verbatim.",
+      "assertions": [
+        "intake.md, the source request and the questions are written in Vietnamese",
+        "Object names (sp_Calc_Daily_Revenue, FACT_DAILY_REVENUE) and code stay verbatim",
+        "Classifies the project as migration with the license end as the real driver",
+        "Asks at most 5 questions"
+      ]
     }
   ]
 }

@@ -1,10 +1,9 @@
 ---
 name: discovery-intake
 description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
+compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
   version: "0.2.0"
-  audience: engineers who also own requirements on data projects
-  compatibility: "Runs outside Databricks (Claude Code or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -14,10 +13,8 @@ everything but **helps nobody decide anything**. Three things were never settled
 project this is*, *what evidence exists*, *who decides what with the result*. This skill settles
 them, then hands off to `requirements-extraction`, `legacy-etl-archaeology`, `assessment-synthesis`.
 
-The user is an engineer who also owns requirements. They lack no technical skill — they lack the
-discipline to stop and ask before building. Write for that: no lectures, plain statements of what
-to ask, what to request, what cannot yet be concluded. Artifacts in the user's language;
-identifiers verbatim.
+No lectures: plain statements of what to ask, what to request, what cannot yet be concluded.
+Artifacts in the user's language; identifiers verbatim.
 
 ## Three rules, never broken
 
@@ -31,15 +28,16 @@ identifiers verbatim.
    who to ask*. Users abandon a skill after the second interrogation.
 
 **First turn on thin input** ("client wants SQL Server → Databricks, I have some procs, where do I
-start?"): classify provisionally, record input levels, propose an Axis C sentence to edit, emit the
-source request, attach ≤ 5 questions. Never answer "give me more information".
+start?"): the deliverable is the proposal, in the reply — the provisional type and input levels, an
+Axis C sentence to edit, what to request and why, ≤ 5 questions. Write `intake.md` and the source
+request once the user confirms the scope and the Axis C sentence — an agent that runs an agreement
+step (Velox does) runs this skill after it. Never answer "give me more information".
 
 ## Cost discipline
 
 Read `references/run-layout.md` once; load **one** project-type module; do not copy source files
 (reference by path + sha256); respect the record budget in run-layout; produce **one** report — the
-generator's — and write only the four author sections. Last iteration spent a quarter of its output
-on a second hand-written report and 32 file copies. None of it improved the assessment.
+generator's — and write only the four author sections.
 
 **The reply itself is not a deliverable.** The user is about to open the report and the workbook;
 summarising them in chat writes the same content a third time. Keep the turn under ~300 words:
@@ -122,6 +120,7 @@ default · impact_if_wrong · blocking`. ≤ 5 to the user per turn, ordered by 
 | documents, transcripts (L1) | `requirements-extraction` | `requirements`, `findings`, `open_questions` |
 | procs, SSIS, SQL, schedulers (L2) | `legacy-etl-archaeology` | `business_rules`, `inventory`, `dependency_edges`, `findings` |
 | scanner output (L3–L4) | the type module says how to read it | `inventory`, `findings` |
+| a connected workspace (L4) | `databricks-unity-catalog` (catalog, lineage, system tables) and `databricks-dbsql` (queries) — Databricks' own agent skills, when listed; otherwise read `system.*` and `information_schema` directly, read-only | `inventory`, `findings` |
 | registers pass the gate | `assessment-synthesis` | `rationalization`, workbook, report |
 
 After each return, update `sufficiency.md` and the question list. Discovery is a loop.
@@ -135,11 +134,14 @@ a human reviews `review.md` and merges into `registers/`. Deliverables (`discove
 Touching client data: **read-only**; service principal + OAuth M2M, no personal PATs; egress is
 metadata, statistics, and ≤ 20 masked sample rows; every access recorded in `manifest.json`.
 
-## Boundaries
+## Related skills and boundaries
 
 Not here: detailed extraction (`requirements-extraction`), code reading (`legacy-etl-archaeology`),
 matrix and report (`assessment-synthesis`), code conversion (Lakebridge), security scanning (SAT —
-run it, read it), pipeline design (Databricks implementation skills), pricing (delivery lead).
+run it, read it), pipeline design (Databricks' own agent skills when listed — `databricks-pipelines`,
+`databricks-jobs`, `databricks-dabs`, `databricks-serverless-migration`), pricing (delivery lead).
+Build on those skills by name and say which one you used; this pack covers what they do not —
+evidence before the lakehouse exists, traceable registers, the client-facing report.
 
 ## References
 

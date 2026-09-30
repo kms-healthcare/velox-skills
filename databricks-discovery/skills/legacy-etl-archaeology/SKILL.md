@@ -1,10 +1,10 @@
 ---
 name: legacy-etl-archaeology
 description: "Recover business rules, dependencies, and inventory from legacy DW/ETL code before migrating it to Databricks - T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic. Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
   version: "0.2.0"
   parent: discovery-intake
-  compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Uses legacy-spec-extraction's method and scripts when installed."
 ---
 
 # Legacy ETL archaeology — what the code does, and what nobody wrote down
@@ -12,11 +12,9 @@ metadata:
 | Reads legacy code | Answers | Does not |
 |---|---|---|
 | **Lakebridge Analyzer** — `databricks labs lakebridge analyze --source-directory … --report-file … --source-tech … --generate-json true` | how many objects, what kind, how complex, what depends on what | what a rule *means*, whether it is documented, whether it is wanted |
-| **`legacy-spec-extraction`** (Velox) | the method: rule register, status taxonomy, identifier anchors, calibration | DW specifics: SSIS, scheduler DAGs, report logic, usage logs |
-| **this skill** | applies the method to DW/ETL artifacts on top of Analyzer output; emits the registers the assessment needs | conversion (Transpiler), platform design (`assessment-synthesis`) |
+| **this skill** | the rule register — status taxonomy, identifier anchors, calibration — on DW/ETL artifacts, on top of Analyzer output; emits the registers the assessment needs | conversion (Transpiler), platform design (`assessment-synthesis`) |
 
-If `legacy-spec-extraction` is installed, read its `SKILL.md` and `references/rule-register.md`
-first and use `scripts/anchor_hash.py`. Schemas and record budget:
+Schemas and record budget:
 `../discovery-intake/references/run-layout.md`. Rules 1–3 of `discovery-intake` apply.
 
 ## The rule that matters most: code first, documents second
@@ -30,6 +28,22 @@ or data dictionary may be loaded first — names, not behaviour.
 `CONFLICT` and `CODE-ONLY` are the highest-value output of the whole assessment. `sp_Calc_Daily_Revenue`
 excludes `store_cd = 'HCM-99'`; the spec never mentions it; Lakebridge will transpile the predicate
 faithfully and nobody will ask why. This skill exists so that someone asks.
+
+## Running Lakebridge Analyzer
+
+Measured on v0.15.2; each point cost a failed run to learn.
+
+- **It needs a signed-in Databricks workspace**, although it reads only local files — without one it
+  fails at once ("cannot configure default credentials"). Ask for the workspace first.
+- **Put every setting on the command line** — `--source-directory`, `--report-file`, `--source-tech`
+  (the exact label, e.g. `"MS SQL Server"`; `--help` lists them) — or it stops at a prompt nobody
+  answers. The report's folder must exist; write it inside the project.
+- **Exit 0 does not mean it worked.** Read the output: "Analysis failed" is a failure, whatever the
+  exit code, and its report is not a complete inventory. `--generate-json true` failed on a
+  `TRUNCATE` (its own schema lacks the action) where the `.xlsx` alone completed.
+- **One `--source-tech` per report.** Say which technology a report covered; SSIS, SSRS and other
+  artifacts need their own runs.
+- Installing it (`databricks labs install lakebridge`, ~1 GB, local) is the user's decision.
 
 ## Inputs
 
@@ -98,9 +112,14 @@ with the `rule_status` distribution — the real progress metric). The rule regi
 Transpiler stage what to test: every `CODE-ONLY` and `CONFLICT` becomes a characterization or
 reconciliation check.
 
+## Related skills
+
+`discovery-intake` (why and what to read) · `requirements-extraction` (the documented side of the
+diff) · `assessment-synthesis` (turns the rule register into dispositions and waves) · Databricks'
+own `databricks-pipelines` and `databricks-jobs` (where rebuilt logic and the DAG land), when listed.
+
 ## References
 
 `../discovery-intake/references/run-layout.md` (required) · `references/dw-artifact-guide.md` —
 where rules hide in T-SQL / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export
-queries, the month-end trap · `legacy-spec-extraction` (if installed): `rule-register.md`,
-`extraction.md`, `tests.md`, `anchor_hash.py`.
+queries, the month-end trap.

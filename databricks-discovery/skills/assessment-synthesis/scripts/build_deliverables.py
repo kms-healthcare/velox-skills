@@ -236,11 +236,15 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
 
 
 # ---------- report ----------
-def build_md(regs, root, axis_c, suff_bad, author):
+def build_md(regs, root, axis_c, suff_bad, author, built_with=None):
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
     md = [f"# {root.name} — Discovery & Assessment\n"]
+    # What the assessment was built on, so a reader weeks later can tell which
+    # skills and CLI shaped it — the agent passes what its session knows.
+    if built_with:
+        md += [f"\n> Built with: {built_with}\n"]
     md += ["\n## 1. Decision and recommendation\n\n", (axis_c or "> Axis C missing in intake.md") + "\n\n", A("decision")]
 
     hi = [q for q in oq if q.get("impact_if_wrong") == "high" and q.get("status", "open") == "open"]
@@ -368,6 +372,9 @@ def main():
     ap.add_argument("--include-unreviewed", action="store_true")
     ap.add_argument("--author-sections", default=None)
     ap.add_argument("--no-docx", action="store_true")
+    ap.add_argument("--built-with", default=None,
+                    help='one line naming the pack, skills and CLI versions, e.g. '
+                         '"databricks-discovery 0.2.0 · Databricks agent skills 0.2.22 · Databricks CLI 1.18.0"')
     a = ap.parse_args()
     root = Path(a.project_dir).resolve()
     out = Path(a.out_dir).resolve() if a.out_dir else root.parent
@@ -382,7 +389,7 @@ def main():
     xlsx = out / f"discovery-{root.name}.xlsx"
     build_xlsx(regs, root, xlsx, axis_c, suff_bad)
     md_path = out / "assessment-report.md"
-    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author), encoding="utf-8")
+    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with), encoding="utf-8")
     print(f"wrote {xlsx}\nwrote {md_path}")
     if not a.no_docx and shutil.which("pandoc"):
         docx = out / "assessment-report.docx"

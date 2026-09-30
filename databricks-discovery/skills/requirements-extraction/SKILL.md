@@ -1,10 +1,10 @@
 ---
 name: requirements-extraction
 description: "Turn project documents - specs, decks, minutes, interview transcripts, tickets, RFPs, data dictionaries - into a traceable requirements register for a Databricks data project: each requirement with type, source locator, stated-vs-inferred label, confidence, cross-source conflicts, and the open questions it raises. Use after discovery-intake, when the user has documents to read and asks to extract requirements, build the requirements register, or find what the sources contradict. Not for reading source code (use legacy-etl-archaeology) or writing the report (use assessment-synthesis)."
+compatibility: "Runs outside Databricks. Filesystem only."
 metadata:
   version: "0.2.0"
   parent: discovery-intake
-  compatibility: "Runs outside Databricks. Filesystem only."
 ---
 
 # Requirements extraction — documents in, register out
@@ -75,6 +75,13 @@ concluded**). Never write into `registers/`.
 Before thirty documents, do one the client knows well and have them correct the register. The
 correction rate is this project's error rate; fix the method (locator scheme, granularity) before
 scaling.
+
+## Related skills
+
+`discovery-intake` (the decision this register serves) · `legacy-etl-archaeology` (code-derived
+rules to diff against — never in context while reading documents) · `assessment-synthesis` (uses the
+register) · Databricks' own `databricks-metric-views` (where metric definitions land) and
+`databricks-unity-catalog` (the access model), when listed.
 
 ## References
 
