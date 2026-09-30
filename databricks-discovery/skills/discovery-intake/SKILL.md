@@ -22,7 +22,9 @@ Artifacts in the user's language; identifiers verbatim.
    no number without a `locator`. Use `<catalog>.<schema>.<table>`, `<source system>` until
    verified. Invented names look real, get copied into code, and surface in front of the client.
 2. **Separate "the source says" from "I infer".** Every current-state statement is `stated`
-   (locator) or `inferred` (basis given, and an open question raised). Conclusions rest on `stated`.
+   (locator), `reproduced` (observed by running it on sample data — the strongest for behaviour),
+   or `inferred` (basis given, and an open question raised). Conclusions rest on `stated` or
+   `reproduced`.
 3. **Deliver while asking.** Each turn: deliver everything that does not depend on an answer,
    then ask **≤ 5 blocking questions**, each with *why · recommended default · what breaks if wrong ·
    who to ask*. Users abandon a skill after the second interrogation.
@@ -72,7 +74,7 @@ type → first finding. Unclassifiable after two rounds → `unknown`, run migra
 |---|---|---|---|
 | L0 | user's words | provisional type, source request, questions | any number, any quality/complexity judgement |
 | L1 | documents, transcripts, tickets | `stated` requirements, glossary, goals | the running system — docs describe the design |
-| L2 | code / DDL / ETL artifacts | running rules, dependencies, complexity, doc-vs-code conflicts | volume, usage, data quality |
+| L2 | code / DDL / ETL artifacts / application code (services, APIs, dashboards) | running rules, dependencies, complexity, doc-vs-code conflicts, every place data lives or leaves | volume, usage, data quality |
 | L3 | source access or scanner output (Lakebridge Analyzer, catalogs, query logs) | inventory, real usage, orphans, volume | business meaning, keep/drop |
 | L4 | Unity Catalog, system tables, workspace | cost baseline, lineage, security posture (SAT) | what *should* exist — Axis C |
 
@@ -119,6 +121,7 @@ default · impact_if_wrong · blocking`. ≤ 5 to the user per turn, ordered by 
 |---|---|---|
 | documents, transcripts (L1) | `requirements-extraction` | `requirements`, `findings`, `open_questions` |
 | procs, SSIS, SQL, schedulers (L2) | `legacy-etl-archaeology` | `business_rules`, `inventory`, `dependency_edges`, `findings` |
+| application code — services, buses, APIs, dashboards (L2) | `legacy-etl-archaeology` with `references/app-estate-guide.md` — the data-surface inventory and the serving layer are in scope | `inventory` (every store, endpoint and view), `business_rules`, `findings` |
 | scanner output (L3–L4) | the type module says how to read it | `inventory`, `findings` |
 | a connected workspace (L4) | `databricks-unity-catalog` (catalog, lineage, system tables) and `databricks-dbsql` (queries) — Databricks' own agent skills, when listed; otherwise read `system.*` and `information_schema` directly, read-only | `inventory`, `findings` |
 | registers pass the gate | `assessment-synthesis` | `rationalization`, workbook, report |
