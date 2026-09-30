@@ -1,6 +1,6 @@
 ---
 name: legacy-etl-archaeology
-description: "Recover business rules, dependencies, and inventory from legacy DW/ETL code before migrating it to Databricks - T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic. Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic) and application code (services, pipelines, message buses, APIs, dashboards). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
   version: "0.2.0"
@@ -12,7 +12,7 @@ metadata:
 | Reads legacy code | Answers | Does not |
 |---|---|---|
 | **Lakebridge Analyzer** — `databricks labs lakebridge analyze --source-directory … --report-file … --source-tech … --generate-json true` | how many objects, what kind, how complex, what depends on what | what a rule *means*, whether it is documented, whether it is wanted |
-| **this skill** | the rule register — status taxonomy, identifier anchors, calibration — on DW/ETL artifacts, on top of Analyzer output; emits the registers the assessment needs | conversion (Transpiler), platform design (`assessment-synthesis`) |
+| **this skill** | the rule register — status taxonomy, identifier anchors, calibration — on DW/ETL artifacts and application code, on top of Analyzer output where there is one; the data-surface inventory; emits the registers the assessment needs | conversion (Transpiler), platform design (`assessment-synthesis`) |
 
 Schemas and record budget:
 `../discovery-intake/references/run-layout.md`. Rules 1–3 of `discovery-intake` apply.
@@ -53,6 +53,9 @@ exports (`msdb.dbo.sysjobs/steps/schedules/history`, Control-M) — the real DAG
 durations** · report definitions (`.rdl`, Cognos) — rules that live in no procedure · usage logs
 (Query Store, DBQL, AWR, `ExecutionLog3`) — the only basis for `orphan` · config table contents.
 Export queries and where rules hide per artifact: `references/dw-artifact-guide.md`.
+**Application code** — services, stream processors, bus producers and consumers, API handlers,
+dashboard code, CI and release scripts, and the tests and demo scripts that exercise them: where
+data lives and leaves, the serving layer, and how to run it — `references/app-estate-guide.md`.
 
 ## Procedure
 
@@ -61,6 +64,12 @@ and `dependency_edges.jsonl`, locator = report row. Supplement edges the Analyze
 SQL, linked servers, SSIS variables) as `kind: inferred`. No Analyzer output → build the inventory
 from scripts, leave `complexity: null` (or `complexity_source: "manual"` and say so in `review.md`
 and the report), and state in `review.md` that the Analyzer was not run.
+
+**0b. Data surfaces (application code).** Every place the code writes or publishes data is an
+`inventory` record — file stores, queues, logs, caches, object storage, exports — with
+`holds_pii` and `erasure_reaches` (`references/app-estate-guide.md` §1). So is every API endpoint
+and dashboard view, with what it reads and what it serves when its source fails (§2). A store
+missing from the inventory is a store no erasure, retention or migration decision covers.
 
 **1. Units.** One coherent behaviour a reviewer holds in their head; 10–20 rules, split above ~25.
 Start on the **critical path** and behind the **most-used reports**, not alphabetically.
@@ -100,8 +109,18 @@ External consumers (ODBC/Excel, other apps) → `inventory` with `kind: external
 
 **6. Findings and questions.** Silent data loss, hard-coded credentials, shared service accounts,
 PII in clear text, cursors on large tables, timezone-naive timestamps, linked-server calls, double
-invocations of the same load. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless `CONFIG-ONLY`,
+invocations of the same load. For application code, also the serving layer and the platform
+around it (`app-estate-guide.md` §2): numbers that trace to no query, silent fallbacks, state
+shared across requests, import-time side effects, filters applied in one layer and not another,
+and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Set each finding's
+`layer`. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless `CONFIG-ONLY`,
 and `orphan: null` → an open question with a named role and a default; top 3–5 to the user.
+
+**7. Reproduce (optional, bounded).** Where the project ships tests, a demo or seed data, run them
+to turn a behaviour claim into `reproduced` evidence — races, fallbacks, deletions that miss a
+store. Sample or fixture data on this machine only, never a client system; ask before anything
+long-running; record each run in `manifest.json` `executions[]` (`app-estate-guide.md` §3). Say in
+`review.md` which findings stayed unreproduced and why.
 
 ## Calibrate, then output
 
@@ -120,6 +139,7 @@ own `databricks-pipelines` and `databricks-jobs` (where rebuilt logic and the DA
 
 ## References
 
-`../discovery-intake/references/run-layout.md` (required) · `references/dw-artifact-guide.md` —
+`../discovery-intake/references/run-layout.md` (required) · `references/app-estate-guide.md` —
+data surfaces, the serving layer and running it, for application code · `references/dw-artifact-guide.md` —
 where rules hide in T-SQL / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export
 queries, the month-end trap.

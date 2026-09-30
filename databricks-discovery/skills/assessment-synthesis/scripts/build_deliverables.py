@@ -71,6 +71,17 @@ def load_registers(root: Path, include_unreviewed: bool):
     return regs
 
 
+def evidence_kind(rec):
+    """The strongest evidence kind a record carries: reproduced > stated > inferred."""
+    ks = {e.get("kind") for e in rec.get("evidence", [])}
+    return next((k for k in ("reproduced", "stated", "inferred", "external") if k in ks), "none")
+
+
+def finding_order(f):
+    """Carried findings first — what a faithful migration would ship — then by severity."""
+    return (0 if f.get("migration_disposition") == "carried" else 1, SEV.get(f.get("severity"), 9))
+
+
 def locs(rec):
     ls = [e.get("locator") for e in rec.get("evidence", []) if e.get("locator")]
     if not ls and rec.get("source", {}).get("locator"):
@@ -156,11 +167,12 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
             ", ".join(r.get("blocking", [])), locs(r), r.get("notes")] for r in rat],
           {"name": 36, "evidence": 40, "notes": 40})
 
-    sheet(wb, "Findings", ["id", "severity", "category", "title", "impact", "detail", "requirements_raised",
-                           "questions_raised", "evidence", "status"],
-          [[f.get("id"), f.get("severity"), f.get("category"), f.get("title"), f.get("impact"), f.get("detail"),
+    sheet(wb, "Findings", ["id", "severity", "category", "layer", "title", "impact", "detail", "when migrated",
+                           "evidence kind", "requirements_raised", "questions_raised", "evidence", "status"],
+          [[f.get("id"), f.get("severity"), f.get("category"), f.get("layer"), f.get("title"), f.get("impact"),
+            f.get("detail"), f.get("migration_disposition") or "NOT SET", evidence_kind(f),
             ", ".join(f.get("requirements_raised", [])), ", ".join(f.get("questions_raised", [])), locs(f), f.get("status")]
-           for f in sorted(fnd, key=lambda f: SEV.get(f.get("severity"), 9))],
+           for f in sorted(fnd, key=finding_order)],
           {"title": 48, "impact": 44, "detail": 60, "evidence": 40})
 
     sheet(wb, "Business Rules", ["id", "name", "rule_status", "logic", "plain", "anchor", "config_driven", "in_spec",
@@ -283,9 +295,15 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None):
     else:
         md += ["_no ❌/⚠️ rows in sufficiency.md — confirm that is true._\n"]
 
-    md += ["\n## 5. Key findings\n\n| # | Severity | Finding | Impact | Evidence |\n|---|---|---|---|---|\n"]
-    md += [f"| {f.get('id')} | {f.get('severity')} | {f.get('title')} | {f.get('impact', '')} | {locs(f)} |\n"
-           for f in sorted(fnd, key=lambda f: SEV.get(f.get("severity"), 9))[:10]]
+    kinds = Counter(evidence_kind(f) for f in fnd)
+    disp = Counter(f.get("migration_disposition") or "NOT SET" for f in fnd)
+    md += ["\n## 5. Key findings\n\n",
+           "When migrated: " + " · ".join(f"{k} {v}" for k, v in sorted(disp.items())) + "  \n",
+           "Evidence: " + " · ".join(f"{k} {v}" for k, v in sorted(kinds.items())) + "\n\n",
+           "| # | Severity | Finding | When migrated | Evidence |\n|---|---|---|---|---|\n"]
+    md += [f"| {f.get('id')} | {f.get('severity')} | {f.get('title')} | {f.get('migration_disposition') or 'NOT SET'} "
+           f"| {evidence_kind(f)}: {locs(f)} |\n"
+           for f in sorted(fnd, key=finding_order)[:10]]
 
     dist = Counter(r.get("rule_status", "?") for r in rules)
     md += ["\n## 6. Business rules at risk\n\nrule_status: " + " · ".join(f"{k} {v}" for k, v in sorted(dist.items())) + "\n\n"]

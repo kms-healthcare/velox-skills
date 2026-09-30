@@ -46,7 +46,7 @@ move (email bodies, chat exports) get a copy under `sources/`.
 
 | Field | Values | Rule |
 |---|---|---|
-| `evidence[].kind` | `stated` · `inferred` · `external` | Conclusions rest on `stated` only. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
+| `evidence[].kind` | `stated` · `reproduced` · `inferred` · `external` | Conclusions rest on `stated` or `reproduced`. `reproduced` = observed by running it on sample data (see `legacy-etl-archaeology/references/app-estate-guide.md` §3); its locator is the run log line, and the run is in `manifest.json` `executions[]` — it outranks `stated` for a claim about behaviour. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
 | `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record** |
 | `status` | `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred` | The agent sets only `extracted`; humans move it |
 
@@ -75,7 +75,9 @@ evidence — disagreement is a finding, not proof).
  "rule_status":"CODE-ONLY","in_spec":false,"config_driven":false,
  "requirements":["FR-01"],"open_questions":["OQ-07"],"status":"extracted"}
 
-// inventory.jsonl   kind ∈ table|view|procedure|ssis_package|job|report|external_consumer|…
+// inventory.jsonl   kind ∈ table|view|procedure|ssis_package|job|report|external_consumer|
+//   file_store|queue|log|cache|object_store|export|api_endpoint|ui_view|…  (the last eight: app-estate-guide.md)
+// every store also carries holds_pii (bool|null) and erasure_reaches (bool|null) — null raises an open question
 // complexity_source ∈ analyzer|manual|null — a manual tier is triage, never presented as measured
 {"id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","layer_guess":"bronze",
  "row_estimate":730000000,"size_gb":412,"writers":["obj-0031"],"readers":["obj-0044","obj-0112"],
@@ -83,17 +85,19 @@ evidence — disagreement is a finding, not proof).
  "pii_candidates":[],"complexity":null,"complexity_source":null,"disposition":null,
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"status":"extracted"}
 // pipelines add: schedule, avg_runtime_min, run_as, reads[], writes[] ; reports add: consumers[], exec_count_90d, last_exec_at
+// api_endpoint / ui_view add: reads[], fallback (what it serves when its source fails or is empty), consumers[]
 
 // dependency_edges.jsonl   kind ∈ reads|writes|triggers|calls|depends_on — draw the DAG from this, never by hand
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
-// findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation
+// findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
+// layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|null — set only by assessment-synthesis
 {"id":"FND-03","severity":"high","category":"data_quality",
  "title":"3% of POS transactions dropped silently by INNER JOIN to DIM_STORE",
  "detail":"sp_Calc_Daily_Revenue:61 INNER JOINs dim_store; no unmatched handling, nothing logged.",
  "impact":"Reported revenue understated by unmatched share; magnitude needs profiling (L3).",
  "evidence":[{"source_id":"src-sp-014","locator":"sp_Calc_Daily_Revenue.sql:61","kind":"stated"}],
- "requirements_raised":["DR-01"],"questions_raised":["OQ-11"],"status":"extracted"}
+ "requirements_raised":["DR-01"],"questions_raised":["OQ-11"],"layer":"transform","migration_disposition":null,"status":"extracted"}
 
 // open_questions.jsonl   ask = a person (role + "(name: ?)" if unknown), never a department
 {"id":"OQ-07","question":"Is HCM-99 still excluded from revenue? Since when, and who owns the rule?",
@@ -109,9 +113,11 @@ evidence — disagreement is a finding, not proof).
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"blocking":[],"notes":null}
 
 // manifest.json   external_access lists every call beyond local files (endpoint, statement, rows) — empty = pure file read
+// executions[] lists every command the agent RAN against the project (command, cwd, data, exit, log) — the basis of `reproduced`
 {"run_id":"2026-09-14_run-07","skill":"requirements-extraction@0.2.0","model":"<model id>","project":"minhphat-migration",
  "sources_read":[{"source_id":"src-sp-014","path":"<path>/sp_Calc_Daily_Revenue.sql","sha256":"…","bytes":18402}],
  "sources_requested_not_available":["src-querystore"],"external_access":[],
+ "executions":[{"command":"pytest -q tests/","cwd":"<project>","data":"repo fixtures only","exit":0,"log":"runs/2026-09-14_run-07/exec-01.log"}],
  "counts":{"requirements":12,"business_rules":31,"findings":4,"open_questions":9},
  "notes":"Docs loaded after code (code-first rule)."}
 ```
@@ -138,7 +144,8 @@ Always include a **Usage window** row: log source, start, end, and the last serv
 any usage comes from DMVs (`dm_exec_*` resets on restart).
 
 **`review.md`** — one page: read (sources, order) · produced (counts) · **needs a human now** (≤5) ·
-`rule_status` distribution · unsure (confidence < 0.6) · **deliberately not concluded** · how to merge.
+`rule_status` distribution · unsure (confidence < 0.6) · **what was run, and which findings stayed
+unreproduced and why** · **deliberately not concluded** · how to merge.
 
 **`author-sections.md`** (input to the generator) — four headings, prose only:
 `## decision` · `## architecture` · `## drivers` · `## risks`.
