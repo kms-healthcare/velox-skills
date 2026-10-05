@@ -31,7 +31,7 @@ Lakebridge, SAT, UCX, Well-Architected Framework) into agent behaviour.
 
 Design principles the pack enforces: never invent object names or numbers; every statement carries
 a locator and a `stated`/`inferred` label; the agent proposes into `runs/` and a human merges into
-`registers/`; deliver what is possible while asking at most five blocking questions per turn; the
+`registers/`; when blocked, the agent hands off with options (one recommended) instead of deciding alone, and warns rather than blocks; deliver what is possible while asking at most five blocking questions per turn; the
 report is a decision instrument with an evidence-sufficiency appendix.
 
 Output is budgeted, because an assessment that describes everything decides nothing. Evidence

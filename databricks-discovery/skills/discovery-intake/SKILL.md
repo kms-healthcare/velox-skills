@@ -3,7 +3,7 @@ name: discovery-intake
 description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -34,6 +34,31 @@ start?"): the deliverable is the proposal, in the reply — the provisional type
 Axis C sentence to edit, what to request and why, ≤ 5 questions. Write `intake.md` and the source
 request once the user confirms the scope and the Axis C sentence — an agent that runs an agreement
 step (Velox does) runs this skill after it. Never answer "give me more information".
+
+## Blocked mid-run — offer options, never decide alone
+
+Every skill in this pack works one loop: **propose the plan → the person accepts → run everything
+you can with the access you already have → when blocked, hand off with options.** Do not ask before
+the first attempt; do not stop at the first refusal either.
+
+Blocked means the next step needs something only the person (or their client) may give: more
+access, an input you cannot reach, a cost, or a risk. Then use the session's question tool (Velox:
+`ask_user`) — not prose — with:
+
+- **2–4 options**, one marked *recommended*, each saying what it costs the person (a sign-in, a
+  message to the client, a file round-trip, a gap left in the report). Always include the
+  cheapest honest one — usually "skip, and say so in the report".
+- **The recommendation from evidence you checked**, not habit (e.g. their login *is* an admin for
+  this host). Hide an option that cannot work, and say why.
+- **Nothing riskier than the bound identity without the answer** — no other login, no elevated
+  grant, no write. A choice the person did not make is not theirs to defend to the client.
+
+After the chosen path runs, **check what it left behind and warn rather than block**: a risk that
+remains (a grant not revoked, a source read under someone else's login) becomes a finding with a
+locator, and the deliverable is still produced — the reviewer decides. Worked example:
+`security-posture` (bound read-only service principal first; under half the catalog readable →
+*own login for this step* · *client grants admin briefly* · *client's admin runs the bundle* ·
+*skip*; a grant still in place → a high finding).
 
 ## Cost discipline
 
