@@ -28,6 +28,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 CATALOG = json.loads((HERE.parent / "references" / "sat-checks.json").read_text())["checks"]
 WEIGHT = {"high": 3, "medium": 2, "low": 1}
+MIN_COVERAGE = 0.5
 NOW_MS = int(datetime.now(timezone.utc).timestamp() * 1000)
 DAY_MS = 86_400_000
 
@@ -65,6 +66,11 @@ CONF = {
     "NS-11": ("enableIpAccessLists", "true", "false"),
 }
 BROAD_PRINCIPALS = {"account users", "users"}
+# Checks that judge a LIST. A non-admin sees only what it was granted, so an empty or clean list is
+# not evidence: from such an identity these can fail (what it saw is real) but never pass.
+LIST_CHECKS = {"DP-1", "DP-2", "GOV-2", "GOV-5", "GOV-12", "GOV-18", "GOV-19", "GOV-42", "GOV-45",
+               "IA-4", "IA-6", "INFO-5", "NS-7", "VX-UC-1"}
+PARTIAL = "pass over what this identity can see only; needs a workspace admin read"
 BROAD_PRIVS = re.compile(r"ALL[_ ]PRIVILEGES|MODIFY|MANAGE|CREATE", re.I)
 
 
@@ -82,6 +88,12 @@ class Workspace:
 
     def __init__(self, fetch):
         self.fetch, self.cache, self.calls = fetch, {}, []
+
+    @property
+    def is_admin(self):
+        """Member of the workspace `admins` group. Unknown counts as no: a guess must not turn into a pass."""
+        ok, me = self.get("/api/2.0/preview/scim/v2/Me")
+        return ok and any(g.get("display") == "admins" for g in me.get("groups", []))
 
     def get(self, path):
         if path not in self.cache:
@@ -112,7 +124,7 @@ def failure(body):
     text = str(body)
     if re.search(r"pricing tier|not available|unavailable_for", text, re.I):
         return na("not available on this pricing tier", text)
-    if re.search(r"PERMISSION_DENIED|403|not authorized|admin", text, re.I):
+    if re.search(r"PERMISSION_DENIED|403|Forbidden|not authorized|permission|admin", text, re.I):
         return na("permission: the identity cannot read this", text)
     return na("error", text)
 
@@ -474,7 +486,8 @@ def from_iac(root):
 
 # ---------- scoring and records ----------
 def score(results):
-    """1–5 from severity-weighted pass share over ASSESSED live/SAT checks; any high failure caps at 3, three cap at 2."""
+    """1–5 from severity-weighted pass share over ASSESSED live/SAT checks; any high failure caps at 3, three cap at 2;
+    none under MIN_COVERAGE of the catalog's weight."""
     assessed = {c: r for c, r in results.items() if r["status"] in ("pass", "fail") and r["source"] in ("workspace", "sat")}
     if not assessed:
         return None, 0.0, 0
@@ -484,7 +497,9 @@ def score(results):
     highs = sum(1 for c, r in assessed.items() if r["status"] == "fail" and CHECKS[c]["severity"] == "high")
     s = min(s, 2 if highs >= 3 else 3 if highs else 5)
     total = sum(WEIGHT[c["severity"]] for c in CHECKS.values() if c["scope"] != "iac")
-    return s, round(sum(w.values()) / total, 2), highs
+    coverage = round(sum(w.values()) / total, 2)
+    # a number over less than half the catalog describes the identity's view, not the workspace
+    return (s if coverage >= MIN_COVERAGE else None), coverage, highs
 
 
 def doc_for(check, cloud="aws"):
@@ -518,6 +533,8 @@ def readiness(results, s, coverage, highs):
     passed = sum(1 for r in results.values() if r["status"] == "pass")
     failed = sum(1 for r in results.values() if r["status"] == "fail")
     needs = "; ".join(f"{n} {k}" for k, n in sorted(na_reasons.items(), key=lambda x: -x[1]))
+    if s is None and basis != "code" and coverage:
+        needs = f"weighted coverage {int(coverage * 100)}% is under {int(MIN_COVERAGE * 100)}% — not scored; " + needs
     return {"id": "RDY-security", "dimension": "security", "score": s if basis != "code" else None, "basis": basis,
             "rationale": f"{passed} checks pass, {failed} fail ({highs} high); weighted coverage {int(coverage * 100)}% of the SAT catalog"[:300],
             "needs": f"not assessed — {needs}" if needs else None,
@@ -542,6 +559,8 @@ def run(args, fetch=None):
         r = None
         if ws and c["scope"] == "workspace":
             r = check_workspace(ws, cid, args.allowed_regions)
+            if r and r["status"] == "pass" and cid in LIST_CHECKS and not ws.is_admin:
+                r = na(PARTIAL, r["observed"])
         if (r is None or r["status"] == "not_assessed") and cid in sat:
             r = sat[cid]
         if (r is None or r["status"] == "not_assessed") and cid in iac:

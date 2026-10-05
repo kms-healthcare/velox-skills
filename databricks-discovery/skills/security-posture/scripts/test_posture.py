@@ -8,6 +8,7 @@ import posture
 
 TIER = "Error: These keys are not available for your pricing tier: [\"enableIpAccessLists\"]"
 WORKSPACE = {
+    "/api/2.0/preview/scim/v2/Me": {"groups": [{"display": "admins"}]},
     "/api/2.0/settings/types/restrict_workspace_admins/names/default": {"restrict_workspace_admins": {"status": "ALLOW_ALL"}},
     "/api/2.0/preview/workspace-conf?keys=maxTokenLifetimeDays": {"maxTokenLifetimeDays": "730"},
     "/api/2.0/preview/workspace-conf?keys=enableResultsDownloading": {"enableResultsDownloading": None},
@@ -48,7 +49,8 @@ def test_live_rules_score_and_records():
         assert "FND-SEC-GOV-35" in ids and all(f["status"] == "extracted" for f in findings)
         assert all(f["evidence"][0]["locator"].startswith("GET ") and f["evidence"][1]["kind"] == "external" for f in findings)
         rdy = json.loads((Path(d) / "readiness.jsonl").read_text())
-        assert rdy["basis"] == "workspace" and rdy["score"] == score and score <= 3   # a high failure caps at 3
+        assert rdy["basis"] == "workspace" and rdy["score"] == score is None   # canned workspace covers <50%
+        assert "not scored" in rdy["needs"]
         assert "pricing tier" in rdy["needs"]
         assert json.loads((Path(d) / "manifest.json").read_text())["external_access"]
 
@@ -75,6 +77,22 @@ def test_sat_rows_and_iac():
         assert iac["VX-UC-1"]["locator"] == "50_grants.sql:2"
         assert iac["GOV-42"]["locator"] == "databricks.yml:2"
         assert iac["VX-SEC-1"]["locator"] == "databricks.yml:4" and "hunter2" not in iac["VX-SEC-1"]["observed"]
+
+
+def test_non_admin_never_passes_a_list():
+    def reader(path):
+        if path == "/api/2.0/preview/scim/v2/Me":
+            return True, {"groups": [{"display": "users"}]}
+        if path == "/api/2.2/jobs/list?limit=100":
+            return True, {}                                              # sees no jobs — not "there are none"
+        if path.startswith("/api/2.0/preview/workspace-conf"):
+            return False, "Error: Forbidden"
+        return fetch(path)
+    with tempfile.TemporaryDirectory() as d:
+        results, _ = posture.run(args(d), fetch=reader)
+        assert results["GOV-42"]["status"] == "not_assessed" and "admin read" in results["GOV-42"]["reason"]
+        assert results["DP-5"]["reason"].startswith("permission")
+        assert results["GOV-35"]["status"] == "fail"                      # a setting it CAN read still counts
 
 
 if __name__ == "__main__":
