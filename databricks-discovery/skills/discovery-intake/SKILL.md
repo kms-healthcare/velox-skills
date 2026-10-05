@@ -3,7 +3,7 @@ name: discovery-intake
 description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -34,6 +34,14 @@ start?"): the deliverable is the proposal, in the reply — the provisional type
 Axis C sentence to edit, what to request and why, ≤ 5 questions. Write `intake.md` and the source
 request once the user confirms the scope and the Axis C sentence — an agent that runs an agreement
 step (Velox does) runs this skill after it. Never answer "give me more information".
+
+**The workspace is asked for IN that first proposal, not after it.** For a migration, consolidation
+or cost project with no workspace bound, call the session's request tool (Velox:
+`request_databricks_workspace`) in the same turn as the approach question — the card is the
+person's answer (connect, as a read-only service principal by default, or "none yet"), and the
+approach is built on it. Never mark a code-only approach *recommended* while that answer is still
+open: measured 2026-10-06, an approach card that recommended "code-based assessment now" was
+accepted and the workspace was never asked for, though a saved one was one click away.
 
 ## Blocked mid-run — offer options, never decide alone
 
