@@ -25,7 +25,7 @@
   "GOV-34": "system schema access is MANAGED (enabled)"
  },
  "expected_fail_from_sat": {
-  "note": "Only present when --sat-results is given (SAT 0.9.0 run 2026-10-05 on this workspace). Account-level and compute checks a workspace identity cannot read.",
+  "note": "Only present when --sat-results is given (SAT 0.9.0 run 2026-10-05 on this workspace). Account-level and compute checks a workspace identity cannot read. DP-13: the live read of the unset key assumed the platform default; SAT observed the DBFS browser on.",
   "checks": [
    "GOV-3",
    "NS-3",
@@ -42,7 +42,8 @@
    "DP-9",
    "DP-14",
    "INFO-29",
-   "INFO-38"
+   "INFO-38",
+   "DP-13"
   ]
  },
  "sat_disagreements_to_review": {
