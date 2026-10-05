@@ -5,6 +5,9 @@
   python3 posture.py run --out <run dir> [--workspace] [--profile P] [--cli databricks]
                          [--sat-results rows.json] [--iac <repo path>] [--allowed-regions REGEX]
   python3 posture.py sat-sql --catalog <sat catalog> --workspace-id <id>   # SQL whose rows feed --sat-results
+  python3 posture.py identity [--profile P]                    # who the CLI reads as, and whether it is a workspace admin
+  python3 posture.py verify-revoked --run <run dir> [--profile P]   # after a temporary admin grant: warn if it is still there
+  python3 posture.py bundle --out <dir>                        # a zip a client's admin runs, for --from-posture
 
 Sources, in the order a check takes its answer from:
   --workspace     live: `databricks api get` on workspace REST (GET only — nothing is changed)
@@ -17,7 +20,10 @@ adds every call to manifest.json `external_access`. The score is computed here, 
 Check ids are SAT's (references/sat-checks.json); VX-* are checks SAT does not have. Stdlib only.
 """
 import argparse
+import hashlib
 import json
+import shutil
+import tempfile
 import re
 import subprocess
 import sys
@@ -42,6 +48,10 @@ VELOX_CHECKS = [
     {"check_id": "VX-RES-1", "title": "Metastore region satisfies the residency requirement", "category": "Data Protection",
      "severity": "high", "scope": "workspace", "doc": {"aws": "https://docs.databricks.com/aws/en/resources/supported-regions"},
      "recommendation": "Place the metastore and workspace in a region the residency requirement allows"},
+    {"check_id": "VX-ID-1", "title": "The assessment identity holds no workspace admin after the assessment",
+     "category": "Identity & Access", "severity": "high", "scope": "session",
+     "doc": {"aws": "https://docs.databricks.com/aws/en/admin/users-groups/service-principals"},
+     "recommendation": "Remove the assessment service principal from `admins` once the posture read is done"},
     {"check_id": "VX-SEC-1", "title": "No plaintext credentials in infrastructure code", "category": "Data Protection",
      "severity": "high", "scope": "iac", "doc": {"aws": "https://docs.databricks.com/aws/en/security/secrets/"},
      "recommendation": "Read credentials from a secret scope or the CI secret store, never from the repository"},
@@ -484,11 +494,92 @@ def from_iac(root):
     return out
 
 
+# ---------- who reads, and what a client supplied ----------
+READ_AS = {"service-principal": "the assessment service principal",
+           "elevated-service-principal": "the assessment service principal, temporarily a workspace admin",
+           "user-login": "the consultant's own login"}
+
+
+def whoami(ws):
+    ok, me = ws.get("/api/2.0/preview/scim/v2/Me")
+    if not ok:
+        return {"name": None, "is_admin": None, "error": str(me)[:200]}
+    return {"name": me.get("displayName") or me.get("userName"), "id": me.get("userName"), "is_admin": ws.is_admin}
+
+
+def supplied_meta(path):
+    data = Path(path).read_bytes()
+    return {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+
+
+def from_posture(path):
+    """Checks a client's admin ran with the bundle. Only what THEY observed live counts; their own
+    not-assessed rows stay not assessed here."""
+    meta = supplied_meta(path)
+    doc = json.loads(Path(path).read_text())
+    who = (doc.get("identity") or {}).get("name") or "the client's admin"
+    out = {}
+    for c in doc.get("checks", []):
+        if c.get("check_id") in CHECKS and c.get("source") == "workspace" and c.get("status") in ("pass", "fail"):
+            loc = f"{Path(path).name} (sha256 {meta['sha256'][:12]}, read as {who}) → {c.get('locator')}"
+            out[c["check_id"]] = result(c["status"], c.get("observed", ""), loc[:200], source="client")
+    return out
+
+
+def verify_revoked(run_dir, ws):
+    """After a temporary admin grant: still admin → a high finding in the run (the report warns, it is
+    not blocked); revoked → the readiness record says when."""
+    me = whoami(ws)
+    findings = run_dir / "findings.jsonl"
+    rows = [json.loads(x) for x in findings.read_text().splitlines() if x.strip()] if findings.exists() else []
+    rows = [f for f in rows if f.get("id") != "FND-SEC-VX-ID-1"]
+    stamp = datetime.now(timezone.utc).isoformat(timespec="minutes")
+    if me["is_admin"] is None:
+        print(f"could not tell whether {me.get('name')} is still an admin: {me.get('error')}")
+        return None
+    if me["is_admin"]:
+        r = result("fail", f"{me['name']} is still in the workspace admins group at {stamp}",
+                   "GET /api/2.0/preview/scim/v2/Me → groups contains admins")
+        f = finding("VX-ID-1", r, "aws")
+        f["title"] = f"The assessment service principal {me['name']} still holds workspace admin"[:120]
+        f["impact"] = "Velox was promised read-only access; an admin service principal can change or delete anything in the workspace."
+        rows.append(f)
+        print(f"WARNING: {me['name']} is still a workspace admin — recorded as FND-SEC-VX-ID-1 (high)")
+    else:
+        rdy_file = run_dir / "readiness.jsonl"
+        if rdy_file.exists():
+            rdy = json.loads(rdy_file.read_text())
+            rdy["rationale"] = f"{rdy['rationale']} Admin removed, checked {stamp}."[:300]
+            rdy_file.write_text(json.dumps(rdy, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"{me['name']} is no longer a workspace admin (checked {stamp})")
+    findings.write_text("".join(json.dumps(f, ensure_ascii=False) + "\n" for f in rows), encoding="utf-8")
+    return me["is_admin"]
+
+
+def bundle(out):
+    """scripts/posture.py + references/sat-checks.json + RUN.md, zipped, for a client's admin."""
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d) / "velox-posture"
+        (root / "scripts").mkdir(parents=True)
+        (root / "references").mkdir()
+        shutil.copy(HERE / "posture.py", root / "scripts" / "posture.py")
+        shutil.copy(HERE.parent / "references" / "sat-checks.json", root / "references" / "sat-checks.json")
+        (root / "RUN.md").write_text(
+            "# Databricks security posture — read-only\n\n"
+            "Needs Python 3.9+ and the Databricks CLI signed in as a workspace admin. It only reads (GET);\n"
+            "it changes nothing. Run:\n\n"
+            "    python3 scripts/posture.py run --workspace --profile <your profile> --out result\n\n"
+            "Send back `result/posture.json`. It holds settings and check results, no data and no credentials.\n",
+            encoding="utf-8")
+        out.mkdir(parents=True, exist_ok=True)
+        return shutil.make_archive(str(out / "velox-posture"), "zip", d, "velox-posture")
+
+
 # ---------- scoring and records ----------
 def score(results):
     """1–5 from severity-weighted pass share over ASSESSED live/SAT checks; any high failure caps at 3, three cap at 2;
     none under MIN_COVERAGE of the catalog's weight."""
-    assessed = {c: r for c, r in results.items() if r["status"] in ("pass", "fail") and r["source"] in ("workspace", "sat")}
+    assessed = {c: r for c, r in results.items() if r["status"] in ("pass", "fail") and r["source"] in ("workspace", "sat", "client")}
     if not assessed:
         return None, 0.0, 0
     w = {c: WEIGHT[CHECKS[c]["severity"]] for c in assessed}
@@ -509,7 +600,7 @@ def doc_for(check, cloud="aws"):
 def finding(cid, r, cloud):
     c = CHECKS[cid]
     kind = "stated"
-    source_id = {"workspace": "src-workspace-api", "sat": "src-sat", "iac": "src-iac"}[r["source"]]
+    source_id = {"workspace": "src-workspace-api", "sat": "src-sat", "iac": "src-iac", "client": "src-client-posture"}[r["source"]]
     ev = [{"source_id": source_id, "source_type": r["source"], "locator": r["locator"][:200],
            "excerpt": r["observed"][:120], "kind": kind},
           {"source_id": "ref-sat" if not cid.startswith("VX-") else "ref-databricks-docs", "locator": cid,
@@ -528,7 +619,7 @@ def readiness(results, s, coverage, highs):
     for cid, r in results.items():
         if r["status"] == "not_assessed":
             na_reasons[r["reason"] or "not implemented"] = na_reasons.get(r["reason"] or "not implemented", 0) + 1
-    basis = "workspace" if any(r["source"] == "workspace" and r["status"] != "not_assessed" for r in results.values()) else \
+    basis = "workspace" if any(r["source"] in ("workspace", "client") and r["status"] != "not_assessed" for r in results.values()) else \
         "sat" if any(r["source"] == "sat" for r in results.values()) else "code"
     passed = sum(1 for r in results.values() if r["status"] == "pass")
     failed = sum(1 for r in results.values() if r["status"] == "fail")
@@ -553,11 +644,14 @@ def run(args, fetch=None):
     scanned = iac.pop("_scanned", 0)
     if args.iac and "VX-SEC-1" not in iac:
         iac["VX-SEC-1"] = result("pass", f"no plaintext credential in {scanned} files", args.iac, source="iac")
+    supplied = from_posture(args.from_posture) if args.from_posture else {}
     for cid, c in CHECKS.items():
-        if args.cloud not in c.get("clouds", [args.cloud]):
+        if args.cloud not in c.get("clouds", [args.cloud]) or c["scope"] == "session":
             continue
         r = None
-        if ws and c["scope"] == "workspace":
+        if cid in supplied and supplied[cid]["status"] != "not_assessed":
+            r = supplied[cid]
+        if r is None and ws and c["scope"] == "workspace":
             r = check_workspace(ws, cid, args.allowed_regions)
             if r and r["status"] == "pass" and cid in LIST_CHECKS and not ws.is_admin:
                 r = na(PARTIAL, r["observed"])
@@ -575,6 +669,9 @@ def run(args, fetch=None):
                     reason += "; not settled by infrastructure code"
             r = na(reason)
         results[cid] = r
+    identity = whoami(ws) if ws else None
+    if identity:
+        identity["read_as"] = args.read_as
     if ws:
         calls = ws.calls
     s, coverage, highs = score(results)
@@ -582,13 +679,20 @@ def run(args, fetch=None):
              "doc": doc_for(CHECKS[cid], args.cloud), **r} for cid, r in results.items()]
     (out / "posture.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(),
                                                   "score": s, "weighted_coverage": coverage, "cloud": args.cloud,
+                                                  "identity": identity, "supplied": args.from_posture and supplied_meta(args.from_posture),
                                                   "checks": rows}, indent=1), encoding="utf-8")
     fails = [finding(cid, r, args.cloud) for cid, r in results.items() if r["status"] == "fail"]
     (out / "findings.jsonl").write_text("".join(json.dumps(f, ensure_ascii=False) + "\n" for f in fails), encoding="utf-8")
-    (out / "readiness.jsonl").write_text(json.dumps(readiness(results, s, coverage, highs), ensure_ascii=False) + "\n",
-                                         encoding="utf-8")
+    rdy = readiness(results, s, coverage, highs)
+    if identity:
+        rdy["rationale"] = f"Read as {identity['name']} ({READ_AS[args.read_as]}). {rdy['rationale']}"[:300]
+    elif args.from_posture:
+        rdy["rationale"] = f"Read by the client's admin, supplied as {Path(args.from_posture).name}. {rdy['rationale']}"[:300]
+    (out / "readiness.jsonl").write_text(json.dumps(rdy, ensure_ascii=False) + "\n", encoding="utf-8")
     manifest = out / "manifest.json"
     m = json.loads(manifest.read_text()) if manifest.exists() else {"run_id": out.name, "skill": "security-posture"}
+    if args.from_posture:
+        m.setdefault("sources_read", []).append({"source_id": "src-client-posture", **supplied_meta(args.from_posture)})
     m.setdefault("external_access", []).extend(
         {"endpoint": c["endpoint"], "statement": None, "rows": None, "ok": c["ok"]} for c in calls)
     manifest.write_text(json.dumps(m, indent=1), encoding="utf-8")
@@ -613,6 +717,16 @@ def main(argv=None):
     r.add_argument("--iac")
     r.add_argument("--cloud", default="aws", choices=["aws", "azure", "gcp"])
     r.add_argument("--allowed-regions", help="regex the metastore region must match, e.g. '^eu-|europe'")
+    r.add_argument("--from-posture", help="posture.json a client's admin produced with the bundle")
+    r.add_argument("--read-as", default="service-principal", choices=list(READ_AS))
+    i = sub.add_parser("identity")
+    v = sub.add_parser("verify-revoked")
+    v.add_argument("--run", required=True)
+    for x in (i, v):
+        x.add_argument("--profile")
+        x.add_argument("--cli", default="databricks")
+    b = sub.add_parser("bundle")
+    b.add_argument("--out", required=True)
     q = sub.add_parser("sat-sql")
     q.add_argument("--catalog", required=True)
     q.add_argument("--workspace-id", required=True)
@@ -625,9 +739,15 @@ def main(argv=None):
             print(f"{cid:<9} {c['severity']:<6} {how:<16} {c['title']}")
     elif a.cmd == "sat-sql":
         print(sat_sql(a.catalog, a.workspace_id))
+    elif a.cmd == "identity":
+        print(json.dumps(whoami(Workspace(cli_fetch(a.cli, a.profile)))))
+    elif a.cmd == "verify-revoked":
+        verify_revoked(Path(a.run), Workspace(cli_fetch(a.cli, a.profile)))
+    elif a.cmd == "bundle":
+        print(bundle(Path(a.out)))
     else:
-        if not (a.workspace or a.sat_results or a.iac):
-            sys.exit("give at least one source: --workspace, --sat-results or --iac")
+        if not (a.workspace or a.sat_results or a.iac or a.from_posture):
+            sys.exit("give at least one source: --workspace, --sat-results, --from-posture or --iac")
         run(a)
 
 

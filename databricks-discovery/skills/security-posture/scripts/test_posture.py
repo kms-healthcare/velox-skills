@@ -8,7 +8,7 @@ import posture
 
 TIER = "Error: These keys are not available for your pricing tier: [\"enableIpAccessLists\"]"
 WORKSPACE = {
-    "/api/2.0/preview/scim/v2/Me": {"groups": [{"display": "admins"}]},
+    "/api/2.0/preview/scim/v2/Me": {"displayName": "eurostream-ci", "groups": [{"display": "admins"}]},
     "/api/2.0/settings/types/restrict_workspace_admins/names/default": {"restrict_workspace_admins": {"status": "ALLOW_ALL"}},
     "/api/2.0/preview/workspace-conf?keys=maxTokenLifetimeDays": {"maxTokenLifetimeDays": "730"},
     "/api/2.0/preview/workspace-conf?keys=enableResultsDownloading": {"enableResultsDownloading": None},
@@ -28,7 +28,7 @@ def fetch(path):
 
 def args(out, **kw):
     base = dict(out=str(out), workspace=True, profile=None, cli="databricks", sat_results=None, iac=None,
-                cloud="aws", allowed_regions=None)
+                cloud="aws", allowed_regions=None, from_posture=None, read_as="service-principal")
     return argparse.Namespace(**{**base, **kw})
 
 
@@ -93,6 +93,32 @@ def test_non_admin_never_passes_a_list():
         assert results["GOV-42"]["status"] == "not_assessed" and "admin read" in results["GOV-42"]["reason"]
         assert results["DP-5"]["reason"].startswith("permission")
         assert results["GOV-35"]["status"] == "fail"                      # a setting it CAN read still counts
+
+
+def test_identity_client_file_and_revoke():
+    import zipfile
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        # the client's admin ran the bundle: their live observations count, their not-assessed rows do not
+        posture.run(args(d / "client", read_as="user-login"), fetch=fetch)
+        client = json.loads((d / "client" / "posture.json").read_text())
+        assert client["identity"] == {"name": "eurostream-ci", "id": None, "is_admin": True, "read_as": "user-login"}
+        results, _ = posture.run(args(d / "ours", workspace=False, from_posture=str(d / "client" / "posture.json")))
+        assert results["GOV-35"]["status"] == "fail" and results["GOV-35"]["source"] == "client"
+        assert "sha256" in results["GOV-35"]["locator"] and results["NS-3"]["status"] == "not_assessed"
+        assert json.loads((d / "ours" / "readiness.jsonl").read_text())["basis"] == "workspace"
+        assert json.loads((d / "ours" / "manifest.json").read_text())["sources_read"][0]["sha256"]
+        # a temporary admin grant still in place → a high finding, not a blocked report
+        run = d / "client"
+        assert posture.verify_revoked(run, posture.Workspace(fetch)) is True
+        ids = [json.loads(x)["id"] for x in (run / "findings.jsonl").read_text().splitlines()]
+        assert ids.count("FND-SEC-VX-ID-1") == 1
+        revoked = posture.Workspace(lambda p: (True, {"displayName": "eurostream-ci", "groups": [{"display": "users"}]}))
+        assert posture.verify_revoked(run, revoked) is False
+        assert "FND-SEC-VX-ID-1" not in (run / "findings.jsonl").read_text()
+        assert "Admin removed" in json.loads((run / "readiness.jsonl").read_text())["rationale"]
+        names = zipfile.ZipFile(posture.bundle(d / "b")).namelist()
+        assert {"velox-posture/scripts/posture.py", "velox-posture/references/sat-checks.json", "velox-posture/RUN.md"} <= set(names)
 
 
 if __name__ == "__main__":

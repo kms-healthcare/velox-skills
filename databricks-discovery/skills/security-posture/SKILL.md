@@ -3,7 +3,7 @@ name: security-posture
 description: "Score a Databricks workspace's security posture against the Security Analysis Tool (SAT) check catalog - read-only, with every check passed, failed or reported as not assessed and why. Reads the live workspace through the Databricks CLI (GET only), imports SAT's own results when the client already runs SAT, and checks Terraform / bundle / grant SQL when there is no workspace yet. Writes security findings and the security readiness score into the discovery run. Use when asked for the security posture, a SAT-style check, the security section of the assessment, or a before/after security comparison of a migration. Never installs SAT or changes a setting."
 compatibility: "Python 3.9+, stdlib only. Live mode needs the Databricks CLI signed in to the workspace (a read-only service principal by default)."
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
   parent: discovery-intake
 ---
 
@@ -23,6 +23,7 @@ the agent judges what a failure means for the client, the code decides pass or f
 | Live workspace | `posture.py run --workspace [--profile <p>]` | `workspace` | a workspace exists and the CLI is signed in to it |
 | SAT's own results | `posture.py sat-sql …` → run the SQL read-only → save rows as JSON → `--sat-results rows.json` | `sat` | the client already runs SAT; fills the 12 account-level and network checks a workspace identity cannot see |
 | Infrastructure code | `--iac <repo path>` | `code` | pre-sales, or to compare the design with what is deployed |
+| The client's admin, by file | `posture.py bundle` → they run it → `--from-posture posture.json` | `workspace` | the person chose it (below); only what the admin observed live counts |
 
 Pass them together in one run; a check takes its answer from the live workspace first, then SAT,
 then the code. **Code alone never scores** — it finds gaps, it cannot see the posture
@@ -37,6 +38,48 @@ python3 scripts/posture.py catalog      # what each check id is and how it is ev
 
 `--allowed-regions` comes from a residency requirement (`requirements.jsonl`, e.g. GDPR transfers)
 — never from your own assumption. Without one, `VX-RES-1` stays not assessed.
+
+## Who reads the workspace — run first, then offer the person a choice
+
+A read-only identity cannot see most of the posture: workspace settings, tokens and init scripts
+answer "Forbidden" to anyone but a workspace admin, and Databricks has no read-only admin role.
+Measured on a Free Edition workspace: a read-only service principal covered 19% of the catalog's
+weight (not scored), the same run as an admin 60%. So:
+
+1. **Always run first with the identity the session is bound to** (`--read-as service-principal`).
+   Do not ask before this run. If `RDY-security` comes back scored, you are done.
+2. **Not scored because of permission → ask, do not pick.** Use the session's question tool
+   (Velox: `ask_user`) with these options, one marked recommended, each with what it costs the person:
+
+| Option | What happens | Recommend when |
+|---|---|---|
+| **Use my own login for this step** | `posture.py identity --profile <theirs>` first; then `run --workspace --profile <theirs> --read-as user-login`. Everything else stays on the service principal. If their CLI has no valid login for this host, `databricks auth login --host <host>` (a browser round-trip they approve) | their login is valid for this host **and** `is_admin: true` — typical for an internal or test workspace. Hide the option, with the reason, when it is not admin |
+| **Ask the client to make the service principal an admin, briefly** | Write the two commands for the client (below) into the chat. When they say done, `identity` must show `is_admin: true`; then `run --workspace --read-as elevated-service-principal`; then ask them to remove it and run `verify-revoked` | a client workspace whose team will grant it for minutes |
+| **The client's admin runs it and sends the file back** | `posture.py bundle --out <dir>` → a zip with `RUN.md`; the person sends it; their admin returns `posture.json`; `run --from-posture <file>` (provenance and sha256 go into the manifest) | the client will not grant admin to any identity Velox holds |
+| **Skip — report it as not scored** | Nothing more runs; §7 says not scored and why; raise an open question to the client's workspace admin | the person does not want to spend the round-trip now |
+
+Never run the person's own login, or ask a client for admin, without that answer. A choice they
+did not make is not theirs to defend to the client.
+
+**The temporary grant, for the client** (replace the ids; `groups list --filter 'displayName eq "admins"'` gives the group id):
+
+```
+databricks groups patch <admins-group-id> --json '{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations":[{"op":"add","value":{"members":[{"value":"<service-principal-id>"}]}}]}'
+# …and afterwards
+databricks groups patch <admins-group-id> --json '{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations":[{"op":"remove","path":"members[value eq \"<service-principal-id>\"]"}]}'
+```
+
+3. **Before generating the report, after a temporary grant:** `posture.py verify-revoked --run
+   <run dir>`. Still an admin → it records `FND-SEC-VX-ID-1` (high: "the assessment service
+   principal still holds workspace admin") and you tell the person in chat; the report is **not
+   blocked** — the finding goes through review like any other, and a reviewer who knows the client
+   kept the grant on purpose rejects it with that reason. Removed → the readiness rationale records
+   when it was checked.
+
+`readiness.rationale` always names who read ("Read as eurostream-ci (the assessment service
+principal, temporarily a workspace admin)…"), so report §7 shows on whose eyes the score rests.
 
 ## What it writes (into the run, never `registers/`)
 
