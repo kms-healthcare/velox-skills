@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   parent: discovery-intake
 ---
 
@@ -63,7 +63,11 @@ One record per dimension — `data`, `logic`, `governance`, `security`, `operati
 rules (`references/report-template.md`): no locator, no score; overall is the lowest dimension;
 **Security is scored only from a SAT run or workspace evidence** — reading code finds gaps, it
 cannot see the posture. The security record comes from `security-posture` (it computes the score
-and lists what it could not assess); do not write `RDY-security` by hand. Elsewhere, leave `score` null and write `needs` rather than guessing: "not scored —
+and lists what it could not assess); do not write `RDY-security` by hand — RUN it before this step:
+with the bound workspace (then its options when permissions leave it unscored), with the client's
+SAT results when they have them, and with `--iac <repo>` alone when there is no workspace yet. No
+workspace bound and none offered → go back to `discovery-intake` Step 2 and ask for one first; only
+a person's "we have none yet" makes "not scored — needs a workspace" an honest line in §7. Elsewhere, leave `score` null and write `needs` rather than guessing: "not scored —
 needs a SAT run" is a finding the client can act on, a guessed 3 is not.
 
 ## 2. Waves and pilot

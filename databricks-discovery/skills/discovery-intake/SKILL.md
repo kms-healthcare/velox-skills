@@ -3,7 +3,7 @@ name: discovery-intake
 description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -120,6 +120,14 @@ to obtain*. Mark received sources with a locator; for each missing required sour
 conclusion that will be absent. Two universals: **scanner output beats human documents** (tools
 describe the running system; documents describe a design), and **request access on day one** —
 the longest lead item.
+
+"Request access" is an ACTION, not a line in a table. When the module lists a Databricks workspace
+as a source (the migration target, the estate being consolidated) and none is bound to the session,
+ask for it now through the session's tool (Velox: `request_databricks_workspace` — the card lets
+the person connect one, as a read-only service principal by default, or say they have none yet).
+Record the outcome on line 1 of `source_request.md` (✅ bound as <identity> · ❌ none yet, OQ-xx).
+Measured 2026-10-05: two full assessments of the same project — one with a saved workspace one
+click away — never asked, and both ended with "security: not scored, needs a workspace".
 
 ## Step 3 — Evidence-sufficiency gate → `sufficiency.md`
 
