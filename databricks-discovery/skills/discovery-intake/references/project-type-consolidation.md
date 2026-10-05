@@ -39,7 +39,7 @@ uses what", "permissions are a mess", "hive_metastore", "audit finding", "duplic
 | **System tables**, account-wide, ≥ 90 days: `system.billing.usage` + `list_prices`, `system.access.audit`, `system.access.table_lineage`, `system.lakeflow.jobs` + `job_run_timeline`, `system.compute.clusters`, `system.query.history` | Who uses what, what costs what, what is idle — the actual inventory | System schemas must be enabled by an account admin; query from any UC-enabled workspace |
 | **Workspace list with owners, purpose, environment (dev/test/prod), and creation date** | Scope and decommission candidates | Account console; then confirm owners by interview |
 | **UC adoption state per workspace**: UC-enabled? hive_metastore tables still in use? mounts? | The hive_metastore → UC migration is usually the largest work item | **UCX assessment** (Databricks Labs) per workspace — it inventories tables, jobs, clusters, grants, mounts and produces an assessment dashboard |
-| **SAT output** per workspace | Security posture against Databricks best practices, ranked by severity | Run **Security Analysis Tool**; do not rebuild the checklist |
+| **SAT output** per workspace | Security posture against Databricks best practices, ranked by severity | `security-posture` per workspace (SAT's checklist, read-only); SAT's own results where the client already runs it |
 | **Identity setup**: SCIM source, groups, service principals and their owners | Access model cannot be designed without it | Account admin; IdP admin |
 
 ### Recommended

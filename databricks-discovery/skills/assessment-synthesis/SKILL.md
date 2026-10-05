@@ -62,7 +62,8 @@ One record per dimension — `data`, `logic`, `governance`, `security`, `operati
 `score`, the `basis` it came from, a one-line `rationale` and a locator. The generator enforces the
 rules (`references/report-template.md`): no locator, no score; overall is the lowest dimension;
 **Security is scored only from a SAT run or workspace evidence** — reading code finds gaps, it
-cannot see the posture. Leave `score` null and write `needs` rather than guessing: "not scored —
+cannot see the posture. The security record comes from `security-posture` (it computes the score
+and lists what it could not assess); do not write `RDY-security` by hand. Elsewhere, leave `score` null and write `needs` rather than guessing: "not scored —
 needs a SAT run" is a finding the client can act on, a guessed 3 is not.
 
 ## 2. Waves and pilot

@@ -1,0 +1,27 @@
+{
+ "workspace": "https://dbc-18f163c0-078c.cloud.databricks.com",
+ "run_with": "posture.py run --workspace --allowed-regions '^eu-'  (EuroStream is GDPR-scoped: EU residency)",
+ "locked": "2026-10-05, before the first graded run",
+ "expected_fail": {
+  "VX-UC-1": "planted P-1: ALL PRIVILEGES on eurostream.gold to account users",
+  "GOV-45":  "planted P-2: CAN_MANAGE on the fraud job to users",
+  "VX-RES-1": "baseline: metastore in us-east-2; EuroStream requires EU residency",
+  "GOV-42":  "baseline: dev bundle jobs run as a person",
+  "GOV-35":  "baseline: restrict_workspace_admins = ALLOW_ALL",
+  "VX-IA-1": "baseline: maxTokenLifetimeDays = 730",
+  "DP-11":   "baseline: SQL results download enabled",
+  "DP-5":    "baseline: notebook results download at platform default (enabled)",
+  "DP-6":    "baseline: notebook export at platform default (enabled)",
+  "DP-7":    "baseline: notebook table clipboard at platform default (enabled)",
+  "DP-8":    "baseline: interactive results stored in the Databricks account",
+  "GOV-15":  "baseline: verbose audit logs off",
+  "INFO-39": "baseline: compliance security profile off",
+  "INFO-40": "baseline: enhanced security monitoring off",
+  "INFO-42": "baseline: no Git repository allowlist"
+ },
+ "expected_not_failing": {
+  "GOV-21": "metastore is Databricks-managed on this tier; SAT's owner == created_by rule fires anyway — a reviewer rejects it",
+  "NS-7":   "only Databricks-hosted foundation-model endpoints exist",
+  "GOV-34": "system schema access is MANAGED (enabled)"
+ }
+}

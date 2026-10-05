@@ -17,7 +17,7 @@ pandoc reads it as GFM), and every inventory id (`obj-…`) is printed as the ob
 | 5 Dependencies & lineage, incl. external services | `dependency_edges` · `inventory` `external_consumer` | an edge end with no inventory record is listed as an external or unmapped service; Mermaid DAG |
 | **Part B — Assessment** | | |
 | 6 Governance, PII & GDPR gaps | `inventory.holds_pii` / `erasure_reaches` · `findings` category `governance` | every PII surface erasure is not proven to reach |
-| 7 Databricks security posture | `readiness.jsonl` `security` · `findings` category `security` | **scored only with `basis` `sat` or `workspace`**; otherwise "not scored — needs a SAT run" and the code-level gaps |
+| 7 Databricks security posture | `readiness.jsonl` `security` · `findings` category `security` | **scored only with `basis` `sat` or `workspace`**; otherwise "not scored — needs a `security-posture` run or SAT results" and the code-level gaps; every not-assessed group is listed (`readiness.needs`) |
 | 8 Technical debt register | `findings` — every other category | disposition and evidence-kind counts over all findings; `carried` first |
 | 9 Migration complexity & scope | `rationalization` · `business_rules` | decided share; kind × disposition; per object complexity (source) and wave; retire list; rules at risk (`CONFLICT` / `CODE-ONLY` / `CONFIG-ONLY`) |
 | 10 Target architecture & component mapping | `## architecture` · `rationalization.target_component` | placeholders stay visible |

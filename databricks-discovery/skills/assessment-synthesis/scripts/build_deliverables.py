@@ -49,6 +49,15 @@ def read_jsonl(p: Path):
     return out
 
 
+def rec_key(r):
+    """One record's identity across runs and registers — the key a reviewer's merge replaces by."""
+    if r.get("id") or r.get("object_id") or r.get("dimension"):
+        return r.get("id") or r.get("object_id") or r.get("dimension")
+    if "from" in r and "to" in r:
+        return f"{r.get('from')}->{r.get('to')}:{r.get('kind')}"
+    return json.dumps(r, sort_keys=True)
+
+
 def load_registers(root: Path, include_unreviewed: bool):
     names = ["requirements", "business_rules", "inventory", "inventory_tables", "inventory_pipelines",
              "inventory_reports", "dependency_edges", "findings", "open_questions", "rationalization", "readiness"]
@@ -63,7 +72,7 @@ def load_registers(root: Path, include_unreviewed: bool):
     for n, recs in regs.items():
         seen = {}
         for r in recs:
-            seen[r.get("id") or r.get("object_id") or r.get("dimension") or json.dumps(r, sort_keys=True)] = r
+            seen[rec_key(r)] = r
         regs[n] = list(seen.values())
     if not include_unreviewed:
         for n in ("requirements", "business_rules", "inventory", "findings", "readiness"):
@@ -466,8 +475,10 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
         r = rd["security"]
         md += [f"**Score: {scores['security']} / 5** — {r.get('rationale')} [{r.get('basis')}: {locs(r)}]\n\n"]
     else:
-        md += ["**Not scored — needs a SAT run** (or workspace evidence at L4). The gaps below come from "
+        md += ["**Not scored — needs a `security-posture` run on the workspace, or SAT results.** The gaps below come from "
                "reading code and configuration; they are not a posture score.\n\n"]
+    if (rd.get("security") or {}).get("needs"):
+        md += [f"Not assessed: {rd['security']['needs'].removeprefix('not assessed — ')}.\n\n"]
     sec = [f for f in fnd if f.get("category") == "security"]
     md += table(["#", "Severity", "Gap", "When migrated", "Evidence"],
                 [[f.get("id"), f.get("severity"), f.get("title"), f.get("migration_disposition") or "NOT SET", ev(f)]
@@ -547,7 +558,10 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
 
     # ---------- Appendix ----------
     md += ["\n# Appendix\n", "\n## A. Evidence\n\n", md_text(root / "sufficiency.md") or "_sufficiency.md missing_\n"]
-    pend = sum(1 for f in (root / "runs").glob("*/*.jsonl") for r in read_jsonl(f) if r.get("status") == "extracted") if (root / "runs").exists() else 0
+    # pending = proposed in a run and not yet decided in registers/ (a merged record keeps its run copy)
+    decided = {f.stem: {rec_key(r) for r in read_jsonl(f)} for f in (root / "registers").glob("*.jsonl")}
+    pend = sum(1 for f in (root / "runs").glob("*/*.jsonl") for r in read_jsonl(f)
+               if r.get("status") == "extracted" and rec_key(r) not in decided.get(f.stem, set())) if (root / "runs").exists() else 0
     md += [f"\nEvery row in this report names its locator. Sources read: workbook tab *Sources*. "
            f"Records still `extracted` (excluded unless --include-unreviewed): {pend}.\n"]
     md += ["\n## B. Best-practice references\n\n"]

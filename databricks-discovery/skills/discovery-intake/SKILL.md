@@ -76,7 +76,7 @@ type → first finding. Unclassifiable after two rounds → `unknown`, run migra
 | L1 | documents, transcripts, tickets | `stated` requirements, glossary, goals | the running system — docs describe the design |
 | L2 | code / DDL / ETL artifacts / application code (services, APIs, dashboards) | running rules, dependencies, complexity, doc-vs-code conflicts, every place data lives or leaves | volume, usage, data quality |
 | L3 | source access or scanner output (Lakebridge Analyzer, catalogs, query logs) | inventory, real usage, orphans, volume | business meaning, keep/drop |
-| L4 | Unity Catalog, system tables, workspace | cost baseline, lineage, security posture (SAT) | what *should* exist — Axis C |
+| L4 | Unity Catalog, system tables, workspace | cost baseline, lineage, security posture (`security-posture`; SAT results) | what *should* exist — Axis C |
 
 At L0–L1 every current-state section reads *"no evidence yet — needs [source]"*.
 
@@ -140,8 +140,8 @@ metadata, statistics, and ≤ 20 masked sample rows; every access recorded in `m
 ## Related skills and boundaries
 
 Not here: detailed extraction (`requirements-extraction`), code reading (`legacy-etl-archaeology`),
-matrix and report (`assessment-synthesis`), code conversion (Lakebridge), security scanning (SAT —
-run it, read it), pipeline design (Databricks' own agent skills when listed — `databricks-pipelines`,
+matrix and report (`assessment-synthesis`), code conversion (Lakebridge), security posture
+(`security-posture` — SAT's checklist, read-only, or SAT's own results), pipeline design (Databricks' own agent skills when listed — `databricks-pipelines`,
 `databricks-jobs`, `databricks-dabs`, `databricks-serverless-migration`), pricing (delivery lead).
 Build on those skills by name and say which one you used; this pack covers what they do not —
 evidence before the lakehouse exists, traceable registers, the client-facing report.

@@ -1,0 +1,1218 @@
+{
+ "source": "databricks-industry-solutions/security-analysis-tool configs/security_best_practices.csv (v0.9.0, fetched 2026-10-05); subset of columns: id, check, category, severity, recommendation, cloud flags, doc urls. Used under the Databricks License, for use with the Databricks Services; logic and code are not copied.",
+ "checks": [
+  {
+   "check_id": "DP-1",
+   "sat_id": 1,
+   "title": "Secrets management",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "Store and use secrets securely",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/secrets/index.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/secrets/",
+    "gcp": "https://docs.gcp.databricks.com/security/secrets/index.html"
+   }
+  },
+  {
+   "check_id": "DP-2",
+   "sat_id": 2,
+   "title": "Cluster instance disk encryption",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "All clusters should enable local disk encryption",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/clusters/configure.html#local-disk-encryption",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/clusters/configure#--local-disk-encryption",
+    "gcp": "https://docs.gcp.databricks.com/clusters/configure.html#local-disk-encryption"
+   }
+  },
+  {
+   "check_id": "DP-3",
+   "sat_id": 3,
+   "title": "Customer-managed keys for managed services and workspace storage",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "Add a customer-managed key for managed services and workspace storage",
+   "clouds": [
+    "aws"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/keys/customer-managed-keys-storage-aws.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/keys/customer-managed-keys",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "DP-5",
+   "sat_id": 5,
+   "title": "Downloading results is disabled",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Disable download button for notebook results",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/workspace/notebooks#manage-download-results",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results"
+   }
+  },
+  {
+   "check_id": "GOV-2",
+   "sat_id": 7,
+   "title": "PAT tokens are about to expire",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Set an expiration day (maximum lifetime) for tokens. Also regularly review PAT tokens to avoid expired tokens.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/access-control/tokens.html#manage-personal-access-tokens",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/access-control/tokens#manage-personal-access-tokens",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/access-control/tokens.html#manage-personal-access-tokens"
+   }
+  },
+  {
+   "check_id": "GOV-3",
+   "sat_id": 8,
+   "title": "Log delivery configurations",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Configure Databricks audit log delivery (or see GOV-34)",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/account-settings/audit-logs.html#configure-audit-log-delivery",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/account-settings/audit-logs#configure-audit-log-delivery",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/account-settings/audit-logs.html#configure-audit-log-delivery"
+   }
+  },
+  {
+   "check_id": "GOV-4",
+   "sat_id": 9,
+   "title": "Long-running clusters",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Restart clusters on a regular schedule to use the latest available base image and container image.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/clusters/clusters-manage.html#restart-a-cluster-to-update-it-with-the-latest-images",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/clusters/clusters-manage#--restart-a-cluster-to-update-it-with-the-latest-images",
+    "gcp": "https://docs.gcp.databricks.com/clusters/clusters-manage.html#restart-a-cluster-to-update-it-with-the-latest-images"
+   }
+  },
+  {
+   "check_id": "GOV-5",
+   "sat_id": 10,
+   "title": "Deprecated versions of Databricks runtimes",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Deprecated runtime version detected. Please update your cluster runtimes to Databricks supported runtimes",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/release-notes/runtime/releases.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/release-notes/runtime/releases",
+    "gcp": "https://docs.gcp.databricks.com/release-notes/runtime/releases.html"
+   }
+  },
+  {
+   "check_id": "GOV-10",
+   "sat_id": 15,
+   "title": "Managed tables in DBFS root",
+   "category": "Governance",
+   "severity": "low",
+   "recommendation": "The DBFS root is not intended for production customer data",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data/databricks-file-system.html#configuration-and-usage-recommendations",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data/databricks-file-system#configuration-and-usage-recommendations",
+    "gcp": "https://docs.gcp.databricks.com/dbfs/index.html#configuration-and-usage-recommendations"
+   }
+  },
+  {
+   "check_id": "GOV-11",
+   "sat_id": 16,
+   "title": "DBFS mounts",
+   "category": "Governance",
+   "severity": "low",
+   "recommendation": "Avoid DBFS mounts for accessing production data",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "compute",
+   "doc": {
+    "aws": "https://docs.databricks.com/data/databricks-file-system.html#configuration-and-usage-recommendations",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data/databricks-file-system#configuration-and-usage-recommendations",
+    "gcp": "https://docs.gcp.databricks.com/dbfs/index.html#configuration-and-usage-recommendations"
+   }
+  },
+  {
+   "check_id": "GOV-12",
+   "sat_id": 17,
+   "title": "Unity Catalog enabled clusters",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Use Unity Catalog enabled clusters",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-governance/unity-catalog/index.html#cluster-access-modes-for-unity-catalog",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/#cluster-access-modes-for-unity-catalog",
+    "gcp": "https://docs.gcp.databricks.com/data-governance/unity-catalog/index.html#cluster-access-modes-for-unity-catalog"
+   }
+  },
+  {
+   "check_id": "IA-4",
+   "sat_id": 21,
+   "title": "PAT tokens with no lifetime (expiration) limit",
+   "category": "Identity & Access",
+   "severity": "medium",
+   "recommendation": "Configure maximum token lifetimes for future tokens using token management",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/access-control/tokens.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/access-control/tokens#manage-personal-access-tokens",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/access-control/tokens.html"
+   }
+  },
+  {
+   "check_id": "INFO-3",
+   "sat_id": 24,
+   "title": "Global libraries",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Global libraries are discouraged for security reasons. Use cluster libraries or notebook-scoped libraries to improve startup time for clusters that don't require that library, and to improve flexibility where that library is not required.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/libraries/cluster-libraries.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/libraries/cluster-libraries",
+    "gcp": "https://docs.gcp.databricks.com/libraries/cluster-libraries.html"
+   }
+  },
+  {
+   "check_id": "INFO-5",
+   "sat_id": 26,
+   "title": "Global init script",
+   "category": "Informational",
+   "severity": "medium",
+   "recommendation": "Global init scripts are discouraged for security, improved startup and flexibility reasons",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/clusters/init-scripts.html#init-script-types",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/clusters/init-scripts#init-script-types",
+    "gcp": "https://docs.gcp.databricks.com/clusters/init-scripts.html#global-init-scripts"
+   }
+  },
+  {
+   "check_id": "INFO-6",
+   "sat_id": 27,
+   "title": "Number of admins",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Limit the number of admin accounts so that most users are not admins. Note: the threshold for this SAT check can be configured",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/users-groups/users.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/users-groups/users",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/users-groups/users.html"
+   }
+  },
+  {
+   "check_id": "INFO-8",
+   "sat_id": 29,
+   "title": "Job view ACLs are set consistently",
+   "category": "Informational",
+   "severity": "high",
+   "recommendation": "Use job visibility control to prevent users from viewing jobs where they do not have permissions",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/access-control/jobs-acl.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/access-control/jobs-acl",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/access-control/jobs-acl.html"
+   }
+  },
+  {
+   "check_id": "INFO-9",
+   "sat_id": 30,
+   "title": "Cluster view ACLs are set consistently",
+   "category": "Informational",
+   "severity": "high",
+   "recommendation": "Use cluster visibility control to prevent users from viewing clusters where they do not have permissions",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/access-control/cluster-acl.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/access-control/cluster-acl",
+    "gcp": "https://docs.gcp.databricks.com/security/access-control/cluster-acl.html"
+   }
+  },
+  {
+   "check_id": "INFO-10",
+   "sat_id": 31,
+   "title": "Workspace View ACLs are set consistently",
+   "category": "Informational",
+   "severity": "high",
+   "recommendation": "Use workspace visibility control to prevent users from viewing notebooks and other objects where they do not have permissions in the workspace",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/access-control/workspace-acl.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/access-control/workspace-acl",
+    "gcp": "https://docs.gcp.databricks.com/security/access-control/workspace-acl.html"
+   }
+  },
+  {
+   "check_id": "INFO-11",
+   "sat_id": 32,
+   "title": "Workspace for supporting Git repos",
+   "category": "Informational",
+   "severity": "high",
+   "recommendation": "It is recommended to store code in Git repos",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/repos/index.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/repos/index",
+    "gcp": "https://docs.gcp.databricks.com/repos/index.html"
+   }
+  },
+  {
+   "check_id": "NS-3",
+   "sat_id": 35,
+   "title": "Front-end private connectivity",
+   "category": "Network Security",
+   "severity": "medium",
+   "recommendation": "Configure either private network connectivity or IP access lists (NS-5) for workspace access and REST APIs. You can configure AWS PrivateLink, Azure Private Link, or Google Private Service Connect. Note that enabling and requiring front-end private connectivity are different, see the documentation for details.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/cloud-configurations/aws/privatelink.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/cloud-configurations/azure/private-link",
+    "gcp": "https://cloud.google.com/vpc/docs/private-access-options"
+   }
+  },
+  {
+   "check_id": "NS-4",
+   "sat_id": 36,
+   "title": "Workspace uses a customer-managed VPC (AWS, GCP) or enables VNet injection (Azure)",
+   "category": "Network Security",
+   "severity": "medium",
+   "recommendation": "Deploy with a customer-managed VPC (AWS, GCP) or use VNet injection (Azure) to help enforce data exfiltration protections",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/cloud-configurations/aws/customer-managed-vpc.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/cloud-configurations/azure/vnet-inject",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/cloud-configurations/gcp/customer-managed-vpc.html"
+   }
+  },
+  {
+   "check_id": "NS-5",
+   "sat_id": 37,
+   "title": "IP access lists for workspace access",
+   "category": "Network Security",
+   "severity": "medium",
+   "recommendation": "Configure IP access lists or private network connectivity (NS-3) for workspaces that restrict the IP addresses that can authenticate to help protect against data exfiltration and account takeover",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/network/ip-access-list.html#add-an-ip-access-list",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list",
+    "gcp": "https://docs.gcp.databricks.com/security/network/ip-access-list.html"
+   }
+  },
+  {
+   "check_id": "IA-5",
+   "sat_id": 38,
+   "title": "Maximum lifetime of new tokens to something other than unlimited",
+   "category": "Identity & Access",
+   "severity": "medium",
+   "recommendation": "Configure maximum lifetime for all future tokens to a value other than unlimited",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/access-control/tokens.html#lifetime",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/access-control/tokens#--set-maximum-lifetime-of-new-tokens-rest-api-only",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/access-control/tokens.html#lifetime"
+   }
+  },
+  {
+   "check_id": "NS-6",
+   "sat_id": 39,
+   "title": "Secure cluster connectivity (on Azure this is also called NoPublicIp)",
+   "category": "Network Security",
+   "severity": "medium",
+   "recommendation": "Configure secure cluster connectivity (On Azure, this is called NoPublicIP / NPIP)",
+   "clouds": [
+    "azure"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "N/A",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/secure-cluster-connectivity"
+   }
+  },
+  {
+   "check_id": "IA-6",
+   "sat_id": 41,
+   "title": "Tokens with a lifetime (expiration) that exceeds the workspace maximum lifetime for new tokens",
+   "category": "Identity & Access",
+   "severity": "medium",
+   "recommendation": "Update lifetime for all old tokens",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/access-control/tokens.html#manage-personal-access-tokens",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/access-control/tokens#manage-personal-access-tokens",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/access-control/tokens.html#manage-personal-access-tokens"
+   }
+  },
+  {
+   "check_id": "GOV-14",
+   "sat_id": 43,
+   "title": "Enforce AWS Instance Metadata Service v2",
+   "category": "Governance",
+   "severity": "low",
+   "recommendation": "Enforce AWS Instance Metadata Service v2 on a workspace",
+   "clouds": [
+    "aws"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/cloud-configurations/aws/imdsv2.html"
+   }
+  },
+  {
+   "check_id": "DP-6",
+   "sat_id": 44,
+   "title": "Notebook export",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "Disable exporting notebooks and cells within notebooks",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/workspace/notebooks#manage-download-results",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results"
+   }
+  },
+  {
+   "check_id": "DP-7",
+   "sat_id": 45,
+   "title": "Notebook table clipboard features",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "Disable the ability of users to copy tabular data to the clipboard via the notebooks UI",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/administration-guide/workspace/notebooks#manage-download-results",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/workspace/notebooks.html#manage-download-results"
+   }
+  },
+  {
+   "check_id": "DP-8",
+   "sat_id": 49,
+   "title": "Enable storing interactive notebook results only in the customer account",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Enable store interactive notebook results in your account",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/administration-guide/workspace/notebooks.html#manage-where-notebook-results-are-stored",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/workspace-settings/notebooks#manage-where-notebook-results-are-stored",
+    "gcp": "https://docs.gcp.databricks.com/administration-guide/workspace/notebooks.html#manage-where-notebook-results-are-stored"
+   }
+  },
+  {
+   "check_id": "GOV-15",
+   "sat_id": 50,
+   "title": "Enable verbose audit logs (on Azure, diagnostic logs)",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Enable verbose audit logs (on Azure, diagnostic logs)",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/admin/account-settings/verbose-logs.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/account-settings/verbose-logs",
+    "gcp": "https://docs.gcp.databricks.com/en/admin/account-settings/verbose-logs.html"
+   }
+  },
+  {
+   "check_id": "DP-9",
+   "sat_id": 51,
+   "title": "FileStore endpoint for HTTPS file serving",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Review and disable FileStore endpoint in admin console workspace settings",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/dbfs/filestore.html#filestore",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/dbfs/filestore",
+    "gcp": "https://docs.gcp.databricks.com/dbfs/filestore.html#filestore"
+   }
+  },
+  {
+   "check_id": "GOV-16",
+   "sat_id": 53,
+   "title": "Workspace Unity Catalog metastore assignment",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Enable a workspace for Unity Catalog by assigning a Unity Catalog metastore",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-governance/unity-catalog/enable-workspaces.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/enable-workspaces",
+    "gcp": "https://docs.gcp.databricks.com/data-governance/unity-catalog/enable-workspaces.html"
+   }
+  },
+  {
+   "check_id": "GOV-17",
+   "sat_id": 54,
+   "title": "Limit the lifetime (expiration) of metastore Delta Sharing recipient token",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Set the lifetime of Delta Sharing recipient tokens",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-sharing/create-recipient.html#modify-the-recipient-token-lifetime",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-sharing/create-recipient#modify-recipient-token-lifetime",
+    "gcp": "https://docs.gcp.databricks.com/data-sharing/create-recipient.html#modify-the-recipient-token-lifetime"
+   }
+  },
+  {
+   "check_id": "GOV-18",
+   "sat_id": 55,
+   "title": "Delta Sharing IP access lists",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Configure Delta Sharing IP access lists to restrict recipient access to trusted IP addresses",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-sharing/access-list.html#use-ip-access-lists-to-restrict-delta-sharing-recipient-access-open-sharing",
+    "azure": "https://learn.microsoft.com/en-gb/azure/databricks/data-sharing/access-list",
+    "gcp": "https://docs.gcp.databricks.com/data-sharing/create-recipient.html#security-considerations-for-tokens"
+   }
+  },
+  {
+   "check_id": "GOV-19",
+   "sat_id": 56,
+   "title": "Delta Sharing token expiration",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Establish a process for rotating credentials Delta sharing token",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-sharing/create-recipient.html#security-considerations-for-tokens",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-sharing/create-recipient#--security-considerations-for-tokens",
+    "gcp": "https://docs.gcp.databricks.com/data-sharing/access-list.html#security-considerations-for-tokens"
+   }
+  },
+  {
+   "check_id": "GOV-20",
+   "sat_id": 57,
+   "title": "Existence of Unity Catalog metastores",
+   "category": "Governance",
+   "severity": "low",
+   "recommendation": "Create a Unity Catalog metastore",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-governance/unity-catalog/create-metastore.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/create-metastore",
+    "gcp": "https://docs.gcp.databricks.com/data-governance/unity-catalog/create-metastore.html"
+   }
+  },
+  {
+   "check_id": "GOV-21",
+   "sat_id": 58,
+   "title": "Delegation of the Unity Catalog metastore admin to a group",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Delegate metastore admin to a group who is not the account admin",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-governance/unity-catalog/manage-privileges/index.html#assign-a-metastore-admin",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/manage-privileges/#--assign-a-metastore-admin",
+    "gcp": "https://docs.gcp.databricks.com/data-governance/unity-catalog/manage-privileges/index.html#assign-a-metastore-admin"
+   }
+  },
+  {
+   "check_id": "INFO-18",
+   "sat_id": 62,
+   "title": "Users with Delta Sharing permissions to create a recipient or create a share",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Limit who has CREATE_RECIPIENT and CREATE_SHARE permissions on metastore. Note: the threshold for this check is configurable.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/data-sharing/create-recipient.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/clusters/init-scripts#--migrate-from-legacy-to-new-global-init-scripts",
+    "gcp": "https://docs.gcp.databricks.com/data-sharing/create-recipient.html"
+   }
+  },
+  {
+   "check_id": "GOV-25",
+   "sat_id": 64,
+   "title": "Init scripts stored in DBFS",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Databricks recommends you avoid storing init scripts in /databricks/init location to avoid unexpected behavior",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/clusters/init-scripts.html#cluster-scoped-init-scripts",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/clusters/init-scripts",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "GOV-28",
+   "sat_id": 78,
+   "title": "Govern model assets",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Manage model lifecycle in Unity Catalog",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/machine-learning/manage-model-lifecycle/index.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/machine-learning/manage-model-lifecycle/",
+    "gcp": "https://docs.gcp.databricks.com/en/machine-learning/manage-model-lifecycle/index.html"
+   }
+  },
+  {
+   "check_id": "NS-7",
+   "sat_id": 89,
+   "title": "Secure model serving endpoints",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Secure endpoints of the underlying models served as REST API endpoints using Private connectivity or IP Access Lists",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/machine-learning/model-serving/manage-serving-endpoints.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/machine-learning/model-serving/manage-serving-endpoints",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "INFO-29",
+   "sat_id": 90,
+   "title": "Streamline the usage and management of various large language model(LLM) providers",
+   "category": "Informational",
+   "severity": "medium",
+   "recommendation": "Secure third-party models hosted outside of Databricks with Model Serving to streamline the usage and management of various large language model (LLM) providers such as OpenAI and Anthropic within an organization by storing API keys in one secure location",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/generative-ai/external-models/index.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/generative-ai/external-models",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "DP-14",
+   "sat_id": 101,
+   "title": "Store and retrieve embeddings securely",
+   "category": "Data Protection",
+   "severity": "low",
+   "recommendation": "Store and retrieve embeddings securely using the Vector Search",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/generative-ai/vector-search.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/generative-ai/vector-search",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "INFO-37",
+   "sat_id": 103,
+   "title": "Compliance security profile for new workspaces",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Validate and deploy on a platform that has put in place controls to meet the unique compliance needs of highly regulated industries",
+   "clouds": [
+    "aws"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/security/privacy/security-profile.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/privacy/security-profile",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "INFO-38",
+   "sat_id": 104,
+   "title": "Third-party library control",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Add libraries and init scripts to the allowlist in Unity Catalog",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/data-governance/unity-catalog/manage-privileges/allowlist.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/data-governance/unity-catalog/manage-privileges/allowlist",
+    "gcp": "https://docs.gcp.databricks.com/en/data-governance/unity-catalog/manage-privileges/allowlist.html"
+   }
+  },
+  {
+   "check_id": "GOV-34",
+   "sat_id": 105,
+   "title": "Monitor audit logs with system tables (or see GOV-3)",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Configure system tables and set up automated monitoring and alerting",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/admin/system-tables/index.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/system-tables/",
+    "gcp": "https://docs.gcp.databricks.com/en/admin/system-tables/index.html"
+   }
+  },
+  {
+   "check_id": "GOV-35",
+   "sat_id": 106,
+   "title": "Restrict workspace admins",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Restrict workspace admins to only change a job owner to themselves and the job run as setting to a service principal that they have the Service Principal User role on",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/admin/workspace-settings/restrict-workspace-admins.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/workspace-settings/restrict-workspace-admins",
+    "gcp": "https://docs.gcp.databricks.com/en/admin/workspace-settings/restrict-workspace-admins.html"
+   }
+  },
+  {
+   "check_id": "GOV-36",
+   "sat_id": 107,
+   "title": "Automatic cluster update",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Ensure that all the clusters in a workspace are periodically updated to the latest host OS image and security updates",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/admin/clusters/automatic-cluster-update.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/clusters/automatic-cluster-update",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "INFO-39",
+   "sat_id": 108,
+   "title": "Compliance security profile for the workspace",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Validate and deploy on a platform that has put in place controls to meet the unique compliance needs of highly regulated industries",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/security/privacy/security-profile.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/privacy/security-profile",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "INFO-40",
+   "sat_id": 109,
+   "title": "Enhanced security monitoring for the workspace",
+   "category": "Informational",
+   "severity": "low",
+   "recommendation": "Validate and deploy on a platform that has put in place controls to meet the unique compliance needs of highly regulated industries",
+   "clouds": [
+    "aws",
+    "azure"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/en/security/privacy/enhanced-security-monitoring.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/privacy/enhanced-security-monitoring",
+    "gcp": "N/A"
+   }
+  },
+  {
+   "check_id": "NS-8",
+   "sat_id": 110,
+   "title": "IP access lists for account console access",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Configure IP access lists for the account console to allow users to connect to the account console UI and account-level REST APIs only through a set of approved IP addresses to reduce the risk of account takeover",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/network/ip-access-list.html#add-an-ip-access-list",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list",
+    "gcp": "https://docs.gcp.databricks.com/security/network/ip-access-list.html"
+   }
+  },
+  {
+   "check_id": "NS-9",
+   "sat_id": 111,
+   "title": "Workspaces have proper network policy configuration",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Ensure workspaces have network policies assigned with restricted access mode and enforced (not dry-run for all products)",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/security/network/serverless-network-security/network-policies",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/serverless-network-security/network-policies",
+    "gcp": "https://docs.databricks.com/gcp/en/security/network/serverless-network-security/network-policies"
+   }
+  },
+  {
+   "check_id": "GOV-37",
+   "sat_id": 112,
+   "title": "Disable legacy features for new workspaces",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Enable the disable legacy features account setting to prevent new workspaces from accessing DBFS root, Hive Metastore, no-isolation shared clusters, and pre-13.3 LTS runtimes",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/account-settings/legacy-features",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/account-settings/legacy-features",
+    "gcp": "https://docs.gcp.databricks.com/en/admin/account-settings/legacy-features"
+   }
+  },
+  {
+   "check_id": "INFO-42",
+   "sat_id": 113,
+   "title": "Git repository allowlist configured",
+   "category": "Informational",
+   "severity": "medium",
+   "recommendation": "Enable the Git repository allowlist to restrict which external Git repositories workspace users can connect notebooks to. Without an allowlist users can connect to any external repository enabling code exfiltration and introduction of malicious code from unreviewed sources.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/repos/repos-setup.html#configure-an-allowlist-for-repos",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/repos/repos-setup#configure-an-allowlist-for-repos",
+    "gcp": "https://docs.gcp.databricks.com/repos/repos-setup.html#configure-an-allowlist-for-repos"
+   }
+  },
+  {
+   "check_id": "DP-10",
+   "sat_id": 114,
+   "title": "Disable legacy DBFS root and mounts",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Enable the disable_legacy_dbfs workspace setting to prevent the workspace from accessing DBFS root and mounts and enforce Unity Catalog as the data access layer",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/dbfs/disable-dbfs-root-mounts",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/dbfs/disable-dbfs-root-mounts",
+    "gcp": "https://docs.databricks.com/gcp/en/dbfs/disable-dbfs-root-mounts"
+   }
+  },
+  {
+   "check_id": "DP-11",
+   "sat_id": 115,
+   "title": "SQL warehouse results download disabled",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Disable SQL results download to prevent data exfiltration via SQL Editor and Dashboards",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/workspace-settings/notebooks#enable-users-to-download-sql-query-results",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/workspace-settings/notebooks#enable-users-to-download-sql-query-results",
+    "gcp": "https://docs.databricks.com/gcp/en/admin/workspace-settings/notebooks#enable-users-to-download-sql-query-results"
+   }
+  },
+  {
+   "check_id": "DP-13",
+   "sat_id": 116,
+   "title": "DBFS file browser disabled",
+   "category": "Data Protection",
+   "severity": "medium",
+   "recommendation": "Disable the DBFS file browser to prevent users from browsing shared storage paths through the UI without an audit trail or access control",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/workspace-settings/dbfs-browser",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/workspace-settings/dbfs-browser",
+    "gcp": "https://docs.databricks.com/gcp/en/admin/workspace-settings/dbfs-browser"
+   }
+  },
+  {
+   "check_id": "GOV-42",
+   "sat_id": 117,
+   "title": "Jobs run as service principal",
+   "category": "Governance",
+   "severity": "medium",
+   "recommendation": "Configure production jobs to run as a service principal to enforce least privilege and improve audit clarity",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/users-groups/service-principals#common-use-cases",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/service-principals#common-use-cases",
+    "gcp": "https://docs.databricks.com/gcp/en/admin/users-groups/service-principals#common-use-cases"
+   }
+  },
+  {
+   "check_id": "IA-8",
+   "sat_id": 118,
+   "title": "PAT token creation restricted to admins",
+   "category": "Identity & Access",
+   "severity": "medium",
+   "recommendation": "Databricks recommends you use OAuth access tokens instead of PATs for greater security and convenience",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/access-control/tokens",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/access-control/tokens",
+    "gcp": "https://docs.databricks.com/gcp/en/admin/access-control/tokens"
+   }
+  },
+  {
+   "check_id": "IA-9",
+   "sat_id": 119,
+   "title": "Service principal client secrets not stale",
+   "category": "Identity & Access",
+   "severity": "medium",
+   "recommendation": "Rotate every service principal OAuth client secret at least every 365 days. Account-wide check \u2014 pass requires zero stale ACTIVE secrets.",
+   "clouds": [
+    "aws",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/admin/users-groups/service-principals",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/admin/users-groups/service-principals",
+    "gcp": "https://docs.databricks.com/gcp/en/admin/users-groups/service-principals"
+   }
+  },
+  {
+   "check_id": "NS-11",
+   "sat_id": 121,
+   "title": "Workspace IP access list enforcement enabled",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Enable IP access list enforcement so that the configured workspace IP access lists are actually applied \u2014 having entries without enforcement leaves the workspace open to access from any IP",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/security/network/front-end/ip-access-list",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list",
+    "gcp": "https://docs.databricks.com/gcp/en/security/network/front-end/ip-access-list"
+   }
+  },
+  {
+   "check_id": "NS-12",
+   "sat_id": 122,
+   "title": "Context-Based Ingress (CBI) policy configured",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Adopt Context-Based Ingress (CBI) by setting ingress.public_access.restriction_mode to RESTRICTED_ACCESS on the network policy attached to each workspace. Dry-run enforcement is an acceptable first step toward full enforcement.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/security/network/front-end/context-based-ingress",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/context-based-ingress",
+    "gcp": "https://docs.gcp.databricks.com/en/security/network/front-end/context-based-ingress"
+   }
+  },
+  {
+   "check_id": "NS-13",
+   "sat_id": 124,
+   "title": "Account console IP access list enforcement enabled",
+   "category": "Network Security",
+   "severity": "high",
+   "recommendation": "Configure and enable an ALLOW-type IP access list for the account console to restrict console access to known IP ranges \u2014 a BLOCK-only configuration does not prevent access from unknown IPs",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "account",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/security/network/front-end/ip-access-list-account",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/front-end/ip-access-list-account",
+    "gcp": "https://docs.databricks.com/gcp/en/security/network/front-end/ip-access-list-account"
+   }
+  },
+  {
+   "check_id": "GOV-45",
+   "sat_id": 123,
+   "title": "Jobs not granting CAN_MANAGE to non-admin principals",
+   "category": "Governance",
+   "severity": "high",
+   "recommendation": "Review and revoke CAN_MANAGE from any principal other than the job owner and the admins group. Any user group or service principal holding CAN_MANAGE can modify the job definition and execute code as the job owner or its configured run_as identity creating a privilege escalation path.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "workspace",
+   "doc": {
+    "aws": "https://docs.databricks.com/security/access-control/jobs-acl.html",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/access-control/jobs-acl",
+    "gcp": "https://docs.gcp.databricks.com/security/access-control/jobs-acl.html"
+   }
+  },
+  {
+   "check_id": "NS-14",
+   "sat_id": 125,
+   "title": "Egress control from compute \u2014 live connectivity test",
+   "category": "Network Security",
+   "severity": "medium",
+   "recommendation": "Use an egress firewall or proxy appliance to limit outbound traffic to a list of allowed internal or external data sources.",
+   "clouds": [
+    "aws",
+    "azure",
+    "gcp"
+   ],
+   "scope": "compute",
+   "doc": {
+    "aws": "https://docs.databricks.com/aws/en/security/network/classic/customer-managed-vpc#configure-a-firewall-and-outbound-access",
+    "azure": "https://learn.microsoft.com/en-us/azure/databricks/security/network/classic/vnet-inject",
+    "gcp": "https://docs.databricks.com/gcp/en/security/network/classic/customer-managed-vpc"
+   }
+  }
+ ]
+}

@@ -44,7 +44,7 @@ must be traceable and human-reviewed**. That gap is discovery & assessment.
 |---|---|---|
 | **Lakebridge** (Databricks Labs) — Analyzer / Transpiler / Reconcile | Inventory + complexity of legacy code (40+ source techs, `.xlsx` + `.json`); conversion; data reconciliation | Migration inventory and estimate drivers. Does **not** extract business rules in business language or flag rules missing from specs |
 | **UCX** (Databricks Labs) | hive_metastore → Unity Catalog assessment and migration | Consolidation and any client still on hive_metastore |
-| **SAT — Security Analysis Tool** | Scans account + workspace config against best practices; severity-ranked report; multi-cloud; schedulable | Security posture in consolidation / migration. Translate its output into `SEC-` requirements; do not write your own checklist |
+| **SAT — Security Analysis Tool** | Scans account + workspace config against best practices; severity-ranked report; multi-cloud; schedulable | Its catalog **is** the checklist: `security-posture` evaluates it read-only against the workspace and imports SAT's results where the client runs SAT. Never install SAT for the client — it needs an account-admin principal |
 | **Well-Architected Framework** | Five pillars — Secure, Reliable, Efficient, Interoperable, Cost-effective — and a nine-phase deployment guide | Rubric for platform findings |
 
 ## What none of them do — the space this skill pack occupies
