@@ -58,6 +58,11 @@ def rec_key(r):
     return json.dumps(r, sort_keys=True)
 
 
+def is_open(q):
+    """`status` on a question is its review state once a person decides it; only an answer or a close ends it."""
+    return q.get("status", "open") not in ("answered", "closed", "rejected") and not q.get("answer")
+
+
 def load_registers(root: Path, include_unreviewed: bool):
     names = ["requirements", "business_rules", "inventory", "inventory_tables", "inventory_pipelines",
              "inventory_reports", "dependency_edges", "findings", "open_questions", "rationalization", "readiness"]
@@ -77,6 +82,9 @@ def load_registers(root: Path, include_unreviewed: bool):
     if not include_unreviewed:
         for n in ("requirements", "business_rules", "inventory", "findings", "readiness"):
             regs[n] = [r for r in regs[n] if r.get("status") in REVIEWED]
+    # a rejection removes the record from every register, whatever its own lifecycle field means
+    for n in regs:
+        regs[n] = [r for r in regs[n] if r.get("status") != "rejected"]
     return regs
 
 
@@ -148,10 +156,10 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
     ws = wb.create_sheet("Summary")
     disp = Counter(r.get("disposition") or "undecided" for r in rat)
     rs = Counter(r.get("rule_status", "?") for r in rules)
-    hi = [q for q in oq if q.get("impact_if_wrong") == "high" and q.get("status", "open") == "open"]
+    hi = [q for q in oq if q.get("impact_if_wrong") == "high" and is_open(q)]
     lines = [["Project", root.name], ["Decision (Axis C)", axis_c or "MISSING — fix intake.md"], [],
              ["Counts", ""], ["Requirements", len(req)], ["Business rules", len(rules)], ["Inventory objects", len(inv)],
-             ["Findings", len(fnd)], ["Readiness (lowest scored of 5)", min((x for x in (readiness_score(r) for r in regs["readiness"]) if x), default="not scored")], ["Open questions (open)", sum(1 for q in oq if q.get("status", "open") == "open")],
+             ["Findings", len(fnd)], ["Readiness (lowest scored of 5)", min((x for x in (readiness_score(r) for r in regs["readiness"]) if x), default="not scored")], ["Open questions (open)", sum(1 for q in oq if is_open(q))],
              ["  of which blocking (impact high)", len(hi)], [],
              ["Rationalization", ""]] + [[d, disp.get(d, 0)] for d in DISPOSITIONS + ["undecided"]] + [[],
              ["rule_status", ""]] + [[k, v] for k, v in sorted(rs.items())] + [[],
@@ -219,7 +227,7 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
 
     byp = defaultdict(list)
     for q in oq:
-        if q.get("status", "open") == "open":
+        if is_open(q):
             byp[q.get("ask") or "unassigned"].append(q)
     rows = []
     for p, qs in sorted(byp.items()):
@@ -344,7 +352,7 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     # skills and CLI shaped it — the agent passes what its session knows.
     if built_with:
         head += [f"\n> Built with: {built_with}\n"]
-    hi = [q for q in oq if q.get("impact_if_wrong") == "high" and q.get("status", "open") == "open"]
+    hi = [q for q in oq if q.get("impact_if_wrong") == "high" and is_open(q)]
 
     # ---------- 1 ----------
     md += ["\n# Part A — Discovery\n", "\n## 1. Executive summary\n\n", (axis_c or "> Axis C missing in intake.md") + "\n\n"]
@@ -577,7 +585,7 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     hi_ids = {q.get("id") for q in hi}
     byp = defaultdict(list)
     for q in oq:
-        if q.get("status", "open") == "open":
+        if is_open(q):
             byp[q.get("ask") or "unassigned"].append(q)
     for p, qs in sorted(byp.items()):
         md += [f"\n**{p}** — {len(qs)}\n"]

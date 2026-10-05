@@ -47,8 +47,8 @@ move (email bodies, chat exports) get a copy under `sources/`.
 | Field | Values | Rule |
 |---|---|---|
 | `evidence[].kind` | `stated` · `reproduced` · `inferred` · `external` | Conclusions rest on `stated` or `reproduced`. `reproduced` = observed by running it on sample data (see `legacy-etl-archaeology/references/app-estate-guide.md` §3); its locator is the run log line, and the run is in `manifest.json` `executions[]` — it outranks `stated` for a claim about behaviour. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
-| `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record** |
-| `status` | `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred` | The agent sets only `extracted`; humans move it |
+| `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record**. A file path is relative to the project root (the folder that holds `discovery/`), so a reviewer's viewer can open it at the line; a workspace observation is the call that reproduces it (`GET /api/…  → key=value`) |
+| `status` | `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred` | The agent sets only `extracted`; humans move it — in Velox from the Workspace panel's **Review** tab, which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question stays open until it has an `answer`, whatever its review status. `rejected` keeps a record out of every deliverable |
 
 Also: `confidence` 0–1 (orders review, never skips it), `inferred` bool, `conflicts[]` (kept apart from
 evidence — disagreement is a finding, not proof).
