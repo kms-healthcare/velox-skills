@@ -577,6 +577,23 @@ def bundle(out):
         return shutil.make_archive(str(out / "velox-posture"), "zip", d, "velox-posture")
 
 
+def write_jsonl_merged(path, records, mine):
+    """Rewrite `path` keeping every record that is not `mine`, then this run's `records`."""
+    kept = []
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                kept.append(line)
+                continue
+            if not mine(r):
+                kept.append(json.dumps(r, ensure_ascii=False))
+    path.write_text("".join(x + "\n" for x in kept + [json.dumps(r, ensure_ascii=False) for r in records]), encoding="utf-8")
+
+
 # ---------- scoring and records ----------
 def score(results):
     """1–5 from severity-weighted pass share over ASSESSED live/SAT checks; any high failure caps at 3, three cap at 2;
@@ -694,13 +711,16 @@ def run(args, fetch=None):
                                                   "identity": identity, "supplied": args.from_posture and supplied_meta(args.from_posture),
                                                   "checks": rows}, indent=1), encoding="utf-8")
     fails = [finding(cid, r, args.cloud) for cid, r in results.items() if r["status"] == "fail"]
-    (out / "findings.jsonl").write_text("".join(json.dumps(f, ensure_ascii=False) + "\n" for f in fails), encoding="utf-8")
+    # The run folder is shared with the discovery skills: MERGE — replace this skill's own records
+    # (FND-SEC-*, the security dimension), keep everything else. Measured 2026-10-05: a plain write
+    # here wiped 28 discovery findings and four readiness dimensions from a live assessment run.
+    write_jsonl_merged(out / "findings.jsonl", fails, lambda r: str(r.get("id", "")).startswith("FND-SEC-"))
     rdy = readiness(results, s, coverage, highs)
     if identity:
         rdy["rationale"] = f"Read as {identity['name']} ({READ_AS[args.read_as]}). {rdy['rationale']}"[:300]
     elif args.from_posture:
         rdy["rationale"] = f"Read by the client's admin, supplied as {Path(args.from_posture).name}. {rdy['rationale']}"[:300]
-    (out / "readiness.jsonl").write_text(json.dumps(rdy, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_jsonl_merged(out / "readiness.jsonl", [rdy], lambda r: r.get("dimension") == "security")
     manifest = out / "manifest.json"
     m = json.loads(manifest.read_text()) if manifest.exists() else {"run_id": out.name, "skill": "security-posture"}
     if args.from_posture:

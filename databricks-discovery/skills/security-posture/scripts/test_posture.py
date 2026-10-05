@@ -137,6 +137,22 @@ def test_sat_observation_beats_a_default_assumption_but_not_a_live_value():
         assert _json.loads((Path(d) / "posture.json").read_text())["sat_disagreements"] == ["GOV-35"]
 
 
+def test_run_merges_into_a_shared_run_folder():
+    import json as _json
+    with tempfile.TemporaryDirectory() as d:
+        run = Path(d)
+        (run / "findings.jsonl").write_text(_json.dumps({"id": "FND-03", "title": "discovery finding"}) + "\n"
+                                            + _json.dumps({"id": "FND-SEC-GOV-35", "title": "stale posture finding"}) + "\n")
+        (run / "readiness.jsonl").write_text(_json.dumps({"id": "RDY-data", "dimension": "data", "score": 2}) + "\n"
+                                             + _json.dumps({"id": "RDY-security", "dimension": "security", "score": 5}) + "\n")
+        posture.run(args(d), fetch=fetch)
+        f = [_json.loads(x) for x in (run / "findings.jsonl").read_text().splitlines()]
+        assert [x["id"] for x in f if not x["id"].startswith("FND-SEC-")] == ["FND-03"]
+        assert sum(1 for x in f if x["id"] == "FND-SEC-GOV-35") == 1 and f[-1]["id"].startswith("FND-SEC-")
+        r = [_json.loads(x) for x in (run / "readiness.jsonl").read_text().splitlines()]
+        assert [x["dimension"] for x in r] == ["data", "security"] and r[1]["score"] is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
