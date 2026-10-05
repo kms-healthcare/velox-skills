@@ -44,6 +44,7 @@ def test_live_rules_score_and_records():
         assert results["GOV-42"]["status"] == "fail" and results["GOV-45"]["status"] == "fail"
         assert results["NS-3"]["status"] == "not_assessed"                # account API never guessed
         assert results["GOV-2"]["reason"].startswith("permission")
+        assert posture.failure('Error: Get "https://x": dial tcp: lookup x: no such host')["reason"].startswith("network")
         findings = [json.loads(x) for x in (Path(d) / "findings.jsonl").read_text().splitlines()]
         ids = {f["id"] for f in findings}
         assert "FND-SEC-GOV-35" in ids and all(f["status"] == "extracted" for f in findings)
@@ -119,6 +120,21 @@ def test_identity_client_file_and_revoke():
         assert "Admin removed" in json.loads((run / "readiness.jsonl").read_text())["rationale"]
         names = zipfile.ZipFile(posture.bundle(d / "b")).namelist()
         assert {"velox-posture/scripts/posture.py", "velox-posture/references/sat-checks.json", "velox-posture/RUN.md"} <= set(names)
+
+
+def test_sat_observation_beats_a_default_assumption_but_not_a_live_value():
+    import json as _json
+    with tempfile.TemporaryDirectory() as d:
+        rows = d + "/sat.json"
+        Path(rows).write_text(_json.dumps([
+            {"check_id": "DP-5", "score": 0, "run_id": 3},     # live: unset → assumed fail; SAT saw pass
+            {"check_id": "GOV-35", "score": 0, "run_id": 3},   # live: explicit ALLOW_ALL fail; SAT says pass → live stands
+        ]))
+        results, _ = posture.run(args(d, sat_results=rows), fetch=fetch)
+        assert results["DP-5"]["status"] == "pass" and results["DP-5"]["source"] == "sat"
+        assert "live read" in results["DP-5"]["observed"]
+        assert results["GOV-35"]["status"] == "fail" and results["GOV-35"]["sat_verdict"] == "pass"
+        assert _json.loads((Path(d) / "posture.json").read_text())["sat_disagreements"] == ["GOV-35"]
 
 
 if __name__ == "__main__":

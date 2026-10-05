@@ -26,7 +26,14 @@ the agent judges what a failure means for the client, the code decides pass or f
 | The client's admin, by file | `posture.py bundle` → they run it → `--from-posture posture.json` | `workspace` | the person chose it (below); only what the admin observed live counts |
 
 Pass them together in one run; a check takes its answer from the live workspace first, then SAT,
-then the code. **Code alone never scores** — it finds gaps, it cannot see the posture
+then the code — with one exception: a live read of an UNSET setting is an assumption about the
+platform default, and SAT's row is an observation, so SAT wins there (measured 2026-10-05: DP-13
+unset → assumed off, SAT saw the DBFS browser on). Where both answered and disagree, the live read
+stands and the check carries `sat_verdict`; `posture.json` lists them in `sat_disagreements` and
+the run prints them — review those first. Measured on the same workspace: 37 overlapping checks,
+34 agree, SAT wrong on two (GOV-34 fails on state `MANAGED` though its own message allows it;
+GOV-20 fails with no detail where the account API answers nothing on this tier). SAT lifted
+coverage from 60% to 94%: the 25 checks it added are the account-level and compute ones. **Code alone never scores** — it finds gaps, it cannot see the posture
 (`assessment-synthesis` refuses a security score on `basis: code`).
 
 ```

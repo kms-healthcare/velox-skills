@@ -134,6 +134,8 @@ def failure(body):
     text = str(body)
     if re.search(r"pricing tier|not available|unavailable_for", text, re.I):
         return na("not available on this pricing tier", text)
+    if re.search(r"no such host|dial tcp|connection refused|timeout|TLS|x509|EOF", text, re.I):
+        return na("network: the workspace could not be reached — rerun", text)
     if re.search(r"PERMISSION_DENIED|403|Forbidden|not authorized|permission|admin", text, re.I):
         return na("permission: the identity cannot read this", text)
     return na("error", text)
@@ -655,6 +657,14 @@ def run(args, fetch=None):
             r = check_workspace(ws, cid, args.allowed_regions)
             if r and r["status"] == "pass" and cid in LIST_CHECKS and not ws.is_admin:
                 r = na(PARTIAL, r["observed"])
+        if cid in sat and r is not None and r["status"] != "not_assessed":
+            # A live read of an UNSET key is an assumption about the platform default;
+            # SAT's row is an observation, and an observation beats an assumption
+            # (measured 2026-10-05: DP-13 unset → we assumed off, SAT saw it on).
+            if "platform default" in r["observed"] and sat[cid]["status"] != r["status"]:
+                r = {**sat[cid], "observed": f"{sat[cid]['observed'] or 'SAT observation'}; live read: {r['observed']}"[:300]}
+            else:
+                r = {**r, "sat_verdict": sat[cid]["status"]}
         if (r is None or r["status"] == "not_assessed") and cid in sat:
             r = sat[cid]
         if (r is None or r["status"] == "not_assessed") and cid in iac:
@@ -677,7 +687,9 @@ def run(args, fetch=None):
     s, coverage, highs = score(results)
     rows = [{"check_id": cid, **{k: CHECKS[cid][k] for k in ("title", "category", "severity", "scope")},
              "doc": doc_for(CHECKS[cid], args.cloud), **r} for cid, r in results.items()]
+    disagreements = [cid for cid, r in results.items() if r.get("sat_verdict") and r["sat_verdict"] != r["status"]]
     (out / "posture.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(),
+                                                  "sat_disagreements": disagreements,
                                                   "score": s, "weighted_coverage": coverage, "cloud": args.cloud,
                                                   "identity": identity, "supplied": args.from_posture and supplied_meta(args.from_posture),
                                                   "checks": rows}, indent=1), encoding="utf-8")
@@ -699,6 +711,8 @@ def run(args, fetch=None):
     tally = {k: sum(1 for r in results.values() if r["status"] == k) for k in ("pass", "fail", "not_assessed")}
     print(f"security posture: score {s if s is not None else 'not scored'} / 5 · {tally} · weighted coverage "
           f"{int(coverage * 100)}% · {len(calls)} GET calls")
+    if disagreements:
+        print(f"  SAT disagrees on {', '.join(disagreements)} — the live read stands; review them")
     for f in sorted(fails, key=lambda f: WEIGHT[f["severity"]], reverse=True)[:10]:
         print(f"  {f['severity']:<6} {f['check_id']:<9} {f['detail'][:110]}")
     return results, s
