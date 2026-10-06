@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
-  version: "0.3.0"
+  version: "0.3.1"
   parent: discovery-intake
 ---
 
@@ -108,8 +108,14 @@ module with the breaker question and the client's answer.
 
 ## 6. Generate
 
+`load_skill` returned this skill's absolute `directory` — `scripts/` below is relative to THAT,
+never to the project folder or the folder a shell happens to be in (measured 2026-10-06: an agent
+probed `$S/plugin.json` and the wrong `skills/` path, got `Operation not permitted`, and gave up
+on the generator). Run it as `python3 "<directory>/scripts/build_deliverables.py" …` from the
+project root.
+
 ```
-python3 scripts/build_deliverables.py discovery/<project> --author-sections author-sections.md \
+python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --author-sections author-sections.md \
   --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
@@ -119,6 +125,11 @@ later can tell which skills shaped it. Fill it from what you know, and leave out
 this pack's version is in its `plugin.json`; where the skills catalog names the Databricks agent
 skills and CLI versions (Velox: "Databricks (official) v…", "Databricks CLI in use: v…"), use those;
 elsewhere `databricks --version` and `databricks aitools version` say. Never guess a version.
+
+**`pandoc not found`** is a runtime gap, not a failure: the Markdown report and the workbook are
+still written. Say so in one line, name the missing runtime, and offer the install once
+(`brew install pandoc` · `winget install JohnMacFarlane.Pandoc` · `apt install pandoc`) — never
+rewrite the report by hand to compensate, and never present the `.md` as if it were the `.docx`.
 
 The report follows the delivery template — Part A Discovery (1 executive summary, 2 business
 context and target-state requirements, 3 data landscape, 4 workload catalogue, 5 dependencies and

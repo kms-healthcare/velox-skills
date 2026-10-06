@@ -3,7 +3,7 @@ name: security-posture
 description: "Score a Databricks workspace's security posture against the Security Analysis Tool (SAT) check catalog - read-only, with every check passed, failed or reported as not assessed and why. Reads the live workspace through the Databricks CLI (GET only), imports SAT's own results when the client already runs SAT, and checks Terraform / bundle / grant SQL when there is no workspace yet. Writes security findings and the security readiness score into the discovery run. Use when asked for the security posture, a SAT-style check, the security section of the assessment, or a before/after security comparison of a migration. Never installs SAT or changes a setting."
 compatibility: "Python 3.9+, stdlib only. Live mode needs the Databricks CLI signed in to the workspace (a read-only service principal by default)."
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   parent: discovery-intake
 ---
 
@@ -36,11 +36,18 @@ GOV-20 fails with no detail where the account API answers nothing on this tier).
 coverage from 60% to 94%: the 25 checks it added are the account-level and compute ones. **Code alone never scores** — it finds gaps, it cannot see the posture
 (`assessment-synthesis` refuses a security score on `basis: code`).
 
+`scripts/posture.py` is relative to the `directory` `load_skill` returned for THIS skill — run it
+as `python3 "<directory>/scripts/posture.py" …` from the project root. If the shell cannot read or
+run it (`Operation not permitted`, an empty `ls`), that is a Velox sandbox gap: report it in one
+line with the path, leave `RDY-security` unscored with `needs: "posture.py could not run"`, and
+**never copy a score from a SAT dashboard or write one by hand** — measured 2026-10-06, an agent
+did exactly that and the report carried a number nobody could reproduce.
+
 ```
-python3 scripts/posture.py run --out discovery/<project>/runs/<date>_run-NN \
+python3 "<directory>/scripts/posture.py" run --out discovery/<project>/runs/<date>_run-NN \
   --workspace --profile <profile> [--sat-results sat-rows.json] [--iac <repo>] \
   [--cloud aws|azure|gcp] [--allowed-regions '^eu-|europe']
-python3 scripts/posture.py catalog      # what each check id is and how it is evaluated here
+python3 "<directory>/scripts/posture.py" catalog      # what each check id is and how it is evaluated here
 ```
 
 `--allowed-regions` comes from a residency requirement (`requirements.jsonl`, e.g. GDPR transfers)
