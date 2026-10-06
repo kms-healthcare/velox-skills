@@ -3,7 +3,7 @@ name: discovery-intake
 description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.5.0"
+  version: "0.5.1"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -53,6 +53,17 @@ one line what each costs the person. Option 1 chosen → call `request_databrick
 and build the plan on the card's outcome; "I don't have a workspace yet" on the card falls back to
 option 2 without asking again. Option 2 chosen → do not ask for a workspace later in the run; note
 it in `source_request.md` line 1 as ❌ none yet (OQ-xx).
+
+**The approach card carries the question and the two options — nothing else.** One line of
+question ("How should the assessment read the estate?"), the options with their cost, done. No
+tour of the deliverables in the preamble (they are the same either way — six words, not sixty),
+and no second question folded in: "also answer the three questions above in the free-text box"
+turns a click into a non-answer, and "above" is off-screen. The intake's ≤ 5 blocking questions
+are their OWN card, asked after the approach is chosen — or, when a default is honest, taken as
+the default and raised as `OQ-` records with `default` filled, which is what Rule 3 means by
+*deliver while asking*. Security from code reads as "from infrastructure code", not a tool name
+(Terraform today, bundles or Bicep elsewhere). Reviewed live 2026-10-06: a card that got the two
+options right still ran 90 words of deliverables and asked three intake questions in the same box.
 
 ## Blocked mid-run — offer options, never decide alone
 
