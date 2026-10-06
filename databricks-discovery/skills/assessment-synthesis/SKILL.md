@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
-  version: "0.3.1"
+  version: "0.4.0"
   parent: discovery-intake
 ---
 
@@ -119,6 +119,13 @@ python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --author
   --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
+
+The deliverables carry the KMS look (`scripts/theme.py`: Poppins, Electric Blue headers, zebra
+rows, severity / status / disposition chips in the brand palette, a cover block on *Summary*;
+`assets/reference.docx` gives the report the same face and an INTERNAL footer). Workbook headers
+are plain English ("Impact if wrong", not `impact_if_wrong`); the registers keep their field
+names — the Review panel keys on them. Add a new field: register name in the schema, label in
+`theme.HEADERS`, nothing else.
 
 `--built-with` names what the assessment was built on, under the report title, so a reader weeks
 later can tell which skills shaped it. Fill it from what you know, and leave out what you do not:

@@ -13,13 +13,16 @@ Writes  <out-dir>/discovery-<project>.xlsx      one workbook, tabs in reading or
 Stdlib + openpyxl. Never invents: every number is followed by its locators; unreviewed records
 are excluded unless asked for; placeholders like <catalog> are left visible.
 """
-import argparse, json, re, shutil, subprocess, sys
+import argparse, datetime, json, re, shutil, subprocess, sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import theme  # noqa: E402  — palette, fonts, header wording (scripts/theme.py)
+
 try:
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 except ImportError:  # pragma: no cover
     sys.exit("openpyxl is required: pip install openpyxl")
@@ -122,23 +125,66 @@ def md_text(p: Path):
 
 
 # ---------- workbook ----------
-HDR = PatternFill("solid", fgColor="1F3A5F")
-HDR_FONT = Font(bold=True, color="FFFFFF")
+HDR = PatternFill("solid", fgColor=theme.BLUE)
+HDR_FONT = Font(name=theme.FONT, bold=True, color=theme.WHITE, size=10)
+BODY = Font(name=theme.FONT, size=9.5, color=theme.INK)
+ZEBRA = PatternFill("solid", fgColor=theme.ZEBRA)
+RULE = Border(bottom=Side(style="thin", color=theme.LINE))
 WRAP = Alignment(wrap_text=True, vertical="top")
+CENTER = Alignment(wrap_text=True, vertical="top", horizontal="center")
+# Column widths by field — the body is 9.5 pt Poppins, so these are reading widths, not data widths.
+WIDTHS = {"id": 11, "object_id": 11, "severity": 10, "status": 11, "disposition": 11, "wave": 7, "score": 9, "kind": 12,
+          "type": 12, "layer": 10, "priority": 9, "confidence": 10, "inferred": 9, "used": 8, "counted": 10,
+          "name": 30, "title": 44, "question": 48, "statement": 52, "why": 44, "detail": 52, "impact": 44, "rationale": 44,
+          "needs": 36, "default": 36, "plain": 44, "logic": 36, "evidence": 46, "locator": 34, "email_draft": 60,
+          "ask": 24, "owner": 20, "target_component": 30, "target_object": 30, "anchor": 30, "notes": 30}
+
+
+def chipify(ws, header):
+    """Colour the cells of chip columns (severity, status, disposition…) — the brand palette as meaning."""
+    cols = [(i, h) for i, h in enumerate(header, 1) if h in theme.CHIP_COLUMNS]
+    for i, h in cols:
+        for (c,) in ws.iter_rows(min_row=2, min_col=i, max_col=i):
+            hit = theme.chip(h, c.value)
+            if hit:
+                fill, text = hit
+                c.fill = PatternFill("solid", fgColor=fill)
+                c.font = Font(name=theme.FONT, size=9.5, bold=True, color=text)
+                c.alignment = CENTER
+
+
+def plain(v):
+    """A cell value for people: markdown emphasis and code ticks stripped, booleans as marks."""
+    if isinstance(v, bool):
+        return "✓" if v else "—"
+    if isinstance(v, str):
+        v = re.sub(r"\*\*(.+?)\*\*", r"\1", v)
+        v = re.sub(r"`([^`]*)`", r"\1", v)
+        v = re.sub(r"^\s*>\s?", "", v, flags=re.M)
+    return v
 
 
 def sheet(wb, title, header, rows, widths=None, freeze=True):
     ws = wb.create_sheet(title[:31])
-    ws.append(header)
+    ws.append([theme.header_label(h) for h in header])
+    ws.row_dimensions[1].height = 30
     for c in ws[1]:
-        c.fill, c.font, c.alignment = HDR, HDR_FONT, WRAP
+        c.fill, c.font, c.alignment = HDR, HDR_FONT, Alignment(wrap_text=True, vertical="center")
     for r in rows:
-        ws.append(["" if v is None else (json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v) for v in r])
+        ws.append(["" if v is None else (json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else plain(v)) for v in r])
     for i, h in enumerate(header, 1):
-        ws.column_dimensions[get_column_letter(i)].width = (widths or {}).get(h, 18)
-    for row in ws.iter_rows(min_row=2):
+        ws.column_dimensions[get_column_letter(i)].width = (widths or {}).get(h) or WIDTHS.get(h, 18)
+    for n, row in enumerate(ws.iter_rows(min_row=2), start=2):
         for c in row:
-            c.alignment = WRAP
+            c.alignment, c.font, c.border = WRAP, BODY, RULE
+            if n % 2 == 0:
+                c.fill = ZEBRA
+    chipify(ws, header)
+    ws.sheet_view.showGridLines = False
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_title_rows = "1:1"
     if freeze:
         ws.freeze_panes = "A2"
     if rows:
@@ -152,23 +198,38 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
 
-    # Summary
+    # Summary — a cover block, then the counts
     ws = wb.create_sheet("Summary")
+    ws.sheet_view.showGridLines = False
+    ws.append([f"{root.name} — Databricks assessment"])
+    ws["A1"].font = Font(name=theme.FONT, size=20, bold=True, color=theme.BLUE)
+    ws.append([f"Generated {datetime.date.today().isoformat()} · Velox Databricks accelerator · INTERNAL"])
+    ws["A2"].font = Font(name=theme.FONT, size=9.5, color=theme.MUTED)
+    ws.append([])
     disp = Counter(r.get("disposition") or "undecided" for r in rat)
     rs = Counter(r.get("rule_status", "?") for r in rules)
     hi = [q for q in oq if q.get("impact_if_wrong") == "high" and is_open(q)]
-    lines = [["Project", root.name], ["Decision (Axis C)", axis_c or "MISSING — fix intake.md"], [],
+    lines = [["Project", root.name], ["Decision (Axis C)", plain(axis_c) if axis_c else "MISSING — fix intake.md"], [],
              ["Counts", ""], ["Requirements", len(req)], ["Business rules", len(rules)], ["Inventory objects", len(inv)],
              ["Findings", len(fnd)], ["Readiness (lowest scored of 5)", min((x for x in (readiness_score(r) for r in regs["readiness"]) if x), default="not scored")], ["Open questions (open)", sum(1 for q in oq if is_open(q))],
              ["  of which blocking (impact high)", len(hi)], [],
              ["Rationalization", ""]] + [[d, disp.get(d, 0)] for d in DISPOSITIONS + ["undecided"]] + [[],
-             ["rule_status", ""]] + [[k, v] for k, v in sorted(rs.items())] + [[],
+             ["Business rules by status", ""]] + [[k, v] for k, v in sorted(rs.items())] + [[],
              ["Evidence gaps (❌/⚠️)", len(suff_bad)]] + [["", " — ".join(c.strip() for c in l.strip().strip("|").split("|")[:2] if c.strip())] for l in suff_bad[:10]]
     for l in lines:
         ws.append(l)
-    ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 34, 110
-    for c in ws["A"]:
-        c.font = Font(bold=True)
+    ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 36, 110
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth, ws.page_setup.fitToHeight = 1, 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    for row in ws.iter_rows(min_row=4):
+        for c in row:
+            c.font = Font(name=theme.FONT, size=10, bold=(c.column == 1), color=theme.INK)
+            c.alignment = WRAP
+    # section labels (a row whose B is empty) in brand blue
+    for row in ws.iter_rows(min_row=4, max_col=2):
+        if row[0].value and row[1].value in (None, "") and not str(row[0].value).startswith(" "):
+            row[0].font = Font(name=theme.FONT, size=11, bold=True, color=theme.BLUE)
 
     rd = {r.get("dimension"): r for r in regs["readiness"]}
     sheet(wb, "Readiness", ["dimension", "score", "counted", "basis", "rationale", "needs", "evidence", "status"],
@@ -253,20 +314,20 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
     sheet(wb, "Dependencies", ["from", "to", "kind", "evidence"],
           [[e.get("from"), e.get("to"), e.get("kind"), locs(e)] for e in edges], {"from": 34, "to": 34, "evidence": 40})
 
-    ws = wb.create_sheet("Sufficiency")
-    for l in md_text(root / "sufficiency.md").splitlines():
-        if l.startswith("|") and not re.match(r"^\|\s*-", l):
-            ws.append([c.strip() for c in l.strip("|").split("|")])
-    for col in "ABCDE":
-        ws.column_dimensions[col].width = 40
+    suff = [[c.strip() for c in l.strip("|").split("|")] for l in md_text(root / "sufficiency.md").splitlines()
+            if l.startswith("|") and not re.match(r"^\|\s*-", l)]
+    if suff:
+        sheet(wb, "Sufficiency", suff[0], suff[1:], widths={h: 40 for h in suff[0]})
+    else:
+        wb.create_sheet("Sufficiency")
 
-    ws = wb.create_sheet("Sources")
-    ws.append(["run", "source_id", "path", "sha256", "bytes"])
+    src_rows = []
     for run in sorted((root / "runs").glob("*/manifest.json")) if (root / "runs").exists() else []:
         m = json.loads(run.read_text(encoding="utf-8"))
         for s in m.get("sources_read", []):
-            ws.append([m.get("run_id"), s.get("source_id"), s.get("path"), s.get("sha256"), s.get("bytes")])
-    ws.column_dimensions["C"].width, ws.column_dimensions["D"].width = 60, 66
+            src_rows.append([m.get("run_id"), s.get("source_id"), s.get("path"), s.get("sha256"), s.get("bytes")])
+    sheet(wb, "Sources", ["run", "source_id", "path", "sha256", "bytes"], src_rows,
+          widths={"run": 20, "source_id": 16, "path": 60, "sha256": 66, "bytes": 10})
 
     wb.save(out)
 
@@ -651,7 +712,11 @@ def main():
     print(f"wrote {xlsx}\nwrote {md_path}")
     if not a.no_docx and shutil.which("pandoc"):
         docx = out / "assessment-report.docx"
-        r = subprocess.run(["pandoc", "-f", "gfm", str(md_path), "-o", str(docx)], capture_output=True, text=True)
+        ref = Path(__file__).resolve().parent.parent / "assets" / "reference.docx"
+        cmd = ["pandoc", "-f", "gfm", str(md_path), "-o", str(docx)]
+        if ref.exists():
+            cmd[3:3] = ["--reference-doc", str(ref)]   # KMS styles: Poppins, Electric Blue headings, INTERNAL footer
+        r = subprocess.run(cmd, capture_output=True, text=True)
         print(f"wrote {docx}" if r.returncode == 0 else f"pandoc failed: {r.stderr.strip()}")
     elif not a.no_docx:
         print("pandoc not found — .docx skipped")
