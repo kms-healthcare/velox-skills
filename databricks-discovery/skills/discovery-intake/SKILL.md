@@ -1,9 +1,9 @@
 ---
 name: discovery-intake
-description: "Entry point for discovery and assessment on a Databricks data project: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request list, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Use when a user starts a data or Databricks project, or mentions discovery, assessment, current-state review, evaluating or migrating a legacy warehouse (SSIS, Informatica, Teradata, SQL Server), workspace consolidation, or rising Databricks cost - including phrasings like 'client wants to move to Databricks' or '300 stored procs to understand'. Not for writing pipelines, deploying bundles, or tuning queries."
+description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.5.1"
+  version: "0.5.2"
 ---
 
 # Discovery intake — the entry point for every assessment
