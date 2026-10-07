@@ -3,7 +3,7 @@ name: discovery-intake
 description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.5.2"
+  version: "0.6.0"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -34,6 +34,13 @@ start?"): the deliverable is the proposal, in the reply — the provisional type
 Axis C sentence to edit, what to request and why, ≤ 5 questions. Write `intake.md` and the source
 request once the user confirms the scope and the Axis C sentence — an agent that runs an agreement
 step (Velox does) runs this skill after it. Never answer "give me more information".
+
+**Do not fan out (`propose_agents` / `run_agents`) before this skill is loaded and the approach is
+chosen.** The parallel scan, when useful, is step one of DELIVER, scoped per the type module, with
+each worker writing its findings into `runs/<run>/<worker>.jsonl` under the project (a path the
+shell can read back), never into chat or tool-result files (measured 2026-10-07, two runs: a swarm
+launched before `load_skill` wrote to a path the sandbox denied reading back, ~7 minutes lost, and
+the agent re-read the code itself).
 
 **The approach question has two fixed options, always, in this order** — the person's answer is
 *how the assessment reads the estate*, and it must not change wording from run to run (measured
@@ -77,7 +84,10 @@ access, an input you cannot reach, a cost, or a risk. Then use the session's que
 
 - **2–4 options**, one marked *recommended*, each saying what it costs the person (a sign-in, a
   message to the client, a file round-trip, a gap left in the report). Always include the
-  cheapest honest one — usually "skip, and say so in the report".
+  cheapest honest one — usually "skip, and say so in the report". **A cost line names what the
+  PERSON does, in their words** ("you run `databricks auth login …` in your own terminal, then
+  confirm here"), never what the agent wishes it could do ("a browser round-trip" — the agent's
+  sandbox has no browser).
 - **The recommendation from evidence you checked**, not habit (e.g. their login *is* an admin for
   this host). Hide an option that cannot work, and say why.
 - **Nothing riskier than the bound identity without the answer** — no other login, no elevated
@@ -94,7 +104,8 @@ locator, and the deliverable is still produced — the reviewer decides. Worked 
 
 Read `references/run-layout.md` once; load **one** project-type module; do not copy source files
 (reference by path + sha256); respect the record budget in run-layout; produce **one** report — the
-generator's — and write only the five author sections.
+generator's, built twice: the DRAFT right after the registers, the final from `registers/` when the
+person says "regenerate" — and write only the five author sections.
 
 **The reply itself is not a deliverable.** The user is about to open the report and the workbook;
 summarising them in chat writes the same content a third time. Keep the turn under ~300 words:
@@ -194,8 +205,10 @@ After each return, update `sufficiency.md` and the question list. Discovery is a
 ## Layout, review, and client-data constraints
 
 `discovery/<project>/` per `references/run-layout.md`. The agent writes only into `runs/<run>/`;
-a human reviews `review.md` and merges into `registers/`. Deliverables (`discovery-<project>.xlsx`,
-`assessment-report.md/.docx`) are generated next to the project dir and are what people open.
+a human reviews in Velox → Workspace → Review (or `review.md` by hand) and the decisions land in
+`registers/`. Deliverables (`discovery-<project>.xlsx`, `assessment-report.md/.docx`) are generated
+next to the project dir and are what people open — first as a labelled DRAFT from the run, then
+regenerated from `registers/` when the person says "regenerate" (`assessment-synthesis` §6).
 
 Touching client data: **read-only**; service principal + OAuth M2M, no personal PATs; egress is
 metadata, statistics, and ≤ 20 masked sample rows; every access recorded in `manifest.json`.

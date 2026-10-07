@@ -59,6 +59,12 @@ settles claims code reading can only suspect (races, fallbacks, stale caches).
   exit code, log path — and cite the log line as the finding's locator.
 - **A run that could not happen is stated, not implied**: missing runtime, missing sample data,
   no permission — `review.md` says which findings stayed unreproduced and why.
+  Name the gap precisely, not the sandbox: `uv` panicking with *"thread 'main' panicked at
+  system-configuration … Attempted to create a NULL object"* is uv < 0.9 consulting macOS
+  SystemConfiguration while the sandbox denies `configd` (fixed upstream, astral-sh/uv #18629;
+  measured: 0.8.14 panics, 0.12.23 passes under the same seatbelt) — report *"uv <version> is older
+  than 0.9 and cannot run in the sandbox — upgrade uv (`curl -LsSf https://astral.sh/uv/install.sh |
+  sh`)"*, never "uv crashes in this sandbox" (two live runs said that and skipped every reproduction).
 
 Good first runs: the test suite; the app's own demo or seed script; two concurrent requests to an
 endpoint suspected of sharing state; the deletion path followed by a read of every surface

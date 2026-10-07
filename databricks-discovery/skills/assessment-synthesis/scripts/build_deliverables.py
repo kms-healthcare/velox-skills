@@ -4,7 +4,8 @@
   python3 build_deliverables.py <discovery/project dir> [--out-dir <dir>] [--include-unreviewed]
                                 [--author-sections <file.md>] [--no-docx]
 
-Reads   <project>/registers/*.jsonl (or, with --include-unreviewed, also runs/*/ *.jsonl),
+Reads   <project>/registers/*.jsonl (or, with --include-unreviewed, also runs/*/ *.jsonl — the
+        DRAFT: title suffixed "— DRAFT, unreviewed", banner with the unreviewed count),
         <project>/intake.md, <project>/sufficiency.md
 Writes  <out-dir>/discovery-<project>.xlsx      one workbook, tabs in reading order
         <out-dir>/assessment-report.md          generated; author sections merged from --author-sections
@@ -62,7 +63,8 @@ def rec_key(r):
 
 
 def is_open(q):
-    """`status` on a question is its review state once a person decides it; only an answer or a close ends it."""
+    """`status` on a question is its review state once a person decides it; only an answer or a close ends it.
+    `reviewed` = approved to ask, still open; `answered` (+answer) and `rejected` are closed."""
     return q.get("status", "open") not in ("answered", "closed", "rejected") and not q.get("answer")
 
 
@@ -192,7 +194,7 @@ def sheet(wb, title, header, rows, widths=None, freeze=True):
     return ws
 
 
-def build_xlsx(regs, root, out, axis_c, suff_bad):
+def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
     wb = Workbook()
     wb.remove(wb.active)
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
@@ -201,7 +203,7 @@ def build_xlsx(regs, root, out, axis_c, suff_bad):
     # Summary — a cover block, then the counts
     ws = wb.create_sheet("Summary")
     ws.sheet_view.showGridLines = False
-    ws.append([f"{root.name} — Databricks assessment"])
+    ws.append([f"{root.name} — Databricks assessment" + (" — DRAFT, unreviewed" if draft is not None else "")])
     ws["A1"].font = Font(name=theme.FONT, size=20, bold=True, color=theme.BLUE)
     ws.append([f"Generated {datetime.date.today().isoformat()} · Velox Databricks accelerator · INTERNAL"])
     ws["A2"].font = Font(name=theme.FONT, size=9.5, color=theme.MUTED)
@@ -402,12 +404,20 @@ def name_refs(md, names):
                   lambda m: f"`{names[m.group(0)]}`" if m.group(0) in names else m.group(0), md)
 
 
-def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", names=None):
+def draft_banner(n):
+    return (f"\n> **Draft built from {n} unreviewed records.** Review them in Velox → Workspace → Review, "
+            "then ask for the final report.\n")
+
+
+def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", names=None, draft=None):
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
     ev = lambda r: f"{evidence_kind(r)}: {locs(r)}"
-    head = [f"# {root.name} — Discovery & Assessment\n"]
+    head = [f"# {root.name} — Discovery & Assessment" + (" — DRAFT, unreviewed" if draft is not None else "") + "\n"]
+    # draft = count of unreviewed records in this build (--include-unreviewed); None for the final, registers-only build
+    if draft is not None:
+        head += [draft_banner(draft)]
     md = []
     # What the assessment was built on, so a reader weeks later can tell which
     # skills and CLI shaped it — the agent passes what its session knows.
@@ -696,20 +706,21 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
 
     regs = load_registers(root, a.include_unreviewed)
+    draft = sum(1 for recs in regs.values() for r in recs if r.get("status") == "extracted") if a.include_unreviewed else None
     intake = md_text(root / "intake.md")
     axis_c = "\n".join(l for l in intake.splitlines() if l.strip().startswith(">"))
     suff_bad = [l for l in md_text(root / "sufficiency.md").splitlines() if "❌" in l or "⚠️" in l]
     author = parse_author_sections(Path(a.author_sections)) if a.author_sections else {}
 
     xlsx = out / f"discovery-{root.name}.xlsx"
-    build_xlsx(regs, root, xlsx, axis_c, suff_bad)
+    build_xlsx(regs, root, xlsx, axis_c, suff_bad, draft)
     md_path = out / "assessment-report.md"
     # Names come from every record, reviewed or not: an id pointing at an unreviewed object still
     # deserves its name rather than a bare tag.
     names = {r.get("id") or r.get("object_id"): r.get("name") for n in ("inventory", "rationalization")
              for r in load_registers(root, True)[n] if r.get("name")}
-    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with, intake, names), encoding="utf-8")
-    print(f"wrote {xlsx}\nwrote {md_path}")
+    md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with, intake, names, draft), encoding="utf-8")
+    print(f"wrote {xlsx}\nwrote {md_path}" + (f"\nDRAFT — {draft} unreviewed records included" if draft is not None else ""))
     if not a.no_docx and shutil.which("pandoc"):
         docx = out / "assessment-report.docx"
         ref = Path(__file__).resolve().parent.parent / "assets" / "reference.docx"

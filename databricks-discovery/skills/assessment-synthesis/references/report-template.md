@@ -44,4 +44,4 @@ questions) · Dependencies · Sufficiency · Sources. Every tab has filters and 
 column.
 
 Rules for both: a number without a locator is deleted; `extracted` records are excluded unless
-`--include-unreviewed`; `<catalog>` placeholders are never cosmetically resolved.
+`--include-unreviewed` (the first build, labelled DRAFT; the final is registers-only); `<catalog>` placeholders are never cosmetically resolved.

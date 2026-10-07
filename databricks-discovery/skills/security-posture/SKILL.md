@@ -3,7 +3,7 @@ name: security-posture
 description: "Score a Databricks workspace's security posture against the Security Analysis Tool (SAT) check catalog - read-only, with every check passed, failed or reported as not assessed and why. Reads the live workspace through the Databricks CLI (GET only), imports SAT's own results when the client already runs SAT, and checks Terraform / bundle / grant SQL when there is no workspace yet. Writes security findings and the security readiness score into the discovery run. Use when asked for the security posture, a SAT-style check, the security section of the assessment, or a before/after security comparison of a migration. Never installs SAT or changes a setting."
 compatibility: "Python 3.9+, stdlib only. Live mode needs the Databricks CLI signed in to the workspace (a read-only service principal by default)."
 metadata:
-  version: "0.2.1"
+  version: "0.2.2"
   parent: discovery-intake
 ---
 
@@ -67,7 +67,7 @@ weight (not scored), the same run as an admin 60%. So:
 
 | Option | What happens | Recommend when |
 |---|---|---|
-| **Use my own login for this step** | `posture.py identity --profile <theirs>` first; then `run --workspace --profile <theirs> --read-as user-login`. Everything else stays on the service principal. If their CLI has no valid login for this host, `databricks auth login --host <host>` (a browser round-trip they approve) | their login is valid for this host **and** `is_admin: true` — typical for an internal or test workspace. Hide the option, with the reason, when it is not admin |
+| **Use my own login for this step** | `posture.py identity --profile <theirs>` first; then `run --workspace --profile <theirs> --read-as user-login`. Everything else stays on the service principal. **Cost, in the person's words:** *you run `databricks auth login --host <host> --profile <p>` in your own terminal (a browser opens there), then confirm here* — the agent cannot open a browser (measured 2026-10-07: the option promised "a browser round-trip", the person did the sign-in by hand and clicked "Done — signed in"). When `identity` already shows a VALID login, the cost is nothing | **recommended only when** `identity --profile <p>` already shows a valid login **and** `is_admin: true` — typical for an internal or test workspace. Login expired or missing → recommend *make the SP admin briefly* or the *client bundle* instead and offer the sign-in as a non-recommended option. Hide it, with the reason, when the login is valid but not admin |
 | **Ask the client to make the service principal an admin, briefly** | Write the two commands for the client (below) into the chat. When they say done, `identity` must show `is_admin: true`; then `run --workspace --read-as elevated-service-principal`; then ask them to remove it and run `verify-revoked` | a client workspace whose team will grant it for minutes |
 | **The client's admin runs it and sends the file back** | `posture.py bundle --out <dir>` → a zip with `RUN.md`; the person sends it; their admin returns `posture.json`; `run --from-posture <file>` (provenance and sha256 go into the manifest) | the client will not grant admin to any identity Velox holds |
 | **Skip — report it as not scored** | Nothing more runs; §7 says not scored and why; raise an open question to the client's workspace admin | the person does not want to spend the round-trip now |
@@ -118,7 +118,7 @@ read, and that is an open question to the client's platform owner, not something
 
 ## Reviewing what it found
 
-The findings are `extracted`; a person accepts or rejects each one before it reaches the report.
+The findings are `extracted`; they appear in the DRAFT report, and a person accepts or rejects each one before it reaches the final.
 Expect to reject some on purpose — SAT's rules are generic: `GOV-21` flags a metastore whose owner
 is the account that created it, which is normal on a Databricks-managed metastore. Write why in the
 rejection; do not edit the script to hide a check for one client.

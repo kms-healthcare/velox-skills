@@ -3,7 +3,7 @@ name: legacy-etl-archaeology
 description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic) and application code (services, pipelines, message buses, APIs, dashboards). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   parent: discovery-intake
 ---
 

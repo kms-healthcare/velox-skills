@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
   parent: discovery-intake
 ---
 
@@ -24,7 +24,11 @@ record behind it is either given a record (with a locator) or deleted. Schemas:
 
 ## Gate
 
-Synthesise from `registers/` after human merge, never from unreviewed `runs/` batches. Re-run the
+**The first build is the draft; the final is registers-only.** Once the registers are written,
+always generate — with `--include-unreviewed`, so the person reviews a report, not a promise — and
+the generator labels the result a DRAFT. Never stop before the report "waiting for review", and
+never present a draft as final (measured 2026-10-07: one run stopped, one shipped an unlabelled
+`--include-unreviewed` build — two runs, two different deliverables for the same work). Re-run the
 sufficiency check against Axis C first; a ❌ conclusion still gets its one-sentence section, and the
 executive summary names the decision that cannot yet be made and the cost of waiting.
 
@@ -106,7 +110,21 @@ requirement (`SEC-`, `NFR-`, `DR-`). SAT checks → `SEC-` with the check id as 
 client-owned shared-responsibility items → `NFR-` marked client-owned. Cost flags from the type
 module with the breaker question and the client's answer.
 
-## 6. Generate
+## 6. Generate — draft, review, regenerate
+
+One flow, every run:
+
+1. **Draft.** Right after the registers are written, run the generator with `--include-unreviewed`.
+   The report's title ends "— DRAFT, unreviewed" and a banner under it says *Draft built from N
+   unreviewed records. Review them in Velox → Workspace → Review, then ask for the final report.*
+   (the generator adds both; without the flag there is no banner).
+2. **Hand over.** The reply names the draft's paths, then guides the review: the ≤ 5 items from
+   `review.md` to accept or reject first, in the Review tab (Velox → Workspace → Review), and the
+   sentence that closes the loop — *say "regenerate" (or "build the final report") when done*.
+3. **Final.** On that message, run the generator again WITHOUT `--include-unreviewed` — from
+   `registers/` only — and say what changed: records in (reviewed / confirmed) vs out (rejected,
+   still `extracted`), questions answered. The final carries no banner; that is how a reader tells
+   the two apart.
 
 `load_skill` returned this skill's absolute `directory` — `scripts/` below is relative to THAT,
 never to the project folder or the folder a shell happens to be in (measured 2026-10-06: an agent
@@ -115,8 +133,11 @@ on the generator). Run it as `python3 "<directory>/scripts/build_deliverables.py
 project root.
 
 ```
-python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --author-sections author-sections.md \
+# 1. draft — always, right after the registers are written
+python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --include-unreviewed \
+  --author-sections author-sections.md \
   --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
+# 3. final — when the person says "regenerate": same command without --include-unreviewed
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
 

@@ -38,7 +38,7 @@ move (email bodies, chat exports) get a copy under `sources/`.
 | `evidence[]` per record | 1, or 2 when two sources agree; conflicts go in `conflicts[]` | A third quote adds cost, not certainty |
 | `findings.detail`, `requirements.statement` | ≤ 300 chars | If it needs more, it is two records |
 | `open_questions` sent to the user per turn | ≤ 5 | The rest stay in the register |
-| Reports | **one**, generated; author fills `## decision`, `## architecture`, `## roadmap`, `## drivers`, `## risks` in an `author-sections.md` passed to the generator | Writing a second report by hand doubled the output last time and added nothing |
+| Reports | **one**, generated — built twice: the DRAFT (`--include-unreviewed`, labelled) right after the registers, the final from `registers/` when the person says "regenerate"; author fills `## decision`, `## architecture`, `## roadmap`, `## drivers`, `## risks` in an `author-sections.md` passed to the generator | Writing a second report by hand doubled the output last time and added nothing |
 | Author sections | `decision` ≤ 400 · `architecture` ≤ 500 · `roadmap` ≤ 400 · `drivers` ≤ 300 · `risks` ≤ 400 words (the generator warns past these) | Uncapped, they grew to 1,900 words and pushed the report past twelve pages. Prose past the budget is description; a decision is short |
 | The chat reply | ≤ ~300 words: conclusion · files written · ≤ 5 questions · what you did not conclude | The report and workbook are the deliverables. Restating them in chat is a third copy that carries no locator |
 
@@ -48,7 +48,7 @@ move (email bodies, chat exports) get a copy under `sources/`.
 |---|---|---|
 | `evidence[].kind` | `stated` · `reproduced` · `inferred` · `external` | Conclusions rest on `stated` or `reproduced`. `reproduced` = observed by running it on sample data (see `legacy-etl-archaeology/references/app-estate-guide.md` §3); its locator is the run log line, and the run is in `manifest.json` `executions[]` — it outranks `stated` for a claim about behaviour. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
 | `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record**. A file path is relative to the project root (the folder that holds `discovery/`), so a reviewer's viewer can open it at the line; a workspace observation is the call that reproduces it (`GET /api/…  → key=value`) |
-| `status` | `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred` | The agent sets only `extracted`; humans move it — in Velox from the Workspace panel's **Review** tab, which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question stays open until it has an `answer`, whatever its review status. `rejected` keeps a record out of every deliverable |
+| `status` | requirements · rules · inventory · findings · edges: `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred`. rationalization · readiness: `extracted` → `reviewed` (the reviewer may change `disposition` / `score` in the same write) · `rejected`. open_questions: `open` → `reviewed` (approved to ask, still open) · `answered` (+ `answer`) · `rejected` (dropped) — never `deferred` | The agent sets only `extracted` (`open` for questions); humans move it — in Velox from the Workspace panel's **Review** tab, which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question counts as open until `answered` or `rejected`, so a `reviewed` one still goes to its person. `rejected` keeps a record out of every deliverable |
 
 Also: `confidence` 0–1 (orders review, never skips it), `inferred` bool, `conflicts[]` (kept apart from
 evidence — disagreement is a finding, not proof).
@@ -101,6 +101,7 @@ evidence — disagreement is a finding, not proof).
  "requirements_raised":["DR-01"],"questions_raised":["OQ-11"],"layer":"transform","migration_disposition":null,"status":"extracted"}
 
 // open_questions.jsonl   ask = a person (role + "(name: ?)" if unknown), never a department
+// status ∈ open|reviewed|answered|rejected — reviewed = approved to ask, still open; answered carries `answer`; never deferred
 {"id":"OQ-07","question":"Is HCM-99 still excluded from revenue? Since when, and who owns the rule?",
  "why":"In code, not in spec; affects the largest store code.",
  "evidence":[{"source_id":"src-sp-014","locator":"sp_Calc_Daily_Revenue.sql:52","kind":"stated"}],
@@ -108,6 +109,7 @@ evidence — disagreement is a finding, not proof).
  "impact_if_wrong":"high","blocking":["FR-01","BR-014"],"status":"open","answer":null}
 
 // rationalization.jsonl   disposition ∈ migrate|modernize|retire|defer ; set only by assessment-synthesis
+// status ∈ extracted|reviewed|rejected — the reviewer may change `disposition` when marking reviewed
 // target_component = what it becomes on the target (placeholders until agreed) — the report's component mapping
 {"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,"target_component":"<catalog>.bronze.pos_txn (Lakeflow Connect)",
  "criteria":{"used":true,"usage_window_days":396,"covers_month_end":true,"complexity":null,"complexity_source":null,
@@ -116,6 +118,7 @@ evidence — disagreement is a finding, not proof).
 
 // readiness.jsonl   dimension ∈ data|logic|governance|security|operations ; set only by assessment-synthesis
 // score 1–5 counts only with a locator; security counts only with basis sat|workspace ; unscored → score null + needs
+// status ∈ extracted|reviewed|rejected — the reviewer may change `score` when marking reviewed
 {"id":"RDY-security","dimension":"security","score":null,"basis":"code","needs":"a SAT run on the target workspace",
  "rationale":"Shared service account and plaintext secrets found in code; posture itself not observed.",
  "evidence":[{"source_id":"src-cfg","locator":"config/app.yml:12","kind":"stated"}],"status":"extracted"}
