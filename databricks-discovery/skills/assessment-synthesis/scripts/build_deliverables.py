@@ -313,8 +313,12 @@ def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
     sheet(wb, "Traceability", ["requirement", "title", "rules", "source_objects", "target_object", "open_questions", "status"],
           trows, {"title": 44, "rules": 30, "source_objects": 40, "target_object": 34})
 
+    # Edges carry object ids; the sheet reads as the Review panel does — names, ids kept beside them.
+    obj_name = {r.get("id"): r.get("name") for r in inv if r.get("id") and r.get("name")}
+    label = lambda oid: f"{obj_name[oid]} ({oid})" if oid in obj_name else (oid or "")
     sheet(wb, "Dependencies", ["from", "to", "kind", "evidence"],
-          [[e.get("from"), e.get("to"), e.get("kind"), locs(e)] for e in edges], {"from": 34, "to": 34, "evidence": 40})
+          [[label(e.get("from")), label(e.get("to")), e.get("kind"), locs(e)] for e in edges],
+          {"from": 40, "to": 40, "evidence": 40})
 
     suff = [[c.strip() for c in l.strip("|").split("|")] for l in md_text(root / "sufficiency.md").splitlines()
             if l.startswith("|") and not re.match(r"^\|\s*-", l)]
