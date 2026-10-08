@@ -153,6 +153,19 @@ def test_run_merges_into_a_shared_run_folder():
         assert [x["dimension"] for x in r] == ["data", "security"] and r[1]["score"] is None
 
 
+def test_out_must_be_the_run_folder_not_a_child():
+    with tempfile.TemporaryDirectory() as d:
+        run = Path(d) / "2026-10-08_run-01"
+        try:
+            posture.run(args(run / "security"), fetch=fetch)
+        except SystemExit as e:
+            assert "run folder itself" in str(e)
+        else:
+            raise AssertionError("a subfolder of a run was accepted")
+        posture.run(args(run), fetch=fetch)                               # the run folder itself is fine
+        assert (run / "readiness.jsonl").exists()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

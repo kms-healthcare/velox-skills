@@ -30,6 +30,15 @@ discovery-<project>.xlsx · assessment-report.md · assessment-report.docx
 Sources are **referenced by path + sha256 in `manifest.json`**, not copied. Only originals that may
 move (email bodies, chat exports) get a copy under `sources/`.
 
+**What else a run folder may hold — and nothing else:** `logs/` (what was executed: pytest, a
+repro, posture — `exec-NN-<what>.log`) and `tools/` (helper scripts you wrote for THIS run: a swarm
+dump, a repro). No `scripts/` beside the project files, no `security/` or other sub-run (every
+pack script takes `--out <run dir>` and writes INTO it), no `sources.sha256` sidecar (the manifest
+already carries the hashes), no `worker-notes/`. Measured 2026-10-08 across three runs of the same
+repo: each invented its own layout, and the reviewer and the generator met a different tree every
+time. Records go in through `scripts/write_records.py` (discovery-intake), never by a script that
+holds them.
+
 ## Record budget — cost discipline
 
 | Field | Limit | Why |

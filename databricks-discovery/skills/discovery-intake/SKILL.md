@@ -3,7 +3,7 @@ name: discovery-intake
 description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.7.0"
+  version: "0.7.1"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -226,6 +226,16 @@ Velox the session's lesson — what was tried, decided and left open — is draf
 when the session ends and shared to the team's Knowledge Hub once its owner approves it. Say so in
 the hand-off line of the final message ("approve the lesson draft in Settings → Knowledge so the
 next assessment starts from this one"); do not write a lesson by hand — the draft is the app's.
+
+## Writing records
+
+Records reach a register through ONE door: `python3 "<directory>/scripts/write_records.py"
+<run dir> <register> <records.json | ->` — a JSON array in, validated JSON Lines out, upserted by
+id (edges by `from|to|kind`). It refuses a record with the wrong id prefix, no evidence, an
+evidence entry without a locator, or text over budget, and then writes nothing. Draft the array in
+a file under `runs/<run>/tools/` or pipe it on stdin; never write JSONL by hand and never keep the
+records inside a Python script that prints them (measured 2026-10-08: 27 KB of records lived in
+`build_run01_registers.py`, where no reviewer would look).
 
 ## Layout, review, and client-data constraints
 

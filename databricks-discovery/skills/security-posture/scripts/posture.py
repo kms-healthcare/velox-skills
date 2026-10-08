@@ -651,8 +651,16 @@ def readiness(results, s, coverage, highs):
             "evidence": [{"source_id": "src-posture", "locator": "posture.json", "kind": "stated"}], "status": "extracted"}
 
 
+RUN_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}_run-\d+$")
+
+
 def run(args, fetch=None):
     out = Path(args.out)
+    # Measured 2026-10-08: --out <run>/security wrote a second manifest and readiness
+    # beside the run's, the merge below never saw the run, and the agent copied
+    # RDY-security across by hand. The run folder IS the target; never a child of it.
+    if RUN_DIR.match(out.parent.name) and not RUN_DIR.match(out.name):
+        raise SystemExit(f"--out must be the run folder itself ({out.parent}), not a folder inside it")
     out.mkdir(parents=True, exist_ok=True)
     results, calls = {}, []
     ws = None

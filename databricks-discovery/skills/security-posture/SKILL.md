@@ -3,7 +3,7 @@ name: security-posture
 description: "Score a Databricks workspace's security posture against the Security Analysis Tool (SAT) check catalog - read-only, with every check passed, failed or reported as not assessed and why. Reads the live workspace through the Databricks CLI (GET only), imports SAT's own results when the client already runs SAT, and checks Terraform / bundle / grant SQL when there is no workspace yet. Writes security findings and the security readiness score into the discovery run. Use when asked for the security posture, a SAT-style check, the security section of the assessment, or a before/after security comparison of a migration. Never installs SAT or changes a setting."
 compatibility: "Python 3.9+, stdlib only. Live mode needs the Databricks CLI signed in to the workspace (a read-only service principal by default)."
 metadata:
-  version: "0.2.2"
+  version: "0.2.3"
   parent: discovery-intake
 ---
 
@@ -49,6 +49,11 @@ python3 "<directory>/scripts/posture.py" run --out discovery/<project>/runs/<dat
   [--cloud aws|azure|gcp] [--allowed-regions '^eu-|europe']
 python3 "<directory>/scripts/posture.py" catalog      # what each check id is and how it is evaluated here
 ```
+
+`--out` is the run folder itself (`runs/<date>_run-NN`), never a folder inside it: the script merges
+its findings and `RDY-security` into the run's own registers, and a child folder (measured
+2026-10-08: `--out …/run-01/security`) leaves two manifests and a readiness line nobody can trace.
+The script refuses a child of a run folder.
 
 `--allowed-regions` comes from a residency requirement (`requirements.jsonl`, e.g. GDPR transfers)
 — never from your own assumption. Without one, `VX-RES-1` stays not assessed.
