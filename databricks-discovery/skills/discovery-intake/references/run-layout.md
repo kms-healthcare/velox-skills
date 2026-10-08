@@ -138,6 +138,7 @@ evidence — disagreement is a finding, not proof).
 **`intake.md`**
 ```markdown
 # Intake — <project>  (run-NN, <date>)
+## Team knowledge — answered (src-hub-01…) · none on record (asked <date>) · unavailable: "<its message>"
 ## Axis A — type:  primary **<type>** `inferred|stated` — <driver, locator> · secondary <type> · to confirm: OQ-xx
 ## Axis B — inputs per source system
 | System | Level | In hand (source_id) | Missing to reach next level |

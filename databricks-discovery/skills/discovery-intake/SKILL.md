@@ -3,7 +3,7 @@ name: discovery-intake
 description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -117,6 +117,25 @@ locator and can be merged — in chat they are read once and lost.
 
 ## Step 1 — Three-axis intake → `intake.md`
 
+### Axis 0 — ask the team first
+
+If the session offers a team-knowledge tool (Velox: `ask_team_knowledge`, present only when the
+team shares a Knowledge Hub), your first call in the run — before the approach card, before any
+file — is ONE question to it: *"What does the team already know about <client / system>: earlier
+assessments, decisions made, owners, related tickets, known risks, open questions?"* Three outcomes,
+each written as one line under `## Team knowledge` in `intake.md`:
+
+- **It answered** → every statement you keep is L1 evidence, `kind: stated`, `source_id: src-hub-NN`,
+  locator = the citation the Hub returned (title · url); prior decisions pre-fill Axis C, prior
+  open questions go to `open_questions.jsonl` as `answered` or re-asked, never re-discovered.
+- **Nothing on record** → `Team knowledge: none on record (asked <date>)`. Not a finding.
+- **Unavailable or an error** → quote its message in that line, do not retry this turn, continue.
+  "The Hub has nothing" and "the Hub is down" must stay distinguishable in the report.
+
+No such tool → skip the axis silently. Measured 2026-10-08: without this step the agent consulted
+the Hub only when the person typed "knowledge hub", and every run re-derived what the previous one
+had already put in front of a reviewer.
+
 ### Axis A — project type, via the real driver
 
 Do not ask "what kind of project". Ask: **"Why now? If nothing is done, what happens in 12 months?"**
@@ -139,7 +158,7 @@ type → first finding. Unclassifiable after two rounds → `unknown`, run migra
 | Level | Exists | Can conclude | Cannot — say so |
 |---|---|---|---|
 | L0 | user's words | provisional type, source request, questions | any number, any quality/complexity judgement |
-| L1 | documents, transcripts, tickets | `stated` requirements, glossary, goals | the running system — docs describe the design |
+| L1 | documents, transcripts, tickets, **team knowledge** (the Hub's answer, Axis 0) | `stated` requirements, glossary, goals, prior decisions and owners | the running system — docs describe the design |
 | L2 | code / DDL / ETL artifacts / application code (services, APIs, dashboards) | running rules, dependencies, complexity, doc-vs-code conflicts, every place data lives or leaves | volume, usage, data quality |
 | L3 | source access or scanner output (Lakebridge Analyzer, catalogs, query logs) | inventory, real usage, orphans, volume | business meaning, keep/drop |
 | L4 | Unity Catalog, system tables, workspace | cost baseline, lineage, security posture (`security-posture`; SAT results) | what *should* exist — Axis C |
@@ -201,6 +220,12 @@ default · impact_if_wrong · blocking`. ≤ 5 to the user per turn, ordered by 
 | registers pass the gate | `assessment-synthesis` | `rationalization`, workbook, report |
 
 After each return, update `sufficiency.md` and the question list. Discovery is a loop.
+
+**What the next run inherits.** The reviewed registers stay in the project (`registers/`), and in
+Velox the session's lesson — what was tried, decided and left open — is drafted by session memory
+when the session ends and shared to the team's Knowledge Hub once its owner approves it. Say so in
+the hand-off line of the final message ("approve the lesson draft in Settings → Knowledge so the
+next assessment starts from this one"); do not write a lesson by hand — the draft is the app's.
 
 ## Layout, review, and client-data constraints
 
