@@ -3,7 +3,7 @@ name: discovery-intake
 description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.7.1"
+  version: "0.7.2"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -40,7 +40,10 @@ chosen.** The parallel scan, when useful, is step one of DELIVER, scoped per the
 each worker writing its findings into `runs/<run>/<worker>.jsonl` under the project (a path the
 shell can read back), never into chat or tool-result files (measured 2026-10-07, two runs: a swarm
 launched before `load_skill` wrote to a path the sandbox denied reading back, ~7 minutes lost, and
-the agent re-read the code itself).
+the agent re-read the code itself). Velox files each worker's full output as its own Markdown note
+under `.velox/swarm/run-N-<label>/`; read them **one note per Read call**, never `cat` several
+together — a tool result over ~25 KB is moved to a file the sandbox will not let you read back
+(measured 2026-10-09: a 30 KB `cat` of three notes).
 
 **The approach question has two fixed options, always, in this order** — the person's answer is
 *how the assessment reads the estate*, and it must not change wording from run to run (measured
@@ -236,6 +239,13 @@ evidence entry without a locator, or text over budget, and then writes nothing. 
 a file under `runs/<run>/tools/` or pipe it on stdin; never write JSONL by hand and never keep the
 records inside a Python script that prints them (measured 2026-10-08: 27 KB of records lived in
 `build_run01_registers.py`, where no reviewer would look).
+
+The manifest has its door too: `python3 "<directory>/scripts/write_manifest.py" <run dir>
+<fields.json | ->` — `sources` as `{source id: [paths relative to the project root]}` (it hashes
+every file under them), `executions` as the full list (each `log` must exist), plus `skill`,
+`model`, `sources_requested_not_available`, `notes`. It takes `run_id`, `project` and `counts` from
+the run folder and keeps what pack scripts added (posture.py's `external_access`). Run it last,
+after the records; never write a manifest builder of your own (measured 2026-10-09: one per run).
 
 ## Layout, review, and client-data constraints
 

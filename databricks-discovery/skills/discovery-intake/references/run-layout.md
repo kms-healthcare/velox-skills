@@ -14,12 +14,13 @@ non-functional, `SCOPE-`, `INT-` integration, `BR-` rule, `obj-` inventory, `FND
 ```
 discovery/<project>/
 ├── intake.md · source_request.md · sufficiency.md
+├── author-sections.md    # the report's five prose sections — one per project, every run edits it
 ├── registers/            # source of truth — only a human merges here
 │   ├── requirements.jsonl        business_rules.jsonl     inventory.jsonl
 │   ├── dependency_edges.jsonl    findings.jsonl           open_questions.jsonl
 │   └── rationalization.jsonl · readiness.jsonl   (set by assessment-synthesis)
 └── runs/<date>_run-NN/   # the agent writes here, never into registers/
-    ├── manifest.json     # sources (path + sha256), external access, counts
+    ├── manifest.json     # sources (path + sha256), external access, counts — scripts/write_manifest.py
     ├── *.jsonl           # new / changed records only, status = extracted
     └── review.md         # one page for the reviewer
 
@@ -31,10 +32,12 @@ Sources are **referenced by path + sha256 in `manifest.json`**, not copied. Only
 move (email bodies, chat exports) get a copy under `sources/`.
 
 **What else a run folder may hold — and nothing else:** `logs/` (what was executed: pytest, a
-repro, posture — `exec-NN-<what>.log`) and `tools/` (helper scripts you wrote for THIS run: a swarm
-dump, a repro). No `scripts/` beside the project files, no `security/` or other sub-run (every
+repro, posture — `exec-NN-<what>.log`), `tools/` (helper scripts and record drafts you wrote for
+THIS run: a repro, the JSON arrays fed to `write_records.py`), and what a pack script writes there
+by design (`posture.json` from security-posture — its findings cite it as their locator).
+`author-sections.md` is not a run file: it lives once in `discovery/<project>/`. No `scripts/` beside the project files, no `security/` or other sub-run (every
 pack script takes `--out <run dir>` and writes INTO it), no `sources.sha256` sidecar (the manifest
-already carries the hashes), no `worker-notes/`. Measured 2026-10-08 across three runs of the same
+already carries the hashes — `scripts/write_manifest.py` writes them), no `worker-notes/`. Measured 2026-10-08 across three runs of the same
 repo: each invented its own layout, and the reviewer and the generator met a different tree every
 time. Records go in through `scripts/write_records.py` (discovery-intake), never by a script that
 holds them.
@@ -168,5 +171,8 @@ any usage comes from DMVs (`dm_exec_*` resets on restart).
 `rule_status` distribution · unsure (confidence < 0.6) · **what was run, and which findings stayed
 unreproduced and why** · **deliberately not concluded** · how to merge.
 
-**`author-sections.md`** (input to the generator) — five headings, prose only:
+**`discovery/<project>/author-sections.md`** (input to the generator; one per project, so the final
+"regenerate" and the next run find the same file — measured 2026-10-09: three runs put it in three
+places, and a generator that cannot find it fills each section with "not provided" and still
+builds) — five headings, prose only:
 `## decision` · `## architecture` · `## roadmap` · `## drivers` · `## risks`.

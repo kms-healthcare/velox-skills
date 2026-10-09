@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
 metadata:
-  version: "0.5.0"
+  version: "0.5.1"
   parent: discovery-intake
 ---
 
@@ -14,7 +14,8 @@ someone else can check. Not: every template section has text. Twelve pages that 
 sixty that describe the current state.
 
 **Nothing is hand-written except five author sections.** The workbook and the report are generated
-by `scripts/build_deliverables.py` from `registers/`; you write `author-sections.md` with
+by `scripts/build_deliverables.py` from `registers/`; you write `discovery/<project>/author-sections.md`
+(one per project, never inside a run) with
 `## decision` (≤ 400 words — the executive summary's recommendation), `## architecture` (≤ 500),
 `## roadmap` (≤ 400), `## drivers` (≤ 300 — the cost estimate), `## risks` (≤ 400), and pass it in — the generator warns when a section runs over. Write for the client: name the
 object ("the nightly orders load"), never the record id (`obj-38`) — the generator replaces
@@ -135,7 +136,7 @@ project root.
 ```
 # 1. draft — always, right after the registers are written
 python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --include-unreviewed \
-  --author-sections author-sections.md \
+  --author-sections discovery/<project>/author-sections.md \
   --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
 # 3. final — when the person says "regenerate": same command without --include-unreviewed
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
