@@ -18,6 +18,9 @@ def test_upsert_by_id_and_defaults():
         assert all(r["status"] == "extracted" for r in rows)
         e = w.write(d, "dependency_edges", [{"from": "obj-1", "to": "obj-2", "kind": "writes", "evidence": EV}] * 2)
         assert e == (1, 1, 1)                                             # edges key on from|to|kind
+        r = w.write(d, "rationalization", [{"object_id": "obj-1", "disposition": "migrate"},
+                                           {"object_id": "obj-1", "disposition": "retire"}])
+        assert r == (1, 1, 1)                                             # rationalization keys on object_id
 
 
 def test_refuses_bad_records_and_writes_nothing():
@@ -37,6 +40,7 @@ def test_refuses_bad_records_and_writes_nothing():
                 raise AssertionError(f"accepted {rec}")
         assert not (Path(d) / "findings.jsonl").exists()
         assert w.problems("readiness", {"id": "RDY-data", "score": 2}) == []   # synthesis registers carry no evidence
+        assert w.problems("rationalization", {"id": "obj-1"}) == ["object_id '' does not start with obj-"]
 
 
 if __name__ == "__main__":

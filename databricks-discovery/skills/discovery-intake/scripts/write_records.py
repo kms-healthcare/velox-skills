@@ -5,7 +5,7 @@
 
 <records.json> is a JSON array (or JSON Lines) of records. Each is checked against the rules in
 references/run-layout.md — an id with the register's prefix, at least one evidence entry with a
-locator, excerpts within budget — then upserted by id into <run-dir>/<register>.jsonl (a second
+locator, excerpts within budget — then upserted by id (rationalization by object_id, edges by from|to|kind) into <run-dir>/<register>.jsonl (a second
 write of the same id replaces, it never duplicates). `status` defaults to `extracted`.
 
 Why a script: measured 2026-10-08, an agent wrote 27 KB of records INSIDE a Python file that
@@ -23,7 +23,7 @@ PREFIX = {
     "inventory": ("obj-",),
     "findings": ("FND-",),
     "open_questions": ("OQ-",),
-    "rationalization": ("obj-",),
+    "rationalization": ("obj-",),          # keyed by object_id — one row per inventory object
     "readiness": ("RDY-",),
 }
 NEEDS_EVIDENCE = {"requirements", "business_rules", "inventory", "findings", "open_questions", "dependency_edges"}
@@ -34,6 +34,8 @@ TEXT_MAX = {"findings": "detail", "requirements": "statement"}
 def key(register, rec):
     if register == "dependency_edges":
         return f"{rec.get('from')}|{rec.get('to')}|{rec.get('kind')}"
+    if register == "rationalization":
+        return rec.get("object_id")
     return rec.get("id")
 
 
@@ -44,9 +46,10 @@ def problems(register, rec):
             if not rec.get(f):
                 out.append(f"missing {f}")
     else:
-        rid = rec.get("id") or ""
+        field = "object_id" if register == "rationalization" else "id"
+        rid = rec.get(field) or ""
         if not rid.startswith(PREFIX.get(register, ("",))):
-            out.append(f"id {rid!r} does not start with {' / '.join(PREFIX.get(register, ()))}")
+            out.append(f"{field} {rid!r} does not start with {' / '.join(PREFIX.get(register, ()))}")
     if register in NEEDS_EVIDENCE:
         ev = rec.get("evidence") or []
         if not ev:

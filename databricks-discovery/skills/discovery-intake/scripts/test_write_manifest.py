@@ -36,6 +36,7 @@ def test_hashes_merges_and_counts():
         assert m["sources_read"][1] == {"source_id": "src-code", "path": "src/a.py",
                                         "sha256": hashlib.sha256(b"x = 1\n").hexdigest(), "bytes": 6}
         w.write(run, {"sources": {"src-code": ["src/a.py"]}})              # same id again replaces, not duplicates
+        w.write(run, {"executions": [dict(ex[0], log="discovery/p/" + ex[0]["log"])]})   # log from the project root too
         assert len(json.loads((run / "manifest.json").read_text())["sources_read"]) == 2
 
 

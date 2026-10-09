@@ -6,8 +6,8 @@
 <fields.json> is a JSON object. `sources` maps a source id to paths (files or folders) relative to
 the project root, the folder that holds `discovery/`; every file under them is read and recorded
 as path + sha256 + bytes. `executions` is the full list of commands run against the project, each
-with `command`, `exit` and `log` (`runs/<run>/logs/…`, relative to discovery/<project>/ as in
-run-layout.md; it must exist). Every other key (`skill`, `model`,
+with `command`, `exit` and `log` (`runs/<run>/logs/…` relative to discovery/<project>/ as in
+run-layout.md, or the same file relative to the project root; it must exist). Every other key (`skill`, `model`,
 `sources_requested_not_available`, `notes`, …) is stored as given.
 `run_id`, `project` and `counts` come from the run folder itself.
 
@@ -47,7 +47,7 @@ def write(run_dir, fields):
         missing = [k for k in ("command", "exit", "log") if k not in e]
         if missing:
             bad.append(f"execution {e.get('command')!r}: missing {', '.join(missing)}")
-        elif not (run.parents[1] / e["log"]).is_file():
+        elif not any((base / e["log"]).is_file() for base in (run.parents[1], root)):
             bad.append(f"execution {e['command']!r}: log {e['log']} does not exist")
     if bad:
         for b in bad:
