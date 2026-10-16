@@ -241,6 +241,12 @@ next assessment starts from this one"); do not write a lesson by hand — the dr
 
 ## Writing records
 
+**Every record a person reviews explains itself** — `meaning`, `impact`, `risk` and a `recommendation`
+(`accept` / `reject` / `defer`, a reason, confidence `high` / `medium` / `low`) are fields of the record
+(`run-layout.md` › "Every reviewed record explains itself"), written with the record, in the client's
+business words. The card, the chat and the report show exactly these; nothing you say in the chat
+about a record replaces them. Recommend `defer` when the client must answer first and name the OQ.
+
 Records reach a register through ONE door: `python3 "<directory>/scripts/write_records.py"
 <run dir> <register> <records.json | ->` — a JSON array in, validated JSON Lines out, upserted by
 id (edges by `from|to|kind`). It refuses a record with the wrong id prefix, no evidence, an

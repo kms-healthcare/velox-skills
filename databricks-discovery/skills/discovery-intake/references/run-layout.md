@@ -66,6 +66,24 @@ holds them.
 Also: `confidence` 0–1 (orders review, never skips it), `inferred` bool, `conflicts[]` (kept apart from
 evidence — disagreement is a finding, not proof).
 
+## Every reviewed record explains itself
+
+A person decides each record of `source_systems`, `requirements`, `business_rules`, `inventory`,
+`dependency_edges`, `findings` and `open_questions` on a card, in the chat or from the report — and all
+three show the SAME fields, written by the run, never improvised by the chat (velox-spec
+`databricks-guided-review`). `write_records.py` refuses a record of those registers without them.
+
+| Field | Budget | What it answers |
+|---|---|---|
+| `meaning` | ≤ 160 chars | What is this, in the client's business words — not its technical name again |
+| `impact` | ≤ 160 chars | What accepting it means for the migration (what gets planned, built, tested). Optional on `dependency_edges` |
+| `risk` | ≤ 160 chars | What goes wrong if this decision is wrong. Optional on `dependency_edges` |
+| `recommendation` | `{"decision": "accept\|reject\|defer", "reason": ≤ 120 chars, "confidence": "high\|medium\|low"}` | What you would decide and why. Confidence is a WORD a reviewer can weigh, never a number. `defer` when the client has to answer first (name the OQ); `reject` when the evidence does not support the record |
+
+The card marks the recommended decision as its first button and offers "Accept recommended (n)" per
+register for the records recommended `accept` — so a weak `high` costs the reviewer a wrong bulk accept.
+Say `medium` when one source supports it, `low` when it is inferred.
+
 ## Schemas (one example each)
 
 ```json
@@ -75,7 +93,13 @@ evidence — disagreement is a finding, not proof).
 // write_records.py refuses the record (by key), and so does the desktop's register reader. The sign-in is the person's, later, in Scope.
 {"id":"SYS-1","name":"orders","engine":"postgresql","host":"pg-prod.client.local","port":5432,"database":"orders",
  "role":"system of record for POS transactions","evidence":[{"source_id":"src-etl-01","locator":"etl/load_orders.py:14","excerpt":"host='pg-prod.client.local'","kind":"stated"}],
+ "meaning":"The PostgreSQL database that holds every order the shop takes",
+ "impact":"Becomes a source to migrate; its tables are planned in the first wave",
+ "risk":"If it is not the system of record, the plan copies a replica",
+ "recommendation":{"decision":"accept","reason":"the orders load reads it every run","confidence":"high"},
  "status":"extracted"}
+// every record of the seven reviewed registers carries meaning / impact / risk / recommendation like this one (table above);
+// the examples below leave them out for brevity
 
 // requirements.jsonl   type ∈ functional|data|security|nonfunctional|scope|integration ; priority only if a source states it
 {"id":"FR-01","type":"functional","title":"Net revenue excludes returns ≤7 days, status 9, store HCM-99",

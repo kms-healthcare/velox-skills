@@ -35,6 +35,13 @@ CREDENTIAL_KEY = re.compile(r"^(user(name)?|login|pass(word|wd)?|pwd|token|secre
 CREDENTIAL_TEXT = re.compile(r"(password|passwd|pwd|token|secret)\s*[=:]\s*\S|dapi[0-9a-f]{8,}|bearer\s+\S{8,}|://[^/\s]+:[^/\s]+@", re.I)
 EXCERPT_MAX = 120
 TEXT_MAX = {"findings": "detail", "requirements": "statement"}
+# A record a person reviews explains itself as data (velox-spec `databricks-guided-review`): what it is,
+# what accepting it means for the migration, the risk if the decision is wrong, and a recommendation
+# with a confidence a person can read. The card, the chat and the report all show these same fields.
+EXPLAINED = {"source_systems", "requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions"}
+EXPLAIN_MAX = 160
+RECOMMENDATION_DECISIONS = ("accept", "reject", "defer")
+CONFIDENCE_WORDS = ("high", "medium", "low")
 
 
 def key(register, rec):
@@ -68,6 +75,8 @@ def problems(register, rec):
     field = TEXT_MAX.get(register)
     if field and len(rec.get(field) or "") > 300:
         out.append(f"{field} over 300 chars — if it needs more, it is two records")
+    if register in EXPLAINED:
+        out += explanation_problems(register, rec)
     if register == "source_systems":
         for f in ("name", "engine"):
             if not rec.get(f):
@@ -75,6 +84,36 @@ def problems(register, rec):
         out += credential_problems(rec)
     if register == "inventory" and not str(rec.get("system") or "").startswith("SYS-"):
         out.append("missing system (SYS-<n>) — every object belongs to a source system")
+    return out
+
+
+def explanation_problems(register, rec):
+    """meaning / impact / risk within budget, and a recommendation {decision, reason, confidence}."""
+    out = []
+    needed = ("meaning",) if register == "dependency_edges" else ("meaning", "impact", "risk")
+    for f in needed:
+        v = rec.get(f)
+        if not (isinstance(v, str) and v.strip()):
+            out.append(f"missing {f} — a reviewer must not have to guess")
+        elif len(v) > EXPLAIN_MAX:
+            out.append(f"{f} over {EXPLAIN_MAX} chars")
+    for f in ("impact", "risk"):
+        v = rec.get(f)
+        if f not in needed and isinstance(v, str) and len(v) > EXPLAIN_MAX:
+            out.append(f"{f} over {EXPLAIN_MAX} chars")
+    rec_ = rec.get("recommendation")
+    if not isinstance(rec_, dict):
+        out.append("missing recommendation {decision, reason, confidence}")
+        return out
+    if rec_.get("decision") not in RECOMMENDATION_DECISIONS:
+        out.append(f"recommendation.decision must be one of {' / '.join(RECOMMENDATION_DECISIONS)}")
+    reason = rec_.get("reason")
+    if not (isinstance(reason, str) and reason.strip()):
+        out.append("missing recommendation.reason")
+    elif len(reason) > 120:
+        out.append("recommendation.reason over 120 chars")
+    if rec_.get("confidence") not in CONFIDENCE_WORDS:
+        out.append(f"recommendation.confidence must be one of {' / '.join(CONFIDENCE_WORDS)} — a word, never a number")
     return out
 
 
