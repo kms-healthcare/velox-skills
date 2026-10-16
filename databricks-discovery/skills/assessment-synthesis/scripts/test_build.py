@@ -21,7 +21,7 @@ def write(p, recs):
 
 
 def project(tmp):
-    root = tmp / "discovery" / "proj"
+    root = tmp / "assessment" / "proj"
     reg, run = root / "registers", root / "runs" / "2026-10-07_run-01"
     # every register, one record per status the Review tab writes
     for name in ("requirements", "findings", "inventory", "business_rules"):

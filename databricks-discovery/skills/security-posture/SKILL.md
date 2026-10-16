@@ -44,7 +44,7 @@ line with the path, leave `RDY-security` unscored with `needs: "posture.py could
 did exactly that and the report carried a number nobody could reproduce.
 
 ```
-python3 "<directory>/scripts/posture.py" run --out discovery/<project>/runs/<date>_run-NN \
+python3 "<directory>/scripts/posture.py" run --out assessment/<project>/runs/<date>_run-NN \
   --workspace --profile <profile> [--sat-results sat-rows.json] [--iac <repo>] \
   [--cloud aws|azure|gcp] [--allowed-regions '^eu-|europe']
 python3 "<directory>/scripts/posture.py" catalog      # what each check id is and how it is evaluated here

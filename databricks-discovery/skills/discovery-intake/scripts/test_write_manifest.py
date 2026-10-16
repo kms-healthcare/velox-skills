@@ -9,7 +9,7 @@ import write_manifest as w
 
 def tree(d):
     root = Path(d)
-    run = root / "discovery" / "p" / "runs" / "2026-10-09_run-01"
+    run = root / "assessment" / "p" / "runs" / "2026-10-09_run-01"
     (run / "logs").mkdir(parents=True)
     (run / "logs" / "exec-01-pytest.log").write_text("ok")
     (root / "src" / "__pycache__").mkdir(parents=True)
@@ -36,7 +36,7 @@ def test_hashes_merges_and_counts():
         assert m["sources_read"][1] == {"source_id": "src-code", "path": "src/a.py",
                                         "sha256": hashlib.sha256(b"x = 1\n").hexdigest(), "bytes": 6}
         w.write(run, {"sources": {"src-code": ["src/a.py"]}})              # same id again replaces, not duplicates
-        w.write(run, {"executions": [dict(ex[0], log="discovery/p/" + ex[0]["log"])]})   # log from the project root too
+        w.write(run, {"executions": [dict(ex[0], log="assessment/p/" + ex[0]["log"])]})   # log from the project root too
         assert len(json.loads((run / "manifest.json").read_text())["sources_read"]) == 2
 
 
@@ -57,7 +57,7 @@ def test_refuses_and_writes_nothing():
         try:
             w.write(root / "src", {})
         except SystemExit as e:
-            assert "is not discovery" in str(e)
+            assert "is not assessment" in str(e)
 
 
 if __name__ == "__main__":

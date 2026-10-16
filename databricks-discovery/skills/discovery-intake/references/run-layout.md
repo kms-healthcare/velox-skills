@@ -12,7 +12,7 @@ non-functional, `SCOPE-`, `INT-` integration, `BR-` rule, `obj-` inventory, `FND
 ## Layout
 
 ```
-discovery/<project>/
+assessment/<project>/
 ├── intake.md · source_request.md · sufficiency.md
 ├── author-sections.md    # the report's five prose sections — one per project, every run edits it
 ├── registers/            # source of truth — only a human merges here
@@ -35,7 +35,7 @@ move (email bodies, chat exports) get a copy under `sources/`.
 repro, posture — `exec-NN-<what>.log`), `tools/` (helper scripts and record drafts you wrote for
 THIS run: a repro, the JSON arrays fed to `write_records.py`), and what a pack script writes there
 by design (`posture.json` from security-posture — its findings cite it as their locator).
-`author-sections.md` is not a run file: it lives once in `discovery/<project>/`. No `scripts/` beside the project files, no `security/` or other sub-run (every
+`author-sections.md` is not a run file: it lives once in `assessment/<project>/`. No `scripts/` beside the project files, no `security/` or other sub-run (every
 pack script takes `--out <run dir>` and writes INTO it), no `sources.sha256` sidecar (the manifest
 already carries the hashes — `scripts/write_manifest.py` writes them), no `worker-notes/`. Measured 2026-10-08 across three runs of the same
 repo: each invented its own layout, and the reviewer and the generator met a different tree every
@@ -59,7 +59,7 @@ holds them.
 | Field | Values | Rule |
 |---|---|---|
 | `evidence[].kind` | `stated` · `reproduced` · `inferred` · `external` | Conclusions rest on `stated` or `reproduced`. `reproduced` = observed by running it on sample data (see `legacy-etl-archaeology/references/app-estate-guide.md` §3); its locator is the run log line, and the run is in `manifest.json` `executions[]` — it outranks `stated` for a claim about behaviour. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
-| `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record**. A file path is relative to the project root (the folder that holds `discovery/`), so a reviewer's viewer can open it at the line; a workspace observation is the call that reproduces it (`GET /api/…  → key=value`) |
+| `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record**. A file path is relative to the project root (the folder that holds `assessment/`), so a reviewer's viewer can open it at the line; a workspace observation is the call that reproduces it (`GET /api/…  → key=value`) |
 | `status` | requirements · rules · inventory · findings · edges: `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred`. rationalization · readiness: `extracted` → `reviewed` (the reviewer may change `disposition` / `score` in the same write) · `rejected`. open_questions: `open` → `reviewed` (approved to ask, still open) · `answered` (+ `answer`) · `rejected` (dropped) — never `deferred` | The agent sets only `extracted` (`open` for questions); humans move it — in Velox from the Workspace panel's **Review** tab, which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question counts as open until `answered` or `rejected`, so a `reviewed` one still goes to its person. `rejected` keeps a record out of every deliverable |
 
 Also: `confidence` 0–1 (orders review, never skips it), `inferred` bool, `conflicts[]` (kept apart from
@@ -171,7 +171,7 @@ any usage comes from DMVs (`dm_exec_*` resets on restart).
 `rule_status` distribution · unsure (confidence < 0.6) · **what was run, and which findings stayed
 unreproduced and why** · **deliberately not concluded** · how to merge.
 
-**`discovery/<project>/author-sections.md`** (input to the generator; one per project, so the final
+**`assessment/<project>/author-sections.md`** (input to the generator; one per project, so the final
 "regenerate" and the next run find the same file — measured 2026-10-09: three runs put it in three
 places, and a generator that cannot find it fills each section with "not provided" and still
 builds) — five headings, prose only:

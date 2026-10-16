@@ -4,9 +4,9 @@
     python3 write_manifest.py <run-dir> <fields.json | ->
 
 <fields.json> is a JSON object. `sources` maps a source id to paths (files or folders) relative to
-the project root, the folder that holds `discovery/`; every file under them is read and recorded
+the project root, the folder that holds `assessment/`; every file under them is read and recorded
 as path + sha256 + bytes. `executions` is the full list of commands run against the project, each
-with `command`, `exit` and `log` (`runs/<run>/logs/…` relative to discovery/<project>/ as in
+with `command`, `exit` and `log` (`runs/<run>/logs/…` relative to assessment/<project>/ as in
 run-layout.md, or the same file relative to the project root; it must exist). Every other key (`skill`, `model`,
 `sources_requested_not_available`, `notes`, …) is stored as given.
 `run_id`, `project` and `counts` come from the run folder itself.
@@ -35,8 +35,8 @@ def files_under(root, rel):
 
 def write(run_dir, fields):
     run = Path(run_dir).resolve()
-    if run.parent.name != "runs" or run.parents[2].name != "discovery":
-        raise SystemExit(f"{run} is not discovery/<project>/runs/<run>")
+    if run.parent.name != "runs" or run.parents[2].name != "assessment":
+        raise SystemExit(f"{run} is not assessment/<project>/runs/<run>")
     root = run.parents[3]
     bad = []
     sources = fields.pop("sources", {}) or {}

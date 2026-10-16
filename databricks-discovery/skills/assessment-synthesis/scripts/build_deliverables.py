@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the human-facing deliverables from discovery registers.
 
-  python3 build_deliverables.py <discovery/project dir> [--out-dir <dir>] [--include-unreviewed]
+  python3 build_deliverables.py <assessment/project dir> [--out-dir <dir>] [--include-unreviewed]
                                 [--author-sections <file.md>] [--no-docx]
 
 Reads   <project>/registers/*.jsonl (or, with --include-unreviewed, also runs/*/ *.jsonl — the

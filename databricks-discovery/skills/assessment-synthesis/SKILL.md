@@ -14,7 +14,7 @@ someone else can check. Not: every template section has text. Twelve pages that 
 sixty that describe the current state.
 
 **Nothing is hand-written except five author sections.** The workbook and the report are generated
-by `scripts/build_deliverables.py` from `registers/`; you write `discovery/<project>/author-sections.md`
+by `scripts/build_deliverables.py` from `registers/`; you write `assessment/<project>/author-sections.md`
 (one per project, never inside a run) with
 `## decision` (≤ 400 words — the executive summary's recommendation), `## architecture` (≤ 500),
 `## roadmap` (≤ 400), `## drivers` (≤ 300 — the cost estimate), `## risks` (≤ 400), and pass it in — the generator warns when a section runs over. Write for the client: name the
@@ -135,8 +135,8 @@ project root.
 
 ```
 # 1. draft — always, right after the registers are written
-python3 "<directory>/scripts/build_deliverables.py" discovery/<project> --include-unreviewed \
-  --author-sections discovery/<project>/author-sections.md \
+python3 "<directory>/scripts/build_deliverables.py" assessment/<project> --include-unreviewed \
+  --author-sections assessment/<project>/author-sections.md \
   --built-with "databricks-discovery <version> · Databricks agent skills <version> · Databricks CLI <version>"
 # 3. final — when the person says "regenerate": same command without --include-unreviewed
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
