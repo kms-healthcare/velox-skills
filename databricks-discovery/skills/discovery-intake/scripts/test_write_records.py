@@ -91,10 +91,15 @@ def test_every_reviewed_record_explains_itself():
     assert bad_rec == ["recommendation.decision must be one of accept / reject / defer",
                        "missing recommendation.reason",
                        "recommendation.confidence must be one of high / medium / low — a word, never a number"]
-    # an edge needs a meaning and a recommendation; impact and risk are optional there
-    edge = {"from": "obj-1", "to": "obj-2", "kind": "writes", "evidence": EV, "meaning": "x", "recommendation": EXPLAIN["recommendation"]}
+    # a plain fact — an inventory object, an edge — needs a meaning; impact, risk and the recommendation are optional
+    edge = {"from": "obj-1", "to": "obj-2", "kind": "writes", "evidence": EV, "meaning": "x"}
     assert w.problems("dependency_edges", edge) == []
     assert w.problems("dependency_edges", {k: v for k, v in edge.items() if k != "meaning"}) == ["missing meaning — a reviewer must not have to guess"]
+    obj = {"id": "obj-1", "kind": "table", "name": "t", "system": "SYS-1", "evidence": EV, "meaning": "the orders table"}
+    assert w.problems("inventory", obj) == []
+    assert w.problems("inventory", {**obj, "recommendation": {"decision": "accept"}}) == [
+        "missing recommendation.reason",
+        "recommendation.confidence must be one of high / medium / low — a word, never a number"]   # given, it is checked
     # synthesis registers are not reviewed record by record: nothing required
     assert w.problems("readiness", {"id": "RDY-data", "score": 2}) == []
     assert w.problems("rationalization", {"object_id": "obj-1", "disposition": "migrate"}) == []

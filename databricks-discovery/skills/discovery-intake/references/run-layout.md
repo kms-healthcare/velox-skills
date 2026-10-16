@@ -76,9 +76,9 @@ three show the SAME fields, written by the run, never improvised by the chat (ve
 | Field | Budget | What it answers |
 |---|---|---|
 | `meaning` | ≤ 160 chars | What is this, in the client's business words — not its technical name again |
-| `impact` | ≤ 160 chars | What accepting it means for the migration (what gets planned, built, tested). Optional on `dependency_edges` |
-| `risk` | ≤ 160 chars | What goes wrong if this decision is wrong. Optional on `dependency_edges` |
-| `recommendation` | `{"decision": "accept\|reject\|defer", "reason": ≤ 120 chars, "confidence": "high\|medium\|low"}` | What you would decide and why. Confidence is a WORD a reviewer can weigh, never a number. `defer` when the client has to answer first (name the OQ); `reject` when the evidence does not support the record |
+| `impact` | ≤ 160 chars | What accepting it means for the migration (what gets planned, built, tested). Optional on plain facts (`inventory`, `dependency_edges`) |
+| `risk` | ≤ 160 chars | What goes wrong if this decision is wrong. Optional on plain facts |
+| `recommendation` | `{"decision": "accept\|reject\|defer", "reason": ≤ 120 chars, "confidence": "high\|medium\|low"}` | What you would decide and why. Confidence is a WORD a reviewer can weigh, never a number, and it FOLLOWS THE EVIDENCE: `high` for what was measured or read verbatim, `medium` for one source, `low` for inferred. `defer` when the client has to answer first (name the OQ); `reject` when the evidence does not support the record. Optional on plain facts — a table and its row count need no judgement; a doubtful object still gets one |
 
 The card marks the recommended decision as its first button and offers "Accept recommended (n)" per
 register for the records recommended `accept` — so a weak `high` costs the reviewer a wrong bulk accept.

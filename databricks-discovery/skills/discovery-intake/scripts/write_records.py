@@ -39,6 +39,10 @@ TEXT_MAX = {"findings": "detail", "requirements": "statement"}
 # what accepting it means for the migration, the risk if the decision is wrong, and a recommendation
 # with a confidence a person can read. The card, the chat and the report all show these same fields.
 EXPLAINED = {"source_systems", "requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions"}
+# Plain facts — an object and its row count, an edge the code shows — need a meaning, not a judgement:
+# impact, risk and the recommendation are optional there (Bartosz, 2026-10-16). Everything else a person
+# decides carries all four.
+FACTS = {"inventory", "dependency_edges"}
 EXPLAIN_MAX = 160
 RECOMMENDATION_DECISIONS = ("accept", "reject", "defer")
 CONFIDENCE_WORDS = ("high", "medium", "low")
@@ -90,7 +94,7 @@ def problems(register, rec):
 def explanation_problems(register, rec):
     """meaning / impact / risk within budget, and a recommendation {decision, reason, confidence}."""
     out = []
-    needed = ("meaning",) if register == "dependency_edges" else ("meaning", "impact", "risk")
+    needed = ("meaning",) if register in FACTS else ("meaning", "impact", "risk")
     for f in needed:
         v = rec.get(f)
         if not (isinstance(v, str) and v.strip()):
@@ -102,6 +106,8 @@ def explanation_problems(register, rec):
         if f not in needed and isinstance(v, str) and len(v) > EXPLAIN_MAX:
             out.append(f"{f} over {EXPLAIN_MAX} chars")
     rec_ = rec.get("recommendation")
+    if rec_ is None and register in FACTS:
+        return out
     if not isinstance(rec_, dict):
         out.append("missing recommendation {decision, reason, confidence}")
         return out
