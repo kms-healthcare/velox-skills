@@ -43,6 +43,37 @@ def test_refuses_bad_records_and_writes_nothing():
         assert w.problems("rationalization", {"id": "obj-1"}) == ["object_id '' does not start with obj-"]
 
 
+def test_source_systems_named_never_signed_in():
+    with tempfile.TemporaryDirectory() as d:
+        ok = {"id": "SYS-1", "name": "orders", "engine": "postgresql", "host": "pg-prod.client.local", "port": 5432,
+              "database": "orders", "evidence": [{"locator": "etl/load_orders.py:1", "excerpt": "host='pg-prod.client.local'"}]}
+        assert w.write(d, "source_systems", [ok]) == (1, 0, 1)
+        for bad, why in (
+            ({**ok, "id": "SRC-1"}, "does not start with SYS-"),
+            ({**ok, "engine": None}, "missing engine"),
+            ({**ok, "user": "etl_ro"}, "user holds a credential"),
+            ({**ok, "password": "x"}, "password holds a credential"),
+            ({**ok, "connection": {"token": "dapi1234567890"}}, "connection.token holds a credential"),
+            ({**ok, "notes": "pwd=hunter2 in config"}, "notes looks like a credential"),
+            ({**ok, "evidence": [{"locator": "cfg.py:3", "excerpt": "postgres://etl:hunter2@pg-prod/orders"}]}, "evidence.0.excerpt looks like a credential"),
+        ):
+            try:
+                w.write(d, "source_systems", [bad])
+            except SystemExit as e:
+                assert "refused" in str(e)
+            else:
+                raise AssertionError(f"accepted {bad}")
+            assert any(why in p for p in w.problems("source_systems", bad)), (why, w.problems("source_systems", bad))
+        rows = (Path(d) / "source_systems.jsonl").read_text().splitlines()
+        assert len(rows) == 1 and json.loads(rows[0])["id"] == "SYS-1"   # the refusals wrote nothing
+        # the host and a plain locator are not credentials
+        assert w.problems("source_systems", {**ok, "host": "sql.client.local\\PROD", "evidence": [{"locator": "appsettings.json:12"}]}) == []
+        # every inventory object names its system
+        assert w.problems("inventory", {"id": "obj-1", "kind": "table", "name": "t", "evidence": EV}) == [
+            "missing system (SYS-<n>) — every object belongs to a source system"]
+        assert w.problems("inventory", {"id": "obj-1", "kind": "table", "name": "t", "system": "SYS-1", "evidence": EV}) == []
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

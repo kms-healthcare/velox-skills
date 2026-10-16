@@ -14,10 +14,12 @@ file at a time. Records that live in a throwaway script are records the reviewer
 Stdlib only.
 """
 import json
+import re
 import sys
 from pathlib import Path
 
 PREFIX = {
+    "source_systems": ("SYS-",),           # one per system the code and documents reach — written FIRST
     "requirements": ("FR-", "DR-", "SEC-", "NFR-", "SCOPE-", "INT-"),
     "business_rules": ("BR-",),
     "inventory": ("obj-",),
@@ -26,7 +28,11 @@ PREFIX = {
     "rationalization": ("obj-",),          # keyed by object_id — one row per inventory object
     "readiness": ("RDY-",),
 }
-NEEDS_EVIDENCE = {"requirements", "business_rules", "inventory", "findings", "open_questions", "dependency_edges"}
+NEEDS_EVIDENCE = {"source_systems", "requirements", "business_rules", "inventory", "findings", "open_questions", "dependency_edges"}
+# A source system is named, never signed in to: the desktop refuses a record that carries a credential
+# and says so by key, so the refusal happens here first, where the agent can fix it.
+CREDENTIAL_KEY = re.compile(r"^(user(name)?|login|pass(word|wd)?|pwd|token|secret|api_?key|credentials?|dsn|connection_?string)$", re.I)
+CREDENTIAL_TEXT = re.compile(r"(password|passwd|pwd|token|secret)\s*[=:]\s*\S|dapi[0-9a-f]{8,}|bearer\s+\S{8,}|://[^/\s]+:[^/\s]+@", re.I)
 EXCERPT_MAX = 120
 TEXT_MAX = {"findings": "detail", "requirements": "statement"}
 
@@ -62,6 +68,30 @@ def problems(register, rec):
     field = TEXT_MAX.get(register)
     if field and len(rec.get(field) or "") > 300:
         out.append(f"{field} over 300 chars — if it needs more, it is two records")
+    if register == "source_systems":
+        for f in ("name", "engine"):
+            if not rec.get(f):
+                out.append(f"missing {f}")
+        out += credential_problems(rec)
+    if register == "inventory" and not str(rec.get("system") or "").startswith("SYS-"):
+        out.append("missing system (SYS-<n>) — every object belongs to a source system")
+    return out
+
+
+def credential_problems(rec, path=""):
+    """Keys that are credentials, and values that look like one, anywhere in a source_systems record."""
+    out = []
+    if isinstance(rec, dict):
+        for k, v in rec.items():
+            if CREDENTIAL_KEY.match(str(k)):
+                out.append(f"{path}{k} holds a credential — name the system, never how to sign in")
+            else:
+                out += credential_problems(v, f"{path}{k}.")
+    elif isinstance(rec, list):
+        for i, v in enumerate(rec):
+            out += credential_problems(v, f"{path}{i}.")
+    elif isinstance(rec, str) and CREDENTIAL_TEXT.search(rec):
+        out.append(f"{path.rstrip('.')} looks like a credential — name the system, never how to sign in")
     return out
 
 

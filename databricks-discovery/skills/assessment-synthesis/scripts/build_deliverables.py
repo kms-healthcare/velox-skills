@@ -409,7 +409,7 @@ def name_refs(md, names):
 
 
 def draft_banner(n):
-    return (f"\n> **Draft built from {n} unreviewed records.** Review them in Velox → Workspace → Review, "
+    return (f"\n> **Draft built from {n} unreviewed records.** Review them in Velox's Assess step, "
             "then ask for the final report.\n")
 
 

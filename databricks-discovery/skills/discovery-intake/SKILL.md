@@ -168,6 +168,15 @@ type → first finding. Unclassifiable after two rounds → `unknown`, run migra
 
 At L0–L1 every current-state section reads *"no evidence yet — needs [source]"*.
 
+**Name every source system first — `source_systems` is the first register of a run.** One record
+per system the code, config and documents reach (`SYS-<n>`: name, engine, host, port, database as
+the code names them, a locator each), written through `write_records.py` before any inventory
+object, because every `inventory` record names its `system` and the writer refuses one that does
+not. A system is NAMED, never signed in to: no user, password, token or DSN in the record or its
+excerpts — the writer refuses those by key, and so does Velox's reader. Credentials found in code
+are a `findings` record (category `security`, the locator, no excerpt of the value). Velox's Scope
+step checks each accepted system against the source afterwards, with the person's own sign-in.
+
 ### Axis C — the decision
 
 > "This report is for **[who]** to decide **[what]** before **[when]**."
@@ -250,7 +259,7 @@ after the records; never write a manifest builder of your own (measured 2026-10-
 ## Layout, review, and client-data constraints
 
 `assessment/<project>/` per `references/run-layout.md`. The agent writes only into `runs/<run>/`;
-a human reviews in Velox → Workspace → Review (or `review.md` by hand) and the decisions land in
+a human reviews in Velox — the Assessment session's **Assess** step, or the Workspace panel's **Review** tab in a chat (or `review.md` by hand) — and the decisions land in
 `registers/`. Deliverables (`discovery-<project>.xlsx`, `assessment-report.md/.docx`) are generated
 next to the project dir and are what people open — first as a labelled DRAFT from the run, then
 regenerated from `registers/` when the person says "regenerate" (`assessment-synthesis` §6).

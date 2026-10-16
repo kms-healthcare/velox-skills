@@ -16,6 +16,7 @@ assessment/<project>/
 ├── intake.md · source_request.md · sufficiency.md
 ├── author-sections.md    # the report's five prose sections — one per project, every run edits it
 ├── registers/            # source of truth — only a human merges here
+│   ├── source_systems.jsonl      # first: one per system the code and documents reach (SYS-<n>)
 │   ├── requirements.jsonl        business_rules.jsonl     inventory.jsonl
 │   ├── dependency_edges.jsonl    findings.jsonl           open_questions.jsonl
 │   └── rationalization.jsonl · readiness.jsonl   (set by assessment-synthesis)
@@ -60,7 +61,7 @@ holds them.
 |---|---|---|
 | `evidence[].kind` | `stated` · `reproduced` · `inferred` · `external` | Conclusions rest on `stated` or `reproduced`. `reproduced` = observed by running it on sample data (see `legacy-etl-archaeology/references/app-estate-guide.md` §3); its locator is the run log line, and the run is in `manifest.json` `executions[]` — it outranks `stated` for a claim about behaviour. `inferred` always raises an open question. `external` (a law, vendor docs) may support a finding's *impact* or a requirement's rationale, never a fact about the client's system, and names its reference |
 | `evidence[].locator` | `file:line` · `p.N §x` · `speaker, date, hh:mm:ss` · `sheet!cell` · `ticket-id` · `object_name` | Openable in 5 seconds. **No locator, no record**. A file path is relative to the project root (the folder that holds `assessment/`), so a reviewer's viewer can open it at the line; a workspace observation is the call that reproduces it (`GET /api/…  → key=value`) |
-| `status` | requirements · rules · inventory · findings · edges: `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred`. rationalization · readiness: `extracted` → `reviewed` (the reviewer may change `disposition` / `score` in the same write) · `rejected`. open_questions: `open` → `reviewed` (approved to ask, still open) · `answered` (+ `answer`) · `rejected` (dropped) — never `deferred` | The agent sets only `extracted` (`open` for questions); humans move it — in Velox from the Workspace panel's **Review** tab, which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question counts as open until `answered` or `rejected`, so a `reviewed` one still goes to its person. `rejected` keeps a record out of every deliverable |
+| `status` | source systems · requirements · rules · inventory · findings · edges: `extracted` → `reviewed` → `confirmed` · `rejected` · `deferred`. rationalization · readiness: `extracted` → `reviewed` (the reviewer may change `disposition` / `score` in the same write) · `rejected`. open_questions: `open` → `reviewed` (approved to ask, still open) · `answered` (+ `answer`) · `rejected` (dropped) — never `deferred` | The agent sets only `extracted` (`open` for questions); humans move it — in Velox from the Assessment session's **Assess** step (a chat on the project: the Workspace panel's **Review** tab), which writes the decision into `registers/` (replace by `id`; `object_id` for rationalization, `dimension` for readiness, `from`→`to`:`kind` for edges) and stamps `reviewed_by` / `reviewed_at`. A question counts as open until `answered` or `rejected`, so a `reviewed` one still goes to its person. `rejected` keeps a record out of every deliverable |
 
 Also: `confidence` 0–1 (orders review, never skips it), `inferred` bool, `conflicts[]` (kept apart from
 evidence — disagreement is a finding, not proof).
@@ -68,6 +69,14 @@ evidence — disagreement is a finding, not proof).
 ## Schemas (one example each)
 
 ```json
+// source_systems.jsonl   WRITTEN FIRST — one per system the code and documents reach; every inventory object names its `system`
+// engine ∈ postgresql|mysql|sqlserver|oracle|synapse|snowflake|teradata|redshift|db2|hive|files|api|… as the code names it
+// host / port / database as the code or config names them, null when not found — NEVER a user, a password, a token or a DSN:
+// write_records.py refuses the record (by key), and so does the desktop's register reader. The sign-in is the person's, later, in Scope.
+{"id":"SYS-1","name":"orders","engine":"postgresql","host":"pg-prod.client.local","port":5432,"database":"orders",
+ "role":"system of record for POS transactions","evidence":[{"source_id":"src-etl-01","locator":"etl/load_orders.py:14","excerpt":"host='pg-prod.client.local'","kind":"stated"}],
+ "status":"extracted"}
+
 // requirements.jsonl   type ∈ functional|data|security|nonfunctional|scope|integration ; priority only if a source states it
 {"id":"FR-01","type":"functional","title":"Net revenue excludes returns ≤7 days, status 9, store HCM-99",
  "statement":"Daily net revenue = valid transactions minus returns within 7 days; status 9 and HCM-99 excluded.",
@@ -91,7 +100,7 @@ evidence — disagreement is a finding, not proof).
 //   file_store|queue|log|cache|object_store|export|api_endpoint|ui_view|…  (the last eight: app-estate-guide.md)
 // every store also carries holds_pii (bool|null) and erasure_reaches (bool|null) — null raises an open question
 // complexity_source ∈ analyzer|manual|null — a manual tier is triage, never presented as measured
-{"id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","layer_guess":"bronze",
+{"id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","system":"SYS-1","layer_guess":"bronze",
  "row_estimate":730000000,"size_gb":412,"writers":["obj-0031"],"readers":["obj-0044","obj-0112"],
  "last_read_at":"2026-09-09","last_write_at":"2026-09-13","orphan":false,
  "pii_candidates":[],"complexity":null,"complexity_source":null,"disposition":null,

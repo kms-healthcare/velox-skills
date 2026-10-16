@@ -117,10 +117,10 @@ One flow, every run:
 
 1. **Draft.** Right after the registers are written, run the generator with `--include-unreviewed`.
    The report's title ends "— DRAFT, unreviewed" and a banner under it says *Draft built from N
-   unreviewed records. Review them in Velox → Workspace → Review, then ask for the final report.*
+   unreviewed records. Review them in Velox's Assess step, then ask for the final report.*
    (the generator adds both; without the flag there is no banner).
 2. **Hand over.** The reply names the draft's paths, then guides the review: the ≤ 5 items from
-   `review.md` to accept or reject first, in the Review tab (Velox → Workspace → Review), and the
+   `review.md` to accept or reject first, in Velox (the Assess step; the Workspace panel's Review tab in a chat), and the
    sentence that closes the loop — *say "regenerate" (or "build the final report") when done*.
 3. **Final.** On that message, run the generator again WITHOUT `--include-unreviewed` — from
    `registers/` only — and say what changed: records in (reviewed / confirmed) vs out (rejected,
