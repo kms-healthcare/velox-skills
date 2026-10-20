@@ -28,6 +28,23 @@ PREFIX = {
     "rationalization": ("obj-",),          # keyed by object_id — one row per inventory object
     "readiness": ("RDY-",),
 }
+# The three layers the Scope step lists an estate in (velox-spec `databricks-assess-approved-scope`,
+# 2026-10-20): the data a migration moves, the code that produces it, what reads it. A kind outside
+# the list is refused with the list, so "GET /stats" never sits beside a table as a thing to migrate.
+KINDS = {
+    "data": ("table", "view", "materialized_view", "sequence", "file_store", "file_dataset", "queue", "topic", "log", "object_store"),
+    "workloads": ("procedure", "function", "ssis_package", "etl_job", "pipeline", "notebook", "job", "service", "cache"),
+    "consumers": ("report", "dashboard", "external_consumer", "api_endpoint", "ui_view", "application", "export", "feed"),
+}
+ALL_KINDS = tuple(k for kinds in KINDS.values() for k in kinds)
+# One record per data object: a name that reads as several ("orders, clicks and payments") cannot be
+# ticked in or out one by one on the Scope step. Measured 2026-10-19: five Kafka topics in one record.
+SEVERAL = re.compile(r",\s|\s(and|&)\s")
+DISPOSITIONS = {
+    "data": ("migrate", "modernize", "retire", "defer"),
+    "workloads": ("convert", "rewrite", "retire", "keep"),
+    "consumers": ("repoint", "replace", "retire"),
+}
 NEEDS_EVIDENCE = {"source_systems", "requirements", "business_rules", "inventory", "findings", "open_questions", "dependency_edges"}
 # A source system is named, never signed in to: the desktop refuses a record that carries a credential
 # and says so by key, so the refusal happens here first, where the agent can fix it.
@@ -88,6 +105,17 @@ def problems(register, rec):
         out += credential_problems(rec)
     if register == "inventory" and not str(rec.get("system") or "").startswith("SYS-"):
         out.append("missing system (SYS-<n>) — every object belongs to a source system")
+    if register == "inventory":
+        kind = rec.get("kind")
+        if kind not in ALL_KINDS:
+            out.append(f"kind {kind!r} is not one of {' / '.join(ALL_KINDS)}")
+        elif kind in KINDS["data"] and SEVERAL.search(str(rec.get("name") or "")):
+            out.append(f"one record per object: {rec.get('name')!r} names several — write one record each")
+    if register == "rationalization":
+        d = rec.get("disposition")
+        allowed = tuple(dict.fromkeys(x for v in DISPOSITIONS.values() for x in v))
+        if d is not None and d not in allowed:
+            out.append(f"disposition {d!r} is not one of {' / '.join(allowed)}")
     return out
 
 

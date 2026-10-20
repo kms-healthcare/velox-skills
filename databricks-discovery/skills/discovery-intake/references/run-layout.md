@@ -120,8 +120,11 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "rule_status":"CODE-ONLY","in_spec":false,"config_driven":false,
  "requirements":["FR-01"],"open_questions":["OQ-07"],"status":"extracted"}
 
-// inventory.jsonl   kind ∈ table|view|procedure|ssis_package|job|report|external_consumer|
-//   file_store|queue|log|cache|object_store|export|api_endpoint|ui_view|…  (the last eight: app-estate-guide.md)
+// inventory.jsonl   kind is one of three layers, and nothing else (write_records.py refuses the rest):
+//   data       table|view|materialized_view|sequence|file_store|file_dataset|queue|topic|log|object_store   — what the migration moves
+//   workloads  procedure|function|ssis_package|etl_job|pipeline|notebook|job|service|cache                 — what produces it
+//   consumers  report|dashboard|external_consumer|api_endpoint|ui_view|application|export|feed             — what reads it
+//   ONE RECORD PER DATA OBJECT: five topics are five records, never "topics a, b and c" (the Scope step ticks each in or out)
 // every store also carries holds_pii (bool|null) and erasure_reaches (bool|null) — null raises an open question
 // complexity_source ∈ analyzer|manual|null — a manual tier is triage, never presented as measured
 {"id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","system":"SYS-1","layer_guess":"bronze",
@@ -153,7 +156,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "ask":"Head of Accounting (name: ?)","default":"Keep current behaviour; mark CONFLICT",
  "impact_if_wrong":"high","blocking":["FR-01","BR-014"],"status":"open","answer":null}
 
-// rationalization.jsonl   disposition ∈ migrate|modernize|retire|defer ; set only by assessment-synthesis
+// rationalization.jsonl   disposition — data: migrate|modernize|retire|defer ; workloads: convert|rewrite|retire|keep ; consumers: repoint|replace|retire ; set by assessment-synthesis, changed by the reviewer on the Scope step
 // status ∈ extracted|reviewed|rejected — the reviewer may change `disposition` when marking reviewed
 // target_component = what it becomes on the target (placeholders until agreed) — the report's component mapping
 {"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,"target_component":"<catalog>.bronze.pos_txn (Lakeflow Connect)",

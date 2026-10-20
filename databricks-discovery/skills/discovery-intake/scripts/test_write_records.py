@@ -105,6 +105,19 @@ def test_every_reviewed_record_explains_itself():
     assert w.problems("rationalization", {"object_id": "obj-1", "disposition": "migrate"}) == []
 
 
+def test_inventory_kinds_are_the_three_layers_and_one_record_per_object():
+    obj = {"id": "obj-1", "kind": "table", "name": "bronze.orders", "system": "SYS-1", "evidence": EV, "meaning": "m"}
+    assert w.problems("inventory", obj) == []
+    assert w.problems("inventory", {**obj, "kind": "job", "name": "eurostream transform (ingest, pii_scan and build)"}) == []   # a workload may name its steps
+    bad = w.problems("inventory", {**obj, "kind": "rest_call"})
+    assert len(bad) == 1 and bad[0].startswith("kind 'rest_call' is not one of table / view")
+    bundled = w.problems("inventory", {**obj, "kind": "topic", "name": "Kafka topics orders, clicks, payments"})
+    assert bundled == ["one record per object: 'Kafka topics orders, clicks, payments' names several — write one record each"]
+    assert w.problems("rationalization", {"object_id": "obj-1", "disposition": "repoint"}) == []
+    assert w.problems("rationalization", {"object_id": "obj-1", "disposition": "maybe"}) == [
+        "disposition 'maybe' is not one of migrate / modernize / retire / defer / convert / rewrite / keep / repoint / replace"]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
