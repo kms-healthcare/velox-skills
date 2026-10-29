@@ -1,6 +1,6 @@
 ---
 name: discovery-intake
-description: "LOAD THIS FIRST, before proposing an approach, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the approach options the person chooses between (with the workspace / without) are defined here, and an approach drafted without it is not comparable to any other run. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
+description: "LOAD THIS FIRST, before any step, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the two assessment levels (code and workspace / code only) are defined here, the level arrives in the brief from the Assess step, and a run that does not follow it is not comparable to any other. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
   version: "0.7.2"
@@ -35,7 +35,7 @@ Axis C sentence to edit, what to request and why, ≤ 5 questions. Write `intake
 request once the user confirms the scope and the Axis C sentence — an agent that runs an agreement
 step (Velox does) runs this skill after it. Never answer "give me more information".
 
-**Do not fan out (`propose_agents` / `run_agents`) before this skill is loaded and the approach is
+**Do not fan out (`propose_agents` / `run_agents`) before this skill is loaded and the level is
 chosen.** The parallel scan, when useful, is step one of DELIVER, scoped per the type module, with
 each worker writing its findings into `runs/<run>/<worker>.jsonl` under the project (a path the
 shell can read back), never into chat or tool-result files (measured 2026-10-07, two runs: a swarm
@@ -45,35 +45,33 @@ under `.velox/swarm/run-N-<label>/`; read them **one note per Read call**, never
 together — a tool result over ~25 KB is moved to a file the sandbox will not let you read back
 (measured 2026-10-09: a 30 KB `cat` of three notes).
 
-**The approach question has two fixed options, always, in this order** — the person's answer is
-*how the assessment reads the estate*, and it must not change wording from run to run (measured
-2026-10-05/06: four runs, four different option sets — "Full code + docs", "Code-based now",
-"Code + docs, workspace checks added"… — so no two assessments were comparable):
+**The approach is decided before the run, on the Assess step — never asked here.** The level the
+client agreed to arrives in the brief, in one of two fixed wordings (the person's answer is *how the
+assessment reads the estate*, and its wording must not change from run to run — measured
+2026-10-05/06: four runs, four different option sets, so no two assessments were comparable):
 
-1. **With the Databricks workspace** — connect it (read-only service principal by default; the
-   card opens from this choice) and read code + docs + the live workspace: Unity Catalog, system
-   tables, security posture scored. *Recommended whenever a workspace exists or is one click away.*
-2. **Without a workspace** — code + docs only: registers, findings, readiness; security posture
-   from infrastructure code only, reported as not scored, with the workspace as the first open item.
-   *For pre-sales, or when the client has not granted access yet.*
+1. **Code and workspace assessment** — "The client agreed to the code and workspace assessment:
+   <ENV> at <host> … connected". Read code + docs + each named workspace: Unity Catalog, system
+   tables, security posture scored. Through the Velox app where it is installed, read-only through
+   the Databricks CLI elsewhere; never a table's rows. Do not call `request_databricks_workspace`
+   for a workspace the brief already names.
+2. **Code assessment** — "The client agreed to the code assessment only". Code + docs only:
+   registers, findings, readiness; security posture from infrastructure code only, reported as not
+   scored. Do not ask for a workspace at any point of the run; note it in `source_request.md` line 1
+   as ❌ none yet (OQ-xx), the first open item.
 
-A third option is allowed only when the project genuinely has another shape (e.g. "scanner output
-only", when Lakebridge/UCX exports were handed over and there is no code); never a fourth. Say in
-one line what each costs the person. Option 1 chosen → call `request_databricks_workspace` at once
-and build the plan on the card's outcome; "I don't have a workspace yet" on the card falls back to
-option 2 without asking again. Option 2 chosen → do not ask for a workspace later in the run; note
-it in `source_request.md` line 1 as ❌ none yet (OQ-xx).
+A brief that names neither (a chat started outside the Assess step) is a code assessment; say so in
+one line and go on. A third shape is allowed only when the project genuinely has it (e.g. "scanner
+output only", when Lakebridge/UCX exports were handed over and there is no code), and it is a note
+in the plan, not a question.
 
-**The approach card carries the question and the two options — nothing else.** One line of
-question ("How should the assessment read the estate?"), the options with their cost, done. No
-tour of the deliverables in the preamble (they are the same either way — six words, not sixty),
-and no second question folded in: "also answer the three questions above in the free-text box"
-turns a click into a non-answer, and "above" is off-screen. The intake's ≤ 5 blocking questions
-are their OWN card, asked after the approach is chosen — or, when a default is honest, taken as
-the default and raised as `OQ-` records with `default` filled, which is what Rule 3 means by
-*deliver while asking*. Security from code reads as "from infrastructure code", not a tool name
-(Terraform today, bundles or Bicep elsewhere). Reviewed live 2026-10-06: a card that got the two
-options right still ran 90 words of deliverables and asked three intake questions in the same box.
+**No approach card.** The intake's ≤ 5 blocking questions are their OWN card, asked first — or,
+when a default is honest, taken as the default and raised as `OQ-` records with `default` filled,
+which is what Rule 3 means by *deliver while asking*. Security from code reads as "from
+infrastructure code", not a tool name (Terraform today, bundles or Bicep elsewhere). Reviewed live
+2026-10-06: a card that got the two options right still ran 90 words of deliverables and asked three
+intake questions in the same box; since velox-spec `databricks-assess-levels` the level comes from
+the screen the client signed, and the card is gone.
 
 ## Blocked mid-run — offer options, never decide alone
 
@@ -123,7 +121,7 @@ locator and can be merged — in chat they are read once and lost.
 ### Axis 0 — ask the team first
 
 If the session offers a team-knowledge tool (Velox: `ask_team_knowledge`, present only when the
-team shares a Knowledge Hub), your first call in the run — before the approach card, before any
+team shares a Knowledge Hub), your first call in the run — before the intake card, before any
 file — is ONE question to it: *"What does the team already know about <client / system>: earlier
 assessments, decisions made, owners, related tickets, known risks, open questions?"* Three outcomes,
 each written as one line under `## Team knowledge` in `intake.md`:
@@ -193,11 +191,12 @@ conclusion that will be absent. Two universals: **scanner output beats human doc
 describe the running system; documents describe a design), and **request access on day one** —
 the longest lead item.
 
-"Request access" is an ACTION, not a line in a table. When the module lists a Databricks workspace
-as a source (the migration target, the estate being consolidated) and none is bound to the session,
-ask for it now through the session's tool (Velox: `request_databricks_workspace` — the card lets
-the person connect one, as a read-only service principal by default, or say they have none yet).
-Record the outcome on line 1 of `source_request.md` (✅ bound as <identity> · ❌ none yet, OQ-xx).
+"Request access" is an ACTION, not a line in a table — except for the workspace, which the level
+decides: on a code assessment do not ask for one (line 1 of `source_request.md` reads ❌ none yet,
+OQ-xx); on a code and workspace assessment the brief names it (✅ connected as the signed-in person).
+Only a chat started outside the Assess step, with no level in its brief, asks through the session's
+tool (Velox: `request_databricks_workspace` — the card lets the person connect one or say they have
+none yet), and records the outcome on that same line.
 Measured 2026-10-05: two full assessments of the same project — one with a saved workspace one
 click away — never asked, and both ended with "security: not scored, needs a workspace".
 
