@@ -92,7 +92,11 @@ high-impact `CODE-ONLY` (calendar time with owners, not effort) · critical-path
 reconciliation baselines · consumers to re-point. Each with confidence and evidence; a driver from
 L1 documents is labelled a guess. The cost estimate is these drivers plus a **range** and the
 assumptions it rests on — the report labels it an estimate; the price is the delivery lead's.
-`## roadmap` orders the waves into phases, each with its exit criterion.
+`## roadmap` orders the waves into phases, each with its exit criterion. Each phase names the
+schemas it covers by their real names as the inventory writes them (`mfg`, `wms`), beside the
+business name — "Phase 1, wave 1: manufacturing (`mfg`) and the daily OEE dataset" — because the
+Scope step's **Keep phase 1 only** finds the phase's tables by that schema name, and a run that
+wrote only "manufacturing" gave it nothing to find (measured on `packaging-dwh`, 2026-11-02).
 
 ## 4. Target architecture outline (`## architecture`)
 
