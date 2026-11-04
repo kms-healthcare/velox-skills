@@ -1,11 +1,7 @@
 # ML estates — Azure ML workspaces, and what the inventory must hold before a move
 
-A DW migration moves tables and the code that fills them. An ML estate adds a third thing that is
-neither: the **model** — trained by a pipeline, registered with a version, read by an endpoint.
-The inventory records all three or the move loses one of them. Read this alongside
-`dw-artifact-guide.md` when the estate has an Azure ML workspace; the project-type module is
-`project-type-ml-ai.md` when the project *is* ML, `project-type-migration.md` when ML is a
-workstream of a platform move.
+An ML estate adds a third thing the inventory must hold: the **model**, trained by a pipeline
+and read by an endpoint. Load this when the estate has an Azure ML workspace.
 
 ## 1. Listing the workspace — CLI v2
 
@@ -21,8 +17,7 @@ workstream of a platform move.
 | `az ml batch-endpoint list` → `az ml batch-deployment list --endpoint-name <e>` | `job` (scoring), writing a `file_dataset` | `output_file_name` / the output datastore path |
 | `az ml data list` → `az ml data show` | `file_dataset` (`uri_file`, `uri_folder`, `mltable`) | `path` names the datastore and the folder: that is the data the move reaches |
 | `az ml datastore list` | `object_store` (ADLS / Blob container) | Names only — `credentials` are never copied; `write_records.py` refuses a record that carries one |
-| `az ml compute list` | not inventory — a finding when a compute instance is never stopped, a cluster has `min_instances > 0` | `az ml compute show` for the idle shutdown |
-| `az ml environment list` | not inventory — findings: unpinned `conda` dependencies, a custom Docker image nobody can rebuild, a CUDA pin | Migration cost drivers |
+| `az ml compute list`, `az ml environment list` | not inventory — findings: a compute instance never stopped, `min_instances > 0`, unpinned `conda` dependencies, a Docker image nobody can rebuild | Cost drivers |
 | `az ml job list --max-results 500` (filter by `experiment_name`, `creation_context.created_at`) | usage: the last job per pipeline / schedule → `last_write_at` | 90-day window, as for any usage claim |
 
 **SDK v1 remnants** (`azureml.core`: `Experiment.submit`, `PipelineData`, `PythonScriptStep`,
@@ -46,8 +41,6 @@ Designer pipeline has no code to convert: disposition `rewrite`, say so in the i
   definition of "good".
 - **Schedules**: cron strings with `time_zone`; a pipeline that runs on the 1st at 02:00 is a
   month-end job (the month-end trap applies).
-- **Monitors / drift baselines**, where configured: the reference dataset is a data asset to
-  inventory.
 
 ## 3. Findings this estate routinely yields
 
@@ -60,8 +53,5 @@ assets.
 
 ## 4. What the move needs from the inventory
 
-Each `model` record names its training `pipeline` (writer), its data assets (the pipeline's
-readers), its endpoints (readers) and the owner who answers for the metric. On Databricks these
-become an MLflow experiment, a Unity Catalog registered model (`catalog.schema.model`), Model
-Serving and a Lakeflow job; the move itself is the ML team's — the inventory is the handover,
-and a record missing from it is a model nobody moves.
+The move is the ML team's; the inventory is the handover, and a record missing from it is a
+model nobody moves.

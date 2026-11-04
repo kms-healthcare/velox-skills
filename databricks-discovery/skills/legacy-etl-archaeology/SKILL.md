@@ -49,8 +49,7 @@ Measured on v0.15.2; each point cost a failed run to learn.
 
 Exported object scripts (one file per object — run the Analyzer on that folder, register the JSON
 as `src-analyzer-01`) · SSIS `.dtsx` / Informatica XML / DataStage `.dsx` / ADF JSON / Synapse
-workspace artefacts (`pipeline/`, `notebook/`, `linkedService/`, `dataset/`, `trigger/`,
-`sqlscript/` JSON — from the workspace's Git repository, or exported from live mode) · scheduler
+workspace artefacts (from Git, or exported from live mode) · scheduler
 exports (`msdb.dbo.sysjobs/steps/schedules/history`, Control-M, Synapse triggers + pipeline runs) —
 the real DAG and **actual durations** · report definitions (`.rdl`, Cognos) — rules that live in
 no procedure · usage logs (Query Store, DBQL, AWR, `ExecutionLog3`, `sys.dm_pdw_exec_requests`) —

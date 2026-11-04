@@ -57,18 +57,15 @@ only here.
 
 ## Azure Synapse (dedicated SQL pool + workspace artefacts)
 
-Two estates in one workspace: the **dedicated SQL pool** (T-SQL — read the SQL Server section
-first, then the differences below) and the **workspace artefacts** (pipelines, notebooks, linked
-services, datasets, triggers, SQL scripts) that play the roles SSIS and SQL Agent play elsewhere.
-Lakebridge Analyzer: `--source-tech "Synapse"` on the pool scripts.
+T-SQL rules: the SQL Server section applies; below are the differences, and the workspace
+artefacts that play the roles of SSIS and SQL Agent. Lakebridge: `--source-tech "Synapse"`.
 
 **Export the pool's objects** — SSMS *Generate Scripts* works against a dedicated pool;
 `sys.sql_modules` holds procedures and views. The DDL carries decisions the plan needs:
 `WITH (DISTRIBUTION = HASH(col) | ROUND_ROBIN | REPLICATE, CLUSTERED COLUMNSTORE INDEX | HEAP,
 PARTITION (col RANGE RIGHT FOR VALUES (…)))` — record the hash column and the partition column on
-the inventory record; the migration's clustering follows them. Read the catalog when the scripts
-are missing: `sys.pdw_table_distribution_properties`, `sys.pdw_column_distribution_properties`,
-`sys.partitions`.
+the inventory record; the migration's clustering follows them. When the scripts are missing,
+the size query below carries the distribution.
 
 **Where rules hide, beyond T-SQL**
 - `PRIMARY KEY` / `UNIQUE` exist only as `NONCLUSTERED NOT ENFORCED`: a constraint that enforces
@@ -83,10 +80,6 @@ are missing: `sys.pdw_table_distribution_properties`, `sys.pdw_column_distributi
   are the ingestion edges from ADLS: `file_dataset` → `table`, with the path and the format.
 - `OPTION (LABEL = '…')` on statements: the label is what the request history shows — the way to
   tie a request back to the pipeline that ran it.
-- Workload management (`CREATE WORKLOAD GROUP` / `CLASSIFIER`, resource classes on logins): who
-  runs what with what priority — the pool's `run_as`.
-- `IDENTITY` values are not sequential across distributions; code that assumes gaps mean deletes
-  is a `CODE-ONLY` rule.
 
 **Workspace artefacts** — in the workspace's Git repository (Synapse Studio → Manage → Git
 configuration; `az synapse workspace show` names it) as one JSON file per object:
@@ -134,13 +127,10 @@ Register the export as a source with the date; the live workspace may have moved
   FORMAT = 'PARQUET' | 'CSV' | 'DELTA')`, `CREATE EXTERNAL TABLE` and views over ADLS — `view`
   records whose `readers` are the reports; nothing is stored, the files are the data.
 
-**Scheduler and durations** — there is no SQL Agent; triggers above are the schedule, pipeline
-runs are the history. `az synapse pipeline-run query-by-workspace --workspace-name <ws>
---last-updated-after <date> --last-updated-before <date>` keeps about 45 days; the diagnostic
-settings `IntegrationPipelineRuns` / `IntegrationActivityRuns` / `IntegrationTriggerRuns` sent to
-Log Analytics (`SynapseIntegrationPipelineRuns`, `…ActivityRuns`) keep what the retention says.
-Activity runs give per-step durations → the critical path; the pool's own `avg_runtime_min` is
-per request, below.
+**Scheduler and durations** — no SQL Agent: the triggers are the schedule, pipeline runs the
+history — `az synapse pipeline-run query-by-workspace` (~45 days), or `SynapseIntegrationPipelineRuns`
+/ `…ActivityRuns` in Log Analytics for the window the retention keeps; activity runs are the
+per-step durations. A pool paused nightly runs its load elsewhere: note its pause / resume schedule.
 
 **Usage on the pool** — the only basis for `orphan`:
 - `sys.dm_pdw_exec_requests` keeps the **last 10,000 requests** — days, not a quarter; `command` is
@@ -150,7 +140,6 @@ per request, below.
 - A window ≥ 90 days exists only where the diagnostic settings `ExecRequests` / `SqlRequests` /
   `RequestSteps` were sent to Log Analytics (`SynapseSqlPoolExecRequests`): ask whether they are,
   and since when. Without that window nothing is `orphan`; write the question.
-- The serverless pool: `sys.dm_exec_requests_history`, same caveat on length.
 
 **Sizes** — `DBCC PDW_SHOWSPACEUSED('schema.table')` per table, or for all at once:
 ```sql
@@ -164,8 +153,7 @@ JOIN sys.dm_pdw_nodes_db_partition_stats ps ON ps.object_id = nt.object_id AND p
 WHERE ps.index_id < 2
 GROUP BY s.name, t.name, d.distribution_policy_desc ORDER BY reserved_gb DESC;
 ```
-Needs `VIEW DATABASE STATE`. Also note the pool's DWU and its pause / resume schedule: a pool
-paused nightly has no nightly load inside it — the load runs elsewhere.
+Needs `VIEW DATABASE STATE`.
 
 ## SSIS (`.dtsx`)
 
