@@ -32,7 +32,7 @@ PREFIX = {
 # 2026-10-20): the data a migration moves, the code that produces it, what reads it. A kind outside
 # the list is refused with the list, so "GET /stats" never sits beside a table as a thing to migrate.
 KINDS = {
-    "data": ("table", "view", "materialized_view", "sequence", "file_store", "file_dataset", "queue", "topic", "log", "object_store"),
+    "data": ("table", "view", "materialized_view", "sequence", "file_store", "file_dataset", "queue", "topic", "log", "object_store", "model"),
     "workloads": ("procedure", "function", "ssis_package", "etl_job", "pipeline", "notebook", "job", "service", "cache"),
     "consumers": ("report", "dashboard", "external_consumer", "api_endpoint", "ui_view", "application", "export", "feed"),
 }

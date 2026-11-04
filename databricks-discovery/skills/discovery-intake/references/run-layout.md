@@ -121,7 +121,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "requirements":["FR-01"],"open_questions":["OQ-07"],"status":"extracted"}
 
 // inventory.jsonl   kind is one of three layers, and nothing else (write_records.py refuses the rest):
-//   data       table|view|materialized_view|sequence|file_store|file_dataset|queue|topic|log|object_store   — what the migration moves
+//   data       table|view|materialized_view|sequence|file_store|file_dataset|queue|topic|log|object_store|model   — what the migration moves (a model: trained by a pipeline, read by an endpoint)
 //   workloads  procedure|function|ssis_package|etl_job|pipeline|notebook|job|service|cache                 — what produces it
 //   consumers  report|dashboard|external_consumer|api_endpoint|ui_view|application|export|feed             — what reads it
 //   ONE RECORD PER DATA OBJECT: five topics are five records, never "topics a, b and c" (the Scope step ticks each in or out)

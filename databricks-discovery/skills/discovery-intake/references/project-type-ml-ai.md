@@ -31,7 +31,7 @@ inference cost envelope.
 |---|---|---|
 | **Use case list with the decision, current owner, and success metric** | Separates real use cases from demos | Workshop |
 | **Ground-truth / evaluation data** per use case, or an honest "none" | Without it no quality claim can be made | Data science team |
-| **Inventory of existing models, notebooks, endpoints**, how each is deployed and monitored today | MLOps baseline | MLflow if used; otherwise notebook export |
+| **Inventory of existing models, notebooks, endpoints**, how each is deployed and monitored today | MLOps baseline | MLflow if used; Azure ML: `az ml … list` per object and the pipeline code — `legacy-etl-archaeology/references/ml-estate-guide.md`; otherwise notebook export |
 | **Feature / training data sources** with freshness, owner, and whether they exist in Silver/Gold | Data readiness | UC inventory; interviews |
 | **PII and regulatory constraints on inputs and outputs** | Prompt/PII leakage, model risk | Legal / DPO |
 | **Document corpus inventory** (for RAG): sources, volume, access control, update frequency | Knowledge Assistant feasibility | Document owners |
