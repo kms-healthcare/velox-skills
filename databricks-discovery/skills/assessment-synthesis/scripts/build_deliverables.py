@@ -416,6 +416,9 @@ def draft_banner(n):
 def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", names=None, draft=None):
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
+    # A finding that changes nothing in the migration (`none`) stays in the register and the workbook, out of
+    # the report: the reader decides scope and waves, and what changes neither buries what does.
+    fnd_all, fnd = fnd, [f for f in fnd if f.get("migration_disposition") != "none"]
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
     ev = lambda r: f"{evidence_kind(r)}: {locs(r)}"
     head = [f"# {root.name} — Discovery & Assessment" + (" — DRAFT, unreviewed" if draft is not None else "") + "\n"]
@@ -568,10 +571,10 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
                  for f in sorted(sec, key=finding_order)], 15, "Findings") or ["No security finding recorded.\n"]
 
     md += ["\n## 8. Technical debt register\n\n"]
-    if fnd:
-        disp = Counter(f.get("migration_disposition") or "NOT SET" for f in fnd)
-        md += ["All findings — when migrated: " + " · ".join(f"{k} {v}" for k, v in sorted(disp.items())) + "  \n",
-               "Evidence: " + " · ".join(f"{k} {v}" for k, v in sorted(Counter(evidence_kind(f) for f in fnd).items())) + "\n\n"]
+    if fnd_all:
+        disp = Counter(f.get("migration_disposition") or "NOT SET" for f in fnd_all)
+        md += ["All findings — when migrated: " + " · ".join(f"{k} {v}" for k, v in sorted(disp.items())) + " (`none` stays in the workbook)  \n",
+               "Evidence: " + " · ".join(f"{k} {v}" for k, v in sorted(Counter(evidence_kind(f) for f in fnd_all).items())) + "\n\n"]
         md += table(["#", "Severity", "Category", "Layer", "Debt", "When migrated", "Evidence"],
                     [[f.get("id"), f.get("severity"), f.get("category"), f.get("layer"), f.get("title"),
                       f.get("migration_disposition") or "NOT SET", ev(f)]
@@ -603,12 +606,13 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
             md += [f"\n> {manual} objects carry a manually triaged complexity tier — not measured. Run Lakebridge Analyzer before estimating.\n"]
     else:
         md += [gap("rationalization.jsonl from assessment-synthesis §1", "scope is argued object by object in meetings instead of settled here")]
-    risky = [r for r in rules if r.get("rule_status") in ("CONFLICT", "CODE-ONLY", "CONFIG-ONLY")]
+    risky = [r for r in rules if r.get("rule_status") == "CONFLICT"]
     md += ["\n### Business rules at risk\n\n" + ("rule_status: " + " · ".join(f"{k} {v}" for k, v in sorted(Counter(r.get("rule_status", "?") for r in rules).items()))
+                                                 + ". Only CONFLICT rules are listed — they need a person now; CODE-ONLY and CONFIG-ONLY rules reach the Plan step as proposed tests for their tables."
                                                  if rules else "No business rule extracted yet.") + "\n\n"]
     md += table(["Rule", "Status", "Logic", "Ask"], [[f"{r.get('id')} {r.get('name')}", r.get("rule_status"), f"`{r.get('logic')}`",
                                                       ", ".join(r.get("open_questions", []))] for r in risky], 25, "Business Rules") \
-        or ["No rule is CONFLICT, CODE-ONLY or CONFIG-ONLY.\n"]
+        or ["No rule is CONFLICT.\n"]
 
     md += ["\n## 10. Target architecture & component mapping\n\n", A("architecture"), "\n"]
     mapped = [r for r in rat if r.get("target_component")]

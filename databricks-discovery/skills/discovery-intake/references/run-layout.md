@@ -140,7 +140,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
 // findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
-// layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|null — set only by assessment-synthesis
+// layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|none|null — set only by assessment-synthesis; `none` = changes nothing in the migration, kept in the register and the workbook, out of the report
 {"id":"FND-03","severity":"high","category":"data_quality",
  "title":"3% of POS transactions dropped silently by INNER JOIN to DIM_STORE",
  "detail":"sp_Calc_Daily_Revenue:61 INNER JOINs dim_store; no unmatched handling, nothing logged.",

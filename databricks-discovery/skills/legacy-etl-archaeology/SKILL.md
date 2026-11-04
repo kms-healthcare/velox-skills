@@ -118,8 +118,13 @@ invocations of the same load. For application code, also the serving layer and t
 around it (`app-estate-guide.md` §2): numbers that trace to no query, silent fallbacks, state
 shared across requests, import-time side effects, filters applied in one layer and not another,
 and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Set each finding's
-`layer`. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless `CONFIG-ONLY`,
-and `orphan: null` → an open question with a named role and a default; top 3–5 to the user.
+`layer`. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
+test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
+keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
+register is not the report — a rule reaches the Plan step as a proposed test for its table, and
+a rule left out is a test nobody writes. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless
+`CONFIG-ONLY`, and `orphan: null` → an open question with a named role and a default; top 3–5 to
+the user.
 
 **7. Reproduce (optional, bounded).** Where the project ships tests, a demo or seed data, run them
 to turn a behaviour claim into `reproduced` evidence — races, fallbacks, deletions that miss a

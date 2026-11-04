@@ -57,8 +57,11 @@ design decision that justifies it:
 | `resolved-by-target` | the target platform removes the defect by construction (a managed service replaces a hand-rolled one; Unity Catalog grants replace a shared account) | the component that resolves it, named |
 | `carried` | the defect moves over as-is unless someone acts — a faithful migration reproduces it | an owner and a mitigation, and usually a requirement |
 | `redesign` | the target must be designed differently for it — the pilot or a wave carries the change | the design decision, and the wave |
+| `none` | true, and changes nothing in the migration: no wave, no disposition, no test, no prerequisite moves because of it | nothing — it stays in the register and the workbook, and out of the report |
 
-A finding with no disposition is not done. `carried` findings are what a "just migrate it" plan
+A finding with no disposition is not done. The reader of the report decides scope, waves and
+approach; a finding that changes none of them buries the ones that do, so `none` is not a
+demotion but the usual fate of most findings — be strict about what earns the other three. `carried` findings are what a "just migrate it" plan
 would ship; the report lists them first — in the top 5 risks, the debt register and the risk register.
 
 ## 1c. Readiness → `readiness.jsonl`
