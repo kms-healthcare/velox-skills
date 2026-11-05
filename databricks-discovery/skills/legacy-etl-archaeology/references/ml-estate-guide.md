@@ -53,5 +53,8 @@ assets.
 
 ## 4. What the move needs from the inventory
 
-The move is the ML team's; the inventory is the handover, and a record missing from it is a
-model nobody moves.
+Each `model` record names its training `pipeline` (writer), its data assets (the pipeline's
+readers), its endpoints (readers) and the owner who answers for the metric. On Databricks these
+become an MLflow experiment, a Unity Catalog registered model (`catalog.schema.model`), Model
+Serving and a Lakeflow job; the move itself is the ML team's — the inventory is the handover,
+and a record missing from it is a model nobody moves.

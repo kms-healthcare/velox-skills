@@ -93,6 +93,8 @@ az synapse linked-service list --workspace-name <ws> -o json > linkedService/_al
 az synapse dataset list        --workspace-name <ws> -o json > dataset/_all.json
 az synapse notebook export     --workspace-name <ws> --output-folder notebook/
 az synapse sql-script export   --workspace-name <ws> --output-folder sqlscript/
+az synapse data-flow list            --workspace-name <ws> -o json > dataflow/_all.json
+az synapse spark-job-definition list --workspace-name <ws> -o json > sparkJobDefinition/_all.json
 ```
 Register the export as a source with the date; the live workspace may have moved since.
 
@@ -144,7 +146,7 @@ per-step durations. A pool paused nightly runs its load elsewhere: note its paus
 **Sizes** — `DBCC PDW_SHOWSPACEUSED('schema.table')` per table, or for all at once:
 ```sql
 SELECT s.name + '.' + t.name AS [table], d.distribution_policy_desc,
-       SUM(ps.row_count) AS row_count, SUM(ps.reserved_page_count) * 8 / 1024 / 1024 AS reserved_gb
+       SUM(ps.row_count) AS row_count, SUM(ps.reserved_page_count) * 8.0 / 1024 / 1024 AS reserved_gb
 FROM sys.schemas s JOIN sys.tables t ON t.schema_id = s.schema_id
 JOIN sys.pdw_table_distribution_properties d ON d.object_id = t.object_id
 JOIN sys.pdw_table_mappings m ON m.object_id = t.object_id

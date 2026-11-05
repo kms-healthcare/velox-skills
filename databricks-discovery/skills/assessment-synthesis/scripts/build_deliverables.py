@@ -417,8 +417,10 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     req, rules, inv, edges, fnd, oq, rat = (regs[k] for k in
         ("requirements", "business_rules", "inventory", "dependency_edges", "findings", "open_questions", "rationalization"))
     # A finding that changes nothing in the migration (`none`) stays in the register and the workbook, out of
-    # the report: the reader decides scope and waves, and what changes neither buries what does.
-    fnd_all, fnd = fnd, [f for f in fnd if f.get("migration_disposition") != "none"]
+    # the report: the reader decides scope and waves, and what changes neither buries what does. `none` hides
+    # detail, never a risk: critical/high and security findings stay whatever their disposition.
+    fnd_all, fnd = fnd, [f for f in fnd if f.get("migration_disposition") != "none"
+                         or f.get("severity") in ("critical", "high") or f.get("category") == "security"]
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
     ev = lambda r: f"{evidence_kind(r)}: {locs(r)}"
     head = [f"# {root.name} — Discovery & Assessment" + (" — DRAFT, unreviewed" if draft is not None else "") + "\n"]
@@ -461,7 +463,7 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     top = sorted((f for f in fnd if f.get("severity") in ("critical", "high")), key=finding_order)[:5]
     md += table(["#", "Severity", "Risk", "When migrated", "Evidence"],
                 [[f.get("id"), f.get("severity"), f.get("title"), f.get("migration_disposition") or "NOT SET", ev(f)] for f in top]) \
-        or ([gap("findings from code or documents", "the recommendation rests on no known risk")] if not fnd
+        or ([gap("findings from code or documents", "the recommendation rests on no known risk")] if not fnd_all
             else ["No critical or high finding reviewed.\n"])
     md += ["\n### Recommendation\n\n", A("decision"),
            f"\n{len(hi)} open decision(s) block this — §12.\n",

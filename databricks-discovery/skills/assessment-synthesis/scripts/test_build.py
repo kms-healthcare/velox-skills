@@ -28,7 +28,8 @@ def project(tmp):
         write(reg / f"{name}.jsonl", [rec(f"{name}-{s}", s, severity="high", category="logic", kind="table")
                                       for s in ("reviewed", "confirmed", "deferred", "rejected")])
         write(run / f"{name}.jsonl", [rec(f"{name}-extracted", "extracted", severity="high", category="logic", kind="table")])
-    write(reg / "findings.jsonl", [rec("findings-none", "confirmed", severity="high", category="logic", migration_disposition="none")], )
+    write(reg / "findings.jsonl", [rec(f"findings-none-{s}", "confirmed", severity=s, category="logic", migration_disposition="none")
+                                   for s in ("high", "low")])
     write(reg / "rationalization.jsonl", [{"object_id": "obj-1", "name": "T", "kind": "table", "disposition": "migrate",
                                            "evidence": EV, "status": "reviewed"}])
     write(reg / "readiness.jsonl", [{"id": "RDY-data", "dimension": "data", "score": 3, "basis": "code",
@@ -68,5 +69,6 @@ with tempfile.TemporaryDirectory() as d:
     assert "OQ-4" not in final and "OQ-3" not in open_ids(final)
     assert "X-findings-extracted" in draft and "X-findings-extracted" not in final
     assert "X-findings-rejected" not in draft
-    assert "X-findings-none" not in final and "none 1" in final                      # changes nothing in the migration: counted, not listed
+    assert "X-findings-none-low" not in final and "none 2" in final                  # changes nothing in the migration: counted, not listed
+    assert "X-findings-none-high" in final                                           # ...but a high finding is never hidden
 print("test_build: ok")
