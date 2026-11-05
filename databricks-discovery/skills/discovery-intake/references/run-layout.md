@@ -121,7 +121,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "requirements":["FR-01"],"open_questions":["OQ-07"],"status":"extracted"}
 
 // inventory.jsonl   kind is one of three layers, and nothing else (write_records.py refuses the rest):
-//   data       table|view|materialized_view|sequence|file_store|file_dataset|queue|topic|log|object_store   — what the migration moves
+//   data       table|view|materialized_view|sequence|file_store|file_dataset|queue|topic|log|object_store|model   — what the migration moves (a model: trained by a pipeline, read by an endpoint)
 //   workloads  procedure|function|ssis_package|etl_job|pipeline|notebook|job|service|cache                 — what produces it
 //   consumers  report|dashboard|external_consumer|api_endpoint|ui_view|application|export|feed             — what reads it
 //   ONE RECORD PER DATA OBJECT: five topics are five records, never "topics a, b and c" (the Scope step ticks each in or out)
@@ -140,7 +140,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
 // findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
-// layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|null — set only by assessment-synthesis
+// layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|none|null — set only by assessment-synthesis; `none` = changes nothing in the migration, kept in the register and the workbook, out of the report — except critical/high and security findings, which stay in the report whatever their disposition
 {"id":"FND-03","severity":"high","category":"data_quality",
  "title":"3% of POS transactions dropped silently by INNER JOIN to DIM_STORE",
  "detail":"sp_Calc_Daily_Revenue:61 INNER JOINs dim_store; no unmatched handling, nothing logged.",
@@ -156,7 +156,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "ask":"Head of Accounting (name: ?)","default":"Keep current behaviour; mark CONFLICT",
  "impact_if_wrong":"high","blocking":["FR-01","BR-014"],"status":"open","answer":null}
 
-// rationalization.jsonl   disposition — data: migrate|modernize|retire|defer ; workloads: convert|rewrite|retire|keep ; consumers: repoint|replace|retire ; set by assessment-synthesis, changed by the reviewer on the Scope step
+// rationalization.jsonl   disposition — data: migrate|modernize|retire|defer ; workloads: convert|rewrite|retire|keep ; consumers: repoint|replace|retire ; a `model` is always defer (the ML team moves it) ; set by assessment-synthesis, changed by the reviewer on the Scope step
 // status ∈ extracted|reviewed|rejected — the reviewer may change `disposition` when marking reviewed
 // target_component = what it becomes on the target (placeholders until agreed) — the report's component mapping
 {"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,"target_component":"<catalog>.bronze.pos_txn (Lakeflow Connect)",

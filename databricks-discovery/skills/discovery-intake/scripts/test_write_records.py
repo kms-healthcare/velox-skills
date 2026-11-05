@@ -109,6 +109,7 @@ def test_inventory_kinds_are_the_three_layers_and_one_record_per_object():
     obj = {"id": "obj-1", "kind": "table", "name": "bronze.orders", "system": "SYS-1", "evidence": EV, "meaning": "m"}
     assert w.problems("inventory", obj) == []
     assert w.problems("inventory", {**obj, "kind": "job", "name": "eurostream transform (ingest, pii_scan and build)"}) == []   # a workload may name its steps
+    assert w.problems("inventory", {**obj, "kind": "model", "name": "churn:3"}) == []                                   # a registered model is data the move reaches
     bad = w.problems("inventory", {**obj, "kind": "rest_call"})
     assert len(bad) == 1 and bad[0].startswith("kind 'rest_call' is not one of table / view")
     bundled = w.problems("inventory", {**obj, "kind": "topic", "name": "Kafka topics orders, clicks, payments"})

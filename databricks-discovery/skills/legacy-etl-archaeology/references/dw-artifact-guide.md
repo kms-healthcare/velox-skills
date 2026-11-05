@@ -55,6 +55,108 @@ Zero executions in 90 days is a question, not a verdict. Report `.rdl` files: lo
 `<CalculatedField>`, `<Expression>` and dataset `<CommandText>` — business exclusions often live
 only here.
 
+## Azure Synapse (dedicated SQL pool + workspace artefacts)
+
+T-SQL rules: the SQL Server section applies; below are the differences, and the workspace
+artefacts that play the roles of SSIS and SQL Agent. Lakebridge: `--source-tech "Synapse"`.
+
+**Export the pool's objects** — SSMS *Generate Scripts* works against a dedicated pool;
+`sys.sql_modules` holds procedures and views. The DDL carries decisions the plan needs:
+`WITH (DISTRIBUTION = HASH(col) | ROUND_ROBIN | REPLICATE, CLUSTERED COLUMNSTORE INDEX | HEAP,
+PARTITION (col RANGE RIGHT FOR VALUES (…)))` — record the hash column and the partition column on
+the inventory record; the migration's clustering follows them. When the scripts are missing,
+the size query below carries the distribution.
+
+**Where rules hide, beyond T-SQL**
+- `PRIMARY KEY` / `UNIQUE` exist only as `NONCLUSTERED NOT ENFORCED`: a constraint that enforces
+  nothing. Duplicates the documents say cannot exist may exist — a finding, and a reconciliation
+  check for every table that carries one. No foreign keys, no triggers, no computed columns: the
+  rules they would hold live in the loading procedures instead.
+- `MERGE` arrived late (2022): upserts are a `DELETE` or `UPDATE` followed by an `INSERT` — one rule
+  split across two statements, often with a different predicate on each half.
+- **CTAS** (`CREATE TABLE … AS SELECT`) then `RENAME OBJECT` = a full rebuild with a swap;
+  `ALTER TABLE … SWITCH PARTITION` = a partition-level reload. Both are the critical-path shape.
+- `CREATE EXTERNAL TABLE` + `EXTERNAL DATA SOURCE` + `EXTERNAL FILE FORMAT` (PolyBase) and `COPY INTO`
+  are the ingestion edges from ADLS: `file_dataset` → `table`, with the path and the format.
+- `OPTION (LABEL = '…')` on statements: the label is what the request history shows — the way to
+  tie a request back to the pipeline that ran it.
+
+**Workspace artefacts** — in the workspace's Git repository (Synapse Studio → Manage → Git
+configuration; `az synapse workspace show` names it) as one JSON file per object:
+`pipeline/`, `dataset/`, `linkedService/`, `trigger/`, `notebook/`, `sqlscript/`, `dataflow/`,
+`sparkJobDefinition/`, `integrationRuntime/`. A workspace in **live mode** has no repository:
+export first, into the same folder names —
+```bash
+az synapse pipeline list       --workspace-name <ws> -o json > pipeline/_all.json
+az synapse trigger list        --workspace-name <ws> -o json > trigger/_all.json
+az synapse linked-service list --workspace-name <ws> -o json > linkedService/_all.json
+az synapse dataset list        --workspace-name <ws> -o json > dataset/_all.json
+az synapse notebook export     --workspace-name <ws> --output-folder notebook/
+az synapse sql-script export   --workspace-name <ws> --output-folder sqlscript/
+az synapse data-flow list            --workspace-name <ws> -o json > dataflow/_all.json
+az synapse spark-job-definition list --workspace-name <ws> -o json > sparkJobDefinition/_all.json
+```
+Register the export as a source with the date; the live workspace may have moved since.
+
+- **Pipelines** (`pipeline/*.json`, `properties.activities[]`): `SqlPoolStoredProcedure` →
+  `procedure` edge; `SynapseNotebook` → `notebook` edge (with `parameters`); `Copy` — rules hide in
+  `source.sqlReaderQuery`, `sink.preCopyScript` and the column `translator`; `Script` and `Lookup`
+  carry inline SQL; `ExecutePipeline` = pipeline → pipeline edge; `ExecuteDataFlow` → `dataflow/`.
+  `activities[].dependsOn` is the DAG inside a pipeline; `ForEach` / `IfCondition` /
+  `Switch` hold rules in their `expression`. `@pipeline().parameters.x`, `@concat(…)`,
+  `@formatDateTime(…)` are the dynamic SQL of this estate — read the expression, not the type.
+- **Triggers** (`trigger/*.json`): `ScheduleTrigger` (`recurrence`: frequency, interval, hours,
+  minutes, `monthDays` — `-1` is the last day), `TumblingWindowTrigger` (window + `dependsOn` other
+  windows = a cross-pipeline edge), `BlobEventsTrigger` / `CustomEventsTrigger` (event-driven: no
+  schedule, record the path pattern). `runtimeState: "Stopped"` → candidate `DEAD`, check the runs.
+  `pipelines[].pipelineReference` is the schedule → pipeline edge. A pipeline no trigger and no
+  `ExecutePipeline` names is run by hand or by something outside the workspace: open question.
+- **Linked services** (`linkedService/*.json`, `properties.type`): `AzureSqlDW` (the pool),
+  `AzureBlobFS` (ADLS Gen2), `SqlServer`, `Oracle`, `SapTable`, `RestService`, `AzureKeyVault` —
+  each is a `source_systems` record. `typeProperties.connectionString` and `encryptedCredential`
+  are credentials: name the host, never copy the value (`write_records.py` refuses it).
+- **Datasets** (`dataset/*.json`): `linkedServiceName` + `typeProperties.location`
+  (container / folder / file pattern) or `schema` / `table` — the `file_dataset` and `table`
+  records a `Copy` activity reads and writes.
+- **Notebooks** (`notebook/*.json`, `properties.cells[].source`, language in
+  `properties.metadata.language_info`, cell magics `%%sql` / `%%pyspark` / `%%spark`):
+  `mssparkutils.notebook.run("name", …)` and `%run` → notebook → notebook edge;
+  `spark.read.synapsesql("pool.schema.table")` / `df.write.synapsesql(…)` → pool edges;
+  `.parquet("abfss://…")`, `saveAsTable`, `spark.sql("CREATE TABLE … LOCATION …")` → `file_dataset`
+  and lake-database tables (shared with the serverless pool). `properties.bigDataPool` names the
+  Spark pool; `properties.sessionProperties` its size.
+- **SQL scripts** (`sqlscript/*.json`): the serverless pool's `OPENROWSET(BULK 'abfss://…',
+  FORMAT = 'PARQUET' | 'CSV' | 'DELTA')`, `CREATE EXTERNAL TABLE` and views over ADLS — `view`
+  records whose `readers` are the reports; nothing is stored, the files are the data.
+
+**Scheduler and durations** — no SQL Agent: the triggers are the schedule, pipeline runs the
+history — `az synapse pipeline-run query-by-workspace` (~45 days), or `SynapseIntegrationPipelineRuns`
+/ `…ActivityRuns` in Log Analytics for the window the retention keeps; activity runs are the
+per-step durations. A pool paused nightly runs its load elsewhere: note its pause / resume schedule.
+
+**Usage on the pool** — the only basis for `orphan`:
+- `sys.dm_pdw_exec_requests` keeps the **last 10,000 requests** — days, not a quarter; `command` is
+  cut at 4,000 characters; `label`, `login_name`, `resource_class`, `total_elapsed_time`. Record
+  the oldest `submit_time` it still holds in the manifest.
+- Query Store on a dedicated pool (`ALTER DATABASE … SET QUERY_STORE = ON`) keeps **7 days**.
+- A window ≥ 90 days exists only where the diagnostic settings `ExecRequests` / `SqlRequests` /
+  `RequestSteps` were sent to Log Analytics (`SynapseSqlPoolExecRequests`): ask whether they are,
+  and since when. Without that window nothing is `orphan`; write the question.
+
+**Sizes** — `DBCC PDW_SHOWSPACEUSED('schema.table')` per table, or for all at once:
+```sql
+SELECT s.name + '.' + t.name AS [table], d.distribution_policy_desc,
+       SUM(ps.row_count) AS row_count, SUM(ps.reserved_page_count) * 8.0 / 1024 / 1024 AS reserved_gb
+FROM sys.schemas s JOIN sys.tables t ON t.schema_id = s.schema_id
+JOIN sys.pdw_table_distribution_properties d ON d.object_id = t.object_id
+JOIN sys.pdw_table_mappings m ON m.object_id = t.object_id
+JOIN sys.pdw_nodes_tables nt ON nt.name = m.physical_name
+JOIN sys.dm_pdw_nodes_db_partition_stats ps ON ps.object_id = nt.object_id AND ps.pdw_node_id = nt.pdw_node_id AND ps.distribution_id = nt.distribution_id
+WHERE ps.index_id < 2
+GROUP BY s.name, t.name, d.distribution_policy_desc ORDER BY reserved_gb DESC;
+```
+Needs `VIEW DATABASE STATE`.
+
 ## SSIS (`.dtsx`)
 
 XML. Rules hide in: `Derived Column` expressions, `Conditional Split` conditions, `Lookup`
@@ -101,9 +203,9 @@ dump; record values with a locator; find the owner.
 | Inventory field | Source |
 |---|---|
 | `writers` / `readers` | Analyzer JSON dependencies + your reading of dynamic SQL + report `CommandText` |
-| `schedule`, `run_as` | `sysjobschedules`, `sysjobs.owner_sid` / SSIS proxy / Control-M |
-| `avg_runtime_min` | `sysjobhistory.run_duration` averaged over ≥ 30 runs |
-| `last_read_at`, `exec_count_90d` | Query Store / DBQL / `ExecutionLog3` |
-| `row_estimate`, `size_gb` | `sys.dm_db_partition_stats`, `DBA_TABLES`, `DBC.TableSizeV` |
+| `schedule`, `run_as` | `sysjobschedules`, `sysjobs.owner_sid` / SSIS proxy / Control-M / Synapse `trigger/*.json` + workload classifiers |
+| `avg_runtime_min` | `sysjobhistory.run_duration` averaged over ≥ 30 runs; Synapse activity runs (`SynapseIntegrationActivityRuns`) |
+| `last_read_at`, `exec_count_90d` | Query Store / DBQL / `ExecutionLog3`; Synapse `SynapseSqlPoolExecRequests` (the DMV alone holds days) |
+| `row_estimate`, `size_gb` | `sys.dm_db_partition_stats`, `DBA_TABLES`, `DBC.TableSizeV`, `sys.dm_pdw_nodes_db_partition_stats` |
 | `pii_candidates` | Column names + sample values (masked) — never claim from names alone |
 | `complexity` | Analyzer tier; do not re-score by hand |

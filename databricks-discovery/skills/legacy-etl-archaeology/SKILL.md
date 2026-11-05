@@ -1,9 +1,9 @@
 ---
 name: legacy-etl-archaeology
-description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, scheduler jobs, report logic) and application code (services, pipelines, message buses, APIs, dashboards). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
-  version: "0.2.1"
+  version: "0.3.0"
   parent: discovery-intake
 ---
 
@@ -48,11 +48,16 @@ Measured on v0.15.2; each point cost a failed run to learn.
 ## Inputs
 
 Exported object scripts (one file per object — run the Analyzer on that folder, register the JSON
-as `src-analyzer-01`) · SSIS `.dtsx` / Informatica XML / DataStage `.dsx` / ADF JSON · scheduler
-exports (`msdb.dbo.sysjobs/steps/schedules/history`, Control-M) — the real DAG and **actual
-durations** · report definitions (`.rdl`, Cognos) — rules that live in no procedure · usage logs
-(Query Store, DBQL, AWR, `ExecutionLog3`) — the only basis for `orphan` · config table contents.
+as `src-analyzer-01`) · SSIS `.dtsx` / Informatica XML / DataStage `.dsx` / ADF JSON / Synapse
+workspace artefacts (from Git, or exported from live mode) · scheduler
+exports (`msdb.dbo.sysjobs/steps/schedules/history`, Control-M, Synapse triggers + pipeline runs) —
+the real DAG and **actual durations** · report definitions (`.rdl`, Cognos) — rules that live in
+no procedure · usage logs (Query Store, DBQL, AWR, `ExecutionLog3`, `sys.dm_pdw_exec_requests`) —
+the only basis for `orphan` · config table contents.
 Export queries and where rules hide per artifact: `references/dw-artifact-guide.md`.
+**Azure ML workspaces** — pipelines, components, registered models, endpoints, data assets: the
+listing commands, where rules hide (label definitions, scoring thresholds, training/serving skew)
+and what a `model` record must name before anyone moves it — `references/ml-estate-guide.md`.
 **Application code** — services, stream processors, bus producers and consumers, API handlers,
 dashboard code, CI and release scripts, and the tests and demo scripts that exercise them: where
 data lives and leaves, the serving layer, and how to run it — `references/app-estate-guide.md`.
@@ -113,8 +118,13 @@ invocations of the same load. For application code, also the serving layer and t
 around it (`app-estate-guide.md` §2): numbers that trace to no query, silent fallbacks, state
 shared across requests, import-time side effects, filters applied in one layer and not another,
 and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Set each finding's
-`layer`. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless `CONFIG-ONLY`,
-and `orphan: null` → an open question with a named role and a default; top 3–5 to the user.
+`layer`. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
+test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
+keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
+register is not the report — a rule reaches the Plan step as a proposed test for its table, and
+a rule left out is a test nobody writes. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless
+`CONFIG-ONLY`, and `orphan: null` → an open question with a named role and a default; top 3–5 to
+the user.
 
 **7. Reproduce (optional, bounded).** Where the project ships tests, a demo or seed data, run them
 to turn a behaviour claim into `reproduced` evidence — races, fallbacks, deletions that miss a
@@ -141,5 +151,7 @@ own `databricks-pipelines` and `databricks-jobs` (where rebuilt logic and the DA
 
 `../discovery-intake/references/run-layout.md` (required) · `references/app-estate-guide.md` —
 data surfaces, the serving layer and running it, for application code · `references/dw-artifact-guide.md` —
-where rules hide in T-SQL / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export
-queries, the month-end trap.
+where rules hide in T-SQL / Synapse (the pool's DDL, pipelines, notebooks, linked services,
+triggers) / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export queries, the
+month-end trap · `references/ml-estate-guide.md` — an Azure ML workspace as inventory: pipelines,
+models, endpoints, data assets, and the rules in preparation and scoring code.
