@@ -106,6 +106,10 @@ schemas it covers by their real names as the inventory writes them (`mfg`, `wms`
 business name — "Phase 1, wave 1: manufacturing (`mfg`) and the daily OEE dataset" — because the
 Scope step's **Keep phase 1 only** finds the phase's tables by that schema name, and a run that
 wrote only "manufacturing" gave it nothing to find (measured on `packaging-dwh`, 2026-11-02).
+Write each phase as one `- ` bullet that opens with the phase in bold and ends
+"Exit criterion: …": `` - **Phase 1, wave 1: manufacturing (`mfg`).** Build … Exit criterion: row
+counts match. `` The Scope step reads the phases from that shape; a run that wrote them as
+paragraphs with "Exit:" showed no phases (`packaging-dwh`, 2026-11-09).
 
 ## 4. Target architecture outline (`## architecture`)
 
