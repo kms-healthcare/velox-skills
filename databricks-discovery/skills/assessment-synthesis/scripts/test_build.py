@@ -1,5 +1,6 @@
 """python3 test_build.py — offline check of build_deliverables.py: DRAFT banner only with --include-unreviewed,
-and open-question counting (reviewed = still open; answered / rejected = closed)."""
+open-question counting (reviewed = still open; answered / rejected = closed), and the cost section a cost review
+adds (velox-spec databricks-cost-review)."""
 import json
 import re
 import subprocess
@@ -71,4 +72,64 @@ with tempfile.TemporaryDirectory() as d:
     assert "X-findings-rejected" not in draft
     assert "X-findings-none-low" not in final and "none 2" in final                  # changes nothing in the migration: counted, not listed
     assert "X-findings-none-high" in final                                           # ...but a high finding is never hidden
+
+# ---------- the cost section (velox-spec databricks-cost-review) ----------
+def cost_project(tmp):
+    root = tmp / "assessment" / "tetra"
+    reg, run = root / "registers", root / "runs" / "2026-11-05_run-02-hieunle"
+    dev = root / "system-tables" / "2026-11-05" / "dev"
+    dev.mkdir(parents=True)
+    common = {"since": "2026-10-06", "until": "2026-11-05", "workspace_id": "1", "source": "fact", "price": "list", "currency": "USD"}
+    views = {
+        "cost_by_day": [{"usage_date": "2026-11-01", "product": "JOBS", "usage_unit": "DBU", "quantity": 100.0, "dbu": 100.0, "list_cost": 30.0},
+                        {"usage_date": "2026-11-02", "product": "SQL", "usage_unit": "DBU", "quantity": 20.5, "dbu": 20.5, "list_cost": 14.35}],
+        "cost_by_job": [{"job_id": "101", "usage_unit": "DBU", "quantity": 90.0, "dbu": 90.0, "list_cost": 27.0}],
+        "cost_by_warehouse": [{"warehouse_id": "8d17", "usage_unit": "DBU", "quantity": 20.5, "dbu": 20.5, "list_cost": 14.35}],
+        "jobs": [{"job_id": "101", "name": "nightly_orders", "runs": 30, "dbu": 90.0, "list_cost": 27.0, "code": None, "note": None}],
+    }
+    for v, rows in views.items():
+        (dev / f"{v}.json").write_text(json.dumps({"view": v, "rows": rows, **common}))
+    (dev / "queries_by_warehouse.json").write_text(json.dumps({"view": "queries_by_warehouse",
+        "refused": "Velox cannot read system.query.history: an account admin enables system.query if it is not enabled."}))
+    staging = root / "system-tables" / "2026-11-05" / "staging"
+    staging.mkdir()
+    for v in ("cost_by_day", "jobs"):
+        (staging / f"{v}.json").write_text(json.dumps({"view": v, "refused": "Velox cannot read system.billing.usage: grant it."}))
+    run.mkdir(parents=True)
+    (run / "cost_scope.json").write_text(json.dumps({"not_measured": [{"workspace": "PROD", "reason": "Velox not installed"}]}))
+    cev = [{"source_id": "src-st", "locator": "assessment/tetra/system-tables/2026-11-05/dev/jobs.json:4", "kind": "stated"}]
+    f = lambda i, sev, disp, cat="cost": {"id": f"FND-COST-{i}", "title": f"cost {i}", "severity": sev, "category": cat,
+                                          "migration_disposition": disp, "evidence": cev, "status": "confirmed",
+                                          "saving": {"amount": 43, "currency": "USD", "per": "day"}}
+    write(reg / "findings.jsonl", [f("high-none", "high", "none"), f("low-none", "low", "none"), f("medium", "medium", None),
+                                   f("perf", "low", None, "performance")])
+    (root / "intake.md").write_text("# Intake\n")
+    return root
+
+
+with tempfile.TemporaryDirectory() as d:
+    root = cost_project(Path(d))
+    md = build(root)
+    sec = md.split("## 8a. Cost & performance")[1].split("\n## 9.")[0]
+    # The report's cost section says what it rests on: DEV, the 30 days, DBU and cost at list price, top jobs and warehouses.
+    assert "**DEV** — 2026-10-06 to 2026-11-05: 120.5 DBU, 44.35 USD at list price, not the client's rates" in sec, sec
+    assert "nightly_orders" in sec and "8d17" in sec, sec
+    assert "DEV's queries_by_warehouse was not read: Velox cannot read system.query.history" in sec, sec
+    # A workspace not measured is named: one the run says had no Velox, one whose app refused every view.
+    assert "PROD: not measured: Velox not installed." in sec, sec
+    assert "STAGING: not measured: Velox cannot read system.billing.usage: grant it." in sec, sec
+    # Only findings that change a decision: a low `none` stays in the workbook, a high `none` stays in the report.
+    assert "FND-COST-high-none" in sec and "FND-COST-medium" in sec and "FND-COST-perf" in sec, sec
+    assert "FND-COST-low-none" not in md
+    assert "about 43 USD a day, at list price, an estimate" in sec, sec
+    # Not listed twice: cost findings leave the debt table when the cost section carries them.
+    debt = md.split("## 8. Technical debt register")[1].split("## 8a.")[0]
+    assert "FND-COST-medium" not in debt, debt
+    from openpyxl import load_workbook
+    wb = load_workbook(root.parent / "out-final" / "discovery-tetra.xlsx")
+    assert any(c.value == "FND-COST-low-none" for row in wb["Findings"].iter_rows() for c in row), "kept in the workbook"
+
+with tempfile.TemporaryDirectory() as d:
+    # No cost review: no cost section.
+    assert "## 8a." not in build(project(Path(d)))
 print("test_build: ok")
