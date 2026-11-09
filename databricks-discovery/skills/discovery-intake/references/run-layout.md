@@ -15,6 +15,7 @@ non-functional, `SCOPE-`, `INT-` integration, `BR-` rule, `obj-` inventory, `FND
 assessment/<project>/
 ├── intake.md · source_request.md · sufficiency.md
 ├── author-sections.md    # the report's five prose sections — one per project, every run edits it
+├── system-tables/<date>/<env>/<view>.json   # a cost review's reads, saved by Velox before the turn — evidence, never edited
 ├── registers/            # source of truth — only a human merges here
 │   ├── source_systems.jsonl      # first: one per system the code and documents reach (SYS-<n>)
 │   ├── requirements.jsonl        business_rules.jsonl     inventory.jsonl
@@ -35,7 +36,8 @@ move (email bodies, chat exports) get a copy under `sources/`.
 **What else a run folder may hold — and nothing else:** `logs/` (what was executed: pytest, a
 repro, posture — `exec-NN-<what>.log`), `tools/` (helper scripts and record drafts you wrote for
 THIS run: a repro, the JSON arrays fed to `write_records.py`), and what a pack script writes there
-by design (`posture.json` from security-posture — its findings cite it as their locator).
+by design (`posture.json` from security-posture — its findings cite it as their locator), and
+`cost_scope.json` from cost-performance (the workspaces a cost review could not measure, and why).
 `author-sections.md` is not a run file: it lives once in `assessment/<project>/`. No `scripts/` beside the project files, no `security/` or other sub-run (every
 pack script takes `--out <run dir>` and writes INTO it), no `sources.sha256` sidecar (the manifest
 already carries the hashes — `scripts/write_manifest.py` writes them), no `worker-notes/`. Measured 2026-10-08 across three runs of the same
@@ -140,6 +142,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
 // findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
+// cost / performance findings (cost-performance) add saving {amount, currency, per, basis: "list price"} | null, and trade_off
 // layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|none|null — set only by assessment-synthesis; `none` = changes nothing in the migration, kept in the register and the workbook, out of the report — except critical/high and security findings, which stay in the report whatever their disposition
 {"id":"FND-03","severity":"high","category":"data_quality",
  "title":"3% of POS transactions dropped silently by INNER JOIN to DIM_STORE",
