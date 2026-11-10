@@ -96,6 +96,23 @@
         "Classifies the project as migration with the license end as the real driver",
         "Asks at most 5 questions"
       ]
+    },
+    {
+      "id": 5,
+      "name": "shared-external-resources",
+      "prompt": "Acme's order ingestion is a Databricks bundle with dev and prod targets, deployed by GitHub Actions; the code is in sources/. Run the archaeology on it before we restructure it: source systems, inventory, business rules and findings.",
+      "files": [
+        "evals/fixtures/shared-endpoints/sources/"
+      ],
+      "expected_output": "Every external endpoint resolved per environment; one finding for dev consuming the production Kafka topic in the production consumer group, naming its flag guard; the shared read-only FX API recorded as a fact; nothing raised for the per-environment returns topic.",
+      "assertions": [
+        "Resolves each external endpoint per environment from the deployed value — the dev/prod target overrides in databricks.yml and a CI deploy that passes no --var — with locators: orders and the FX API resolve to the production resource in both targets; returns resolves to kafka-dev.acme.internal:9092 / returns-dev in dev and kafka-prod.acme.internal:9092 / returns in prod",
+        "Raises a FINDING (not only a source system or fact) that dev consumes the production topic `orders` on kafka-prod.acme.internal:9092 in the production consumer group `orders-loader` and commits offsets (consume_orders.py:17), so a dev run takes messages from production",
+        "That finding names the guard — dev sets `orders_consumer_enabled: \"false\"` (databricks.yml:28), checked at consume_orders.py:8 — and rates the risk that remains: a variable anyone can flip with --var or one line, so severity is medium or above, not dropped to low because the guard holds today",
+        "Records the FX API (https://fx.acme.com/v2), shared by dev and prod but only read with a GET (fx_rates.py:8), as a system fact — a source system with its per-environment target — and raises NO finding for the sharing",
+        "Raises NO shared-resource finding for the returns consumer: dev and prod resolve to separate brokers and topics, even though it commits and has no guard; does not read the bundle default kafka-prod as dev's value",
+        "Does not treat the Databricks tables as shared: dev and prod deploy to different workspaces (databricks.yml:26, 33)"
+      ]
     }
   ]
 }

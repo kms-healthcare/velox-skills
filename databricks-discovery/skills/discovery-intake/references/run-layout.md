@@ -46,6 +46,13 @@ repo: each invented its own layout, and the reviewer and the generator met a dif
 time. Records go in through `scripts/write_records.py` (discovery-intake), never by a script that
 holds them.
 
+**Running a pack script.** Every pack script runs by its path in the pack, where it is — never
+copied into the project. Wherever a skill says `python3 <script>`: on Windows use `py -3 <script>`
+when `python3` is missing or is the Microsoft Store stub (`python3 --version` fails, prints
+nothing, or opens the Store — treat that as no Python). Neither works, or the script is refused or
+fails → stop and hand off (`discovery-intake` › "Blocked mid-run"); never write a replacement and
+never install a runtime into the project.
+
 ## Record budget — cost discipline
 
 | Field | Limit | Why |
@@ -94,6 +101,8 @@ Say `medium` when one source supports it, `low` when it is inferred.
 // engine ∈ postgresql|mysql|sqlserver|oracle|synapse|snowflake|teradata|redshift|db2|hive|files|api|… as the code names it
 // host / port / database as the code or config names them, null when not found — NEVER a user, a password, a token or a DSN:
 // write_records.py refuses the record (by key), and so does the desktop's register reader. The sign-in is the person's, later, in Scope.
+// optional environments {"<env>": "<resolved host / topic / path>"} — an external endpoint's target per environment, from the
+// deployed value (legacy-etl-archaeology app-estate-guide §4–5); a non-prod entry equal to prod's is checked for risk there
 {"id":"SYS-1","name":"orders","engine":"postgresql","host":"pg-prod.client.local","port":5432,"database":"orders",
  "role":"system of record for POS transactions","evidence":[{"source_id":"src-etl-01","locator":"etl/load_orders.py:14","excerpt":"host='pg-prod.client.local'","kind":"stated"}],
  "meaning":"The PostgreSQL database that holds every order the shop takes",
@@ -142,7 +151,8 @@ Say `medium` when one source supports it, `low` when it is inferred.
 // dependency_edges.jsonl   kind ∈ reads|writes|triggers|calls|depends_on — draw the DAG from this, never by hand
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
-// findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
+// findings.jsonl   severity = the risk left after any guard (a flag, condition or deploy setting that stops it running) — `detail` names the guard, or says there is none; a setting is judged on its effective value per environment, not its definition
+// severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
 // cost / performance findings (cost-performance) add saving {amount, currency, per, basis: "list price"} | null, and trade_off
 // layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|none|null — set only by assessment-synthesis; `none` = changes nothing in the migration, kept in the register and the workbook, out of the report — except critical/high and security findings, which stay in the report whatever their disposition
 {"id":"FND-03","severity":"high","category":"data_quality",

@@ -1,6 +1,6 @@
 ---
 name: legacy-etl-archaeology
-description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / DOC-ONLY / CONFIG-ONLY / DEAD / UNRESOLVED statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
   version: "0.3.0"
@@ -93,17 +93,22 @@ staging data before downstream reads it.
 
 | Status | Meaning | Action |
 |---|---|---|
-| `VERIFIED` | code and docs agree | build; no expert time |
+| `VERIFIED` | code and docs agree — needs a code locator; `write_records.py` refuses it on document evidence alone | build; no expert time |
 | `CONFLICT` | disagree | top question for a domain owner |
 | `CODE-ONLY` | code does it, no doc mentions it | usually the largest group; owner review or a test |
-| `DOC-ONLY` | documented, not implemented in code | cut, or lives elsewhere (report filter? Excel?). Still `DOC-ONLY` when a different mechanism has a similar effect — name it in `plain`, raise a question |
+| `DOC-ONLY` | documented, not (yet) matched to code — every rule taken from a document starts here | cut, or lives elsewhere (report filter? Excel?). Still `DOC-ONLY` when a different mechanism has a similar effect — name it in `plain`, raise a question |
 | `CONFIG-ONLY` | lives in configuration data | capture the data; find who can change it |
 | `DEAD` | unreachable — never scheduled, called, or read | confirm with usage log, exclude |
 | `UNRESOLVED` | needs a human who knows the business | blocked; track the owner |
 
 **4. Configuration data.** For every `config_driven` rule obtain the (masked) table content, record
 effective values with a locator, and note who can change them. Check whether the code actually
-*reads* the config it appears to be governed by.
+*reads* the config it appears to be governed by. **A variable or setting resolves to its deployed
+value, not its definition** — before concluding anything from one (a schedule, `run_as`, a pause
+or enable flag, a catalog name), trace it through the bundle default, the target override, the
+deploy script or taskfile, and CI (`--var`, `BUNDLE_VAR_*`, env); state the effective value **per
+environment**, with a locator at the definition and at the assignment. Not traceable → say so and
+raise a question; never fall back to the default (`app-estate-guide.md` §4).
 
 **5. Dependencies, critical path, usage.** Complete edges from scheduler + code; generate the DAG
 from the file. Per-step durations from job history → critical path; note full rebuilds. Usage →
@@ -118,7 +123,15 @@ invocations of the same load. For application code, also the serving layer and t
 around it (`app-estate-guide.md` §2): numbers that trace to no query, silent fallbacks, state
 shared across requests, import-time side effects, filters applied in one layer and not another,
 and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Set each finding's
-`layer`. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
+`layer`. **Look for the guard before rating:** when code looks dangerous, search for the flag,
+condition or deploy setting that stops it running (an environment check, a target that pauses the
+job) and name both in `detail`; severity is the risk that remains after the guard, and a guarded
+destructive behaviour is still a finding, rated on that remainder. **Wiring is a fact; wiring
+that carries risk is a finding:** for every external endpoint (queue, topic, SFTP, API, shared
+storage) compare its resolved target per environment (step 4); a non-production environment on
+the production resource with a state-changing use — a consumer that commits or acks, an SFTP move
+or delete, a POST — is a finding even when guarded today; a read-only one is a fact
+(`app-estate-guide.md` §5). A finding's `impact` says what it changes in the migration — a wave, a disposition, a
 test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
 keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
 register is not the report — a rule reaches the Plan step as a proposed test for its table, and
@@ -140,6 +153,8 @@ report the correction rate in `review.md`. Output under `runs/<run>/`: `business
 with the `rule_status` distribution — the real progress metric). The rule register tells the
 Transpiler stage what to test: every `CODE-ONLY` and `CONFLICT` becomes a characterization or
 reconciliation check.
+Records go in through the pack's `discovery-intake/scripts/write_records.py` — from this skill's
+`directory`, `"<directory>/../discovery-intake/scripts/write_records.py"` — run where it is, never copied.
 
 ## Related skills
 

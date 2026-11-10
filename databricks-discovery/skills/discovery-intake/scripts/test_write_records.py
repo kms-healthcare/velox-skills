@@ -119,6 +119,33 @@ def test_inventory_kinds_are_the_three_layers_and_one_record_per_object():
         "disposition 'maybe' is not one of migrate / modernize / retire / defer / convert / rewrite / keep / repoint / replace"]
 
 
+def test_rule_status_verified_only_against_code():
+    rule = {"id": "BR-01", "name": "Net revenue", "logic": "status <> 9", "plain": "test data never counts", **EXPLAIN}
+    doc = [{"source_id": "src-kpi", "source_type": "spec", "locator": "KPI_definitions.docx p.4 §2.1", "kind": "stated"}]
+    code = [{"source_id": "src-sp-014", "locator": "sp_Calc_Daily_Revenue.sql:45", "kind": "stated"}]
+    with tempfile.TemporaryDirectory() as d:
+        for bad, why in (
+            ({**rule, "rule_status": "VERIFIED", "evidence": doc}, "is DOC-ONLY until it is matched to code"),                       # a document is not the code
+            ({**rule, "rule_status": "VERIFIED", "evidence": [{"locator": "kpi.md:12"}]}, "is DOC-ONLY until it is matched to code"),
+            ({**rule, "rule_status": "CONFIRMED", "evidence": code}, "rule_status 'CONFIRMED' is not one of"),
+            ({**rule, "evidence": code}, "rule_status None is not one of"),
+        ):
+            try:
+                w.write(d, "business_rules", [bad])
+            except SystemExit as e:
+                assert "refused" in str(e)
+            else:
+                raise AssertionError(f"accepted {bad}")
+            assert any(why in p for p in w.problems("business_rules", bad)), (why, w.problems("business_rules", bad))
+        assert not (Path(d) / "business_rules.jsonl").exists()
+        # matched to code: VERIFIED stands — by locator, or by source_type when the locator is an object name
+        assert w.problems("business_rules", {**rule, "rule_status": "VERIFIED", "evidence": doc + code}) == []
+        assert w.problems("business_rules", {**rule, "rule_status": "VERIFIED", "evidence": [
+            {"source_type": "code", "locator": "dbo.sp_Calc_Daily_Revenue"}]}) == []
+        assert w.write(d, "business_rules", [{**rule, "rule_status": "VERIFIED", "evidence": code},
+                                             {**rule, "id": "BR-02", "rule_status": "DOC-ONLY", "evidence": doc}]) == (2, 0, 2)
+
+
 def test_a_saving_is_a_number():
     base = {"id": "FND-1", "evidence": EV, **EXPLAIN}
     assert w.problems("findings", {**base, "saving": {"amount": 43, "currency": "USD", "per": "day"}}) == []

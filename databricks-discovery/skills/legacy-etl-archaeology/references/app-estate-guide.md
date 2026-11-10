@@ -69,3 +69,40 @@ settles claims code reading can only suspect (races, fallbacks, stale caches).
 Good first runs: the test suite; the app's own demo or seed script; two concurrent requests to an
 endpoint suspected of sharing state; the deletion path followed by a read of every surface
 marked `holds_pii`.
+
+## 4. Deployed values — a setting means what the deploy makes it
+
+Bundle YAML is where a variable is **defined**, not where it gets its value. Three findings in one
+review of a project already on Databricks (2026-11-06) were wrong for this reason alone: a
+production-only schedule read as a non-prod cost control; "deployments run as the user" when CI
+deploys every environment as a service principal; a "critical" job whose guard disables it outside
+production.
+
+Before concluding anything from a variable or setting, trace it, last one wins:
+
+| Layer | Where |
+|---|---|
+| bundle default | `variables: <name>: default:` in `databricks.yml` and its `include:` files |
+| target override | `targets: <env>:` — its own `variables:`, `run_as:`, `resources:`, `mode:` (development pauses schedules) |
+| deploy script / taskfile | `deploy.sh`, `Makefile`, `Taskfile.yml`: `--var name=…`, `-t <env>`, `export BUNDLE_VAR_name=…` |
+| CI | workflow / pipeline files: `--var`, `BUNDLE_VAR_*` env, which identity authenticates the deploy |
+
+Record the effective value **per environment**, with a locator at the definition and at the
+assignment (`databricks.yml:12` ← `.github/workflows/deploy.yml:40`). A value set from a CI secret
+is "set by CI (`<secret name>`)", not the bundle default; a value you cannot trace is an open
+question, never the default. `security-posture` grades a bundle file's `run_as` this way.
+
+## 5. Shared external resources — one endpoint, several environments
+
+Wiring is a fact; wiring that carries risk is a finding. For every external endpoint — queue,
+topic, SFTP, API, shared storage — resolve its target per environment (§4: host, topic or path,
+and the consumer group or account it uses) and record it on the endpoint's `source_systems` record
+as `environments`. Then, wherever a non-production environment resolves to the production resource:
+
+| Non-production use | Record |
+|---|---|
+| state-changing — a queue consumer that acks or completes, a topic consumer committing in production's consumer group, an SFTP move or delete, a POST/PUT/DELETE to a production API, a write to shared storage | a **finding**, even when a guard disables it today: `detail` names the guard and its locator, severity is the risk that remains. A flag someone can flip (a bundle variable, an env var, a `--var`) is a weak guard; credentials or a network that cannot reach production are a strong one |
+| read-only — a GET, a peek, a list, its own consumer group | a fact: `environments` on the record, no finding |
+
+Each environment on its own resource is no finding at all. Addepto's review (VEL-1687): a run
+recorded a dev consumer on the production queue as a system fact and raised nothing.

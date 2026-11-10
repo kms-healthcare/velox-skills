@@ -11,7 +11,7 @@ Writes  <out-dir>/discovery-<project>.xlsx      one workbook, tabs in reading or
         <out-dir>/assessment-report.md          generated; author sections merged from --author-sections
         <out-dir>/assessment-report.docx        via pandoc when available (skip with --no-docx)
 
-Stdlib + openpyxl. Never invents: every number is followed by its locators; unreviewed records
+Stdlib + openpyxl (without openpyxl the .md and .docx are still written; only the .xlsx is skipped). Never invents: every number is followed by its locators; unreviewed records
 are excluded unless asked for; placeholders like <catalog> are left visible.
 """
 import argparse, datetime, json, re, shutil, subprocess, sys
@@ -25,8 +25,8 @@ try:
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
-except ImportError:  # pragma: no cover
-    sys.exit("openpyxl is required: pip install openpyxl")
+except ImportError:  # the report is stdlib-only: without openpyxl only the workbook is skipped (VEL-1683)
+    Workbook = None
 
 REVIEWED = {"reviewed", "confirmed", "deferred"}
 SEV = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -127,13 +127,14 @@ def md_text(p: Path):
 
 
 # ---------- workbook ----------
-HDR = PatternFill("solid", fgColor=theme.BLUE)
-HDR_FONT = Font(name=theme.FONT, bold=True, color=theme.WHITE, size=10)
-BODY = Font(name=theme.FONT, size=9.5, color=theme.INK)
-ZEBRA = PatternFill("solid", fgColor=theme.ZEBRA)
-RULE = Border(bottom=Side(style="thin", color=theme.LINE))
-WRAP = Alignment(wrap_text=True, vertical="top")
-CENTER = Alignment(wrap_text=True, vertical="top", horizontal="center")
+if Workbook:
+    HDR = PatternFill("solid", fgColor=theme.BLUE)
+    HDR_FONT = Font(name=theme.FONT, bold=True, color=theme.WHITE, size=10)
+    BODY = Font(name=theme.FONT, size=9.5, color=theme.INK)
+    ZEBRA = PatternFill("solid", fgColor=theme.ZEBRA)
+    RULE = Border(bottom=Side(style="thin", color=theme.LINE))
+    WRAP = Alignment(wrap_text=True, vertical="top")
+    CENTER = Alignment(wrap_text=True, vertical="top", horizontal="center")
 # Column widths by field — the body is 9.5 pt Poppins, so these are reading widths, not data widths.
 WIDTHS = {"id": 11, "object_id": 11, "severity": 10, "status": 11, "disposition": 11, "wave": 7, "score": 9, "kind": 12,
           "type": 12, "layer": 10, "priority": 9, "confidence": 10, "inferred": 9, "used": 8, "counted": 10,
@@ -815,14 +816,19 @@ def main():
     author = parse_author_sections(Path(a.author_sections)) if a.author_sections else {}
 
     xlsx = out / f"discovery-{root.name}.xlsx"
-    build_xlsx(regs, root, xlsx, axis_c, suff_bad, draft)
+    if Workbook:
+        build_xlsx(regs, root, xlsx, axis_c, suff_bad, draft)
+        print(f"wrote {xlsx}")
+    else:
+        print("openpyxl not installed — workbook (.xlsx) skipped; the report is still written. Install it with "
+              "`python3 -m pip install openpyxl` (Windows: `py -3 -m pip install openpyxl`) and rerun for the workbook.")
     md_path = out / "assessment-report.md"
     # Names come from every record, reviewed or not: an id pointing at an unreviewed object still
     # deserves its name rather than a bare tag.
     names = {r.get("id") or r.get("object_id"): r.get("name") for n in ("inventory", "rationalization")
              for r in load_registers(root, True)[n] if r.get("name")}
     md_path.write_text(build_md(regs, root, axis_c, suff_bad, author, a.built_with, intake, names, draft), encoding="utf-8")
-    print(f"wrote {xlsx}\nwrote {md_path}" + (f"\nDRAFT — {draft} unreviewed records included" if draft is not None else ""))
+    print(f"wrote {md_path}" + (f"\nDRAFT — {draft} unreviewed records included" if draft is not None else ""))
     if not a.no_docx and shutil.which("pandoc"):
         docx = out / "assessment-report.docx"
         ref = Path(__file__).resolve().parent.parent / "assets" / "reference.docx"

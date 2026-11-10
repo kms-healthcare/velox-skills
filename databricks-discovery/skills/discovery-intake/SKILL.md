@@ -101,6 +101,22 @@ locator, and the deliverable is still produced — the reviewer decides. Worked 
 *own login for this step* · *client grants admin briefly* · *client's admin runs the bundle* ·
 *skip*; a grant still in place → a high finding).
 
+**A blocked pack script is a stop, never a rewrite.** When a pack script (any `scripts/*.py` of
+this pack — `write_records.py`, `write_manifest.py`, `posture.py`, `build_deliverables.py`) is
+refused by the shell guard, blocked, or fails, do not replace it with a script you write "with the
+same validation", and do not copy it into the project: the pack's own script IS the control, and a
+local copy is a control nobody reviewed (measured 2026-11, VEL-1683: an agent wrote `*_local.py`
+writers when the guard refused `write_records.py`, and carried on). Stop that step and hand off as
+above — the script's path, the exact message, and what the step would have produced (which
+register, which deliverable) — with options such as *you let the shell guard read the pack folder
+and I rerun it* (recommended when the message is a guard refusal) · *you run the command yourself
+and confirm here* · *skip this step, and the report says what is missing*. **Never download,
+unpack or install a runtime or package into the project folder** (measured 2026-11: a 166 MB
+`Python/` appeared in a project worktree). A missing interpreter or package is the person's to
+install: give the exact command for their OS — Windows `winget install Python.Python.3.12`, macOS
+`brew install python`, Linux the distro's package (`sudo apt install python3`); for a package,
+`python3 -m pip install <pkg>` (Windows `py -3 -m pip install <pkg>`) — or skip the step.
+
 ## Cost discipline
 
 Read `references/run-layout.md` once; load **one** project-type module; do not copy source files

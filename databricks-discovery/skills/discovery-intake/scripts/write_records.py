@@ -5,7 +5,7 @@
 
 <records.json> is a JSON array (or JSON Lines) of records. Each is checked against the rules in
 references/run-layout.md — an id with the register's prefix, at least one evidence entry with a
-locator, excerpts within budget — then upserted by id (rationalization by object_id, edges by from|to|kind) into <run-dir>/<register>.jsonl (a second
+locator, excerpts within budget, a business rule's rule_status — then upserted by id (rationalization by object_id, edges by from|to|kind) into <run-dir>/<register>.jsonl (a second
 write of the same id replaces, it never duplicates). `status` defaults to `extracted`.
 
 Why a script: measured 2026-10-08, an agent wrote 27 KB of records INSIDE a Python file that
@@ -61,6 +61,13 @@ EXPLAINED = {"source_systems", "requirements", "business_rules", "inventory", "d
 # decides carries all four.
 FACTS = {"inventory", "dependency_edges"}
 EXPLAIN_MAX = 160
+# The rule_status table in legacy-etl-archaeology/SKILL.md step 3 — keep the two in step.
+RULE_STATUSES = ("VERIFIED", "CONFLICT", "CODE-ONLY", "DOC-ONLY", "CONFIG-ONLY", "DEAD", "UNRESOLVED")
+# VERIFIED means code and docs agree, so it needs evidence in CODE (Addepto, VEL-1685: rules taken from a
+# KPI document were labelled VERIFIED and never matched to code). Evidence is code when its source_type is
+# "code", or its locator is a `file:line` (or bare file) whose extension is a code / ETL / pipeline file.
+# A document locator — `p.N §x`, `sheet!cell`, a .md/.docx/.pdf/.xlsx file, an interview timestamp — is not.
+CODE_LOCATOR = re.compile(r"\.(sql|prc|pks|pkb|bteq|dtsx|dsx|rdl|xml|json|ya?ml|ipynb|py|scala|r|java|cs|kt|go|ts|js|sh|ps1)(:|$)", re.I)
 RECOMMENDATION_DECISIONS = ("accept", "reject", "defer")
 CONFIDENCE_WORDS = ("high", "medium", "low")
 
@@ -111,6 +118,15 @@ def problems(register, rec):
             out.append(f"kind {kind!r} is not one of {' / '.join(ALL_KINDS)}")
         elif kind in KINDS["data"] and SEVERAL.search(str(rec.get("name") or "")):
             out.append(f"one record per object: {rec.get('name')!r} names several — write one record each")
+    if register == "business_rules":
+        s = rec.get("rule_status")
+        if s not in RULE_STATUSES:
+            out.append(f"rule_status {s!r} is not one of {' / '.join(RULE_STATUSES)}")
+        elif s == "VERIFIED" and not any(
+                e.get("source_type") == "code" or CODE_LOCATOR.search(str(e.get("locator") or "").strip())
+                for e in rec.get("evidence") or []):
+            out.append("rule_status VERIFIED needs evidence in code (a .sql/.py/.dtsx/… file:line, or source_type "
+                       "\"code\") — a rule found only in documents is DOC-ONLY until it is matched to code")
     if register == "rationalization":
         d = rec.get("disposition")
         allowed = tuple(dict.fromkeys(x for v in DISPOSITIONS.values() for x in v))
