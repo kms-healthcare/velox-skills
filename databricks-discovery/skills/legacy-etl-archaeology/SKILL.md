@@ -1,6 +1,6 @@
 ---
 name: legacy-etl-archaeology
-description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / CONFIG-ONLY / DEAD statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / DOC-ONLY / CONFIG-ONLY / DEAD / UNRESOLVED statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
   version: "0.3.0"
@@ -93,10 +93,10 @@ staging data before downstream reads it.
 
 | Status | Meaning | Action |
 |---|---|---|
-| `VERIFIED` | code and docs agree | build; no expert time |
+| `VERIFIED` | code and docs agree — needs a code locator; `write_records.py` refuses it on document evidence alone | build; no expert time |
 | `CONFLICT` | disagree | top question for a domain owner |
 | `CODE-ONLY` | code does it, no doc mentions it | usually the largest group; owner review or a test |
-| `DOC-ONLY` | documented, not implemented in code | cut, or lives elsewhere (report filter? Excel?). Still `DOC-ONLY` when a different mechanism has a similar effect — name it in `plain`, raise a question |
+| `DOC-ONLY` | documented, not (yet) matched to code — every rule taken from a document starts here | cut, or lives elsewhere (report filter? Excel?). Still `DOC-ONLY` when a different mechanism has a similar effect — name it in `plain`, raise a question |
 | `CONFIG-ONLY` | lives in configuration data | capture the data; find who can change it |
 | `DEAD` | unreachable — never scheduled, called, or read | confirm with usage log, exclude |
 | `UNRESOLVED` | needs a human who knows the business | blocked; track the owner |
