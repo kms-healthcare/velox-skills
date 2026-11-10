@@ -148,6 +148,8 @@ report the correction rate in `review.md`. Output under `runs/<run>/`: `business
 with the `rule_status` distribution — the real progress metric). The rule register tells the
 Transpiler stage what to test: every `CODE-ONLY` and `CONFLICT` becomes a characterization or
 reconciliation check.
+Records go in through the pack's `discovery-intake/scripts/write_records.py` — from this skill's
+`directory`, `"<directory>/../discovery-intake/scripts/write_records.py"` — run where it is, never copied.
 
 ## Related skills
 

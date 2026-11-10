@@ -71,6 +71,8 @@ Create an open question, never a value, for each one no source states:
 `runs/<run>/`: `requirements.jsonl`, `findings.jsonl`, `open_questions.jsonl`, `manifest.json`,
 `review.md` (what a human must decide now · confidence distribution · **deliberately not
 concluded**). Never write into `registers/`.
+Records go in through the pack's `discovery-intake/scripts/write_records.py` — from this skill's
+`directory`, `"<directory>/../discovery-intake/scripts/write_records.py"` — run where it is, never copied.
 
 Before thirty documents, do one the client knows well and have them correct the register. The
 correction rate is this project's error rate; fix the method (locator scheme, granularity) before

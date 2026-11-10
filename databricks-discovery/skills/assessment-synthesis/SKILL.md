@@ -1,7 +1,7 @@
 ---
 name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
-compatibility: "Python 3.9+ with openpyxl for scripts/build_deliverables.py; pandoc optional for .docx."
+compatibility: "Python 3.9+ for scripts/build_deliverables.py; openpyxl for the .xlsx (without it only the workbook is skipped); pandoc optional for .docx."
 metadata:
   version: "0.5.1"
   parent: discovery-intake
