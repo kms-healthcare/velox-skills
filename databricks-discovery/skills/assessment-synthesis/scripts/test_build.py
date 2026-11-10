@@ -1,6 +1,8 @@
 """python3 test_build.py — offline check of build_deliverables.py: DRAFT banner only with --include-unreviewed,
-and open-question counting (reviewed = still open; answered / rejected = closed)."""
+open-question counting (reviewed = still open; answered / rejected = closed), and the report still written
+without openpyxl (only the .xlsx skipped)."""
 import json
+import os
 import re
 import subprocess
 import sys
@@ -43,10 +45,11 @@ def project(tmp):
     return root
 
 
-def build(root, *flags):
-    out = root.parent / ("out-" + ("draft" if flags else "final"))
-    subprocess.run([sys.executable, str(HERE / "build_deliverables.py"), str(root), "--out-dir", str(out),
-                    "--no-docx", *flags], check=True, capture_output=True)
+def build(root, *flags, out_name=None, env=None):
+    out = root.parent / (out_name or "out-" + ("draft" if flags else "final"))
+    r = subprocess.run([sys.executable, str(HERE / "build_deliverables.py"), str(root), "--out-dir", str(out),
+                        "--no-docx", *flags], check=True, capture_output=True, text=True, env=env)
+    build.stdout, build.out = r.stdout, out
     return (out / "assessment-report.md").read_text()
 
 
@@ -71,4 +74,15 @@ with tempfile.TemporaryDirectory() as d:
     assert "X-findings-rejected" not in draft
     assert "X-findings-none-low" not in final and "none 2" in final                  # changes nothing in the migration: counted, not listed
     assert "X-findings-none-high" in final                                           # ...but a high finding is never hidden
+    assert (build.out / "discovery-proj.xlsx").exists(), "openpyxl present → the workbook is written"
+
+    # openpyxl not importable (a shadowing module on PYTHONPATH): report written, .xlsx skipped, exit 0
+    shim = Path(d) / "no-openpyxl"
+    shim.mkdir()
+    (shim / "openpyxl.py").write_text("raise ImportError('openpyxl blocked by test_build')\n")
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(shim), os.environ.get("PYTHONPATH")]))}
+    no_xlsx = build(root, out_name="out-no-openpyxl", env=env)
+    assert "## C. Stakeholder questionnaire" in no_xlsx
+    assert not list(build.out.glob("*.xlsx")), list(build.out.glob("*.xlsx"))
+    assert "workbook (.xlsx) skipped" in build.stdout and "pip install openpyxl" in build.stdout, build.stdout
 print("test_build: ok")

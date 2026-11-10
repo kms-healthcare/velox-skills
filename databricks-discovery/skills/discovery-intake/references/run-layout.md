@@ -43,6 +43,13 @@ repo: each invented its own layout, and the reviewer and the generator met a dif
 time. Records go in through `scripts/write_records.py` (discovery-intake), never by a script that
 holds them.
 
+**Running a pack script.** Every pack script runs by its path in the pack, where it is — never
+copied into the project. Wherever a skill says `python3 <script>`: on Windows use `py -3 <script>`
+when `python3` is missing or is the Microsoft Store stub (`python3 --version` fails, prints
+nothing, or opens the Store — treat that as no Python). Neither works, or the script is refused or
+fails → stop and hand off (`discovery-intake` › "Blocked mid-run"); never write a replacement and
+never install a runtime into the project.
+
 ## Record budget — cost discipline
 
 | Field | Limit | Why |
