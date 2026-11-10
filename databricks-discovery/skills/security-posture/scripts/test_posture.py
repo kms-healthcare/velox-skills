@@ -80,6 +80,56 @@ def test_sat_rows_and_iac():
         assert iac["VX-SEC-1"]["locator"] == "databricks.yml:4" and "hunter2" not in iac["VX-SEC-1"]["observed"]
 
 
+def gov42(files):
+    with tempfile.TemporaryDirectory() as d:
+        for name, text in files.items():
+            (Path(d) / name).parent.mkdir(parents=True, exist_ok=True)
+            (Path(d) / name).write_text(text)
+        return posture.from_iac(d).get("GOV-42")
+
+
+SP = "service_principal_name: 6f1c-deploy-sp"
+
+
+def test_run_as_is_graded_on_each_targets_effective_value():
+    # every target overrides a person at bundle level with a service principal → nothing runs as a person
+    r = gov42({"databricks.yml": "run_as:\n  user_name: alice@corp.com\ntargets:\n"
+                                 f"  dev:\n    run_as:\n      {SP}\n  prod:\n    run_as:\n      {SP}\n"})
+    assert r["status"] == "pass", r
+    # ${var.deployer} defaults to a person; prod overrides run_as, dev does not → dev only, both locators named
+    r = gov42({"databricks.yml": "variables:\n  deployer:\n    default: alice@corp.com\n"
+                                 "run_as:\n  user_name: ${var.deployer}\n"
+                                 f"targets:\n  dev:\n    mode: development\n  prod:\n    run_as:\n      {SP}\n"})
+    assert r["status"] == "fail" and r["locator"] == "databricks.yml:5", r
+    assert "dev: user_name alice@corp.com (databricks.yml:5 ← ${var.deployer} at databricks.yml:3)" in r["observed"]
+    assert "prod" not in r["observed"], r
+    # a target-level variable override counts too
+    r = gov42({"databricks.yml": "variables:\n  deployer:\n    default: alice@corp.com\nrun_as:\n  user_name: ${var.deployer}\n"
+                                 "targets:\n  prod:\n    variables:\n      deployer: bob@corp.com\n"})
+    assert r["status"] == "fail" and "prod: user_name bob@corp.com" in r["observed"], r
+
+
+def test_run_as_only_the_deploy_can_supply_is_not_graded_as_a_person():
+    # no default in the bundle: CI passes it
+    r = gov42({"databricks.yml": "variables:\n  runner:\n    description: who jobs run as\nrun_as:\n  user_name: ${var.runner}\n"
+                                 "targets:\n  dev: {}\n  prod: {}\n"})
+    assert r["status"] == "not_assessed" and "CI or the deploy script" in r["reason"], r
+    # a default exists, but CI overrides it with --var: the bundle default is not the deployed value
+    bundle = "variables:\n  runner:\n    default: alice@corp.com\nrun_as:\n  user_name: ${var.runner}\ntargets:\n  prod:\n    mode: production\n"
+    r = gov42({"databricks.yml": bundle,
+               ".github/workflows/deploy.yml": "jobs:\n  deploy:\n    steps:\n      - run: databricks bundle deploy -t prod --var=\"runner=6f1c\"\n"})
+    assert r["status"] == "not_assessed" and ".github/workflows/deploy.yml:4" in r["reason"], r
+    r = gov42({"databricks.yml": bundle, "scripts/deploy.sh": "export BUNDLE_VAR_runner=$SP_ID\ndatabricks bundle deploy\n"})
+    assert r["status"] == "not_assessed" and "scripts/deploy.sh:1" in r["reason"], r
+
+
+def test_prod_target_running_as_a_person_is_still_a_finding():
+    r = gov42({"databricks.yml": f"run_as:\n  {SP}\ntargets:\n  dev:\n    mode: development\n"
+                                 "  prod:\n    run_as:\n      user_name: ops@corp.com  # set by hand\n"})
+    assert r["status"] == "fail" and r["locator"] == "databricks.yml:8" and "prod: user_name ops@corp.com" in r["observed"], r
+    assert "dev" not in r["observed"], r
+
+
 def test_non_admin_never_passes_a_list():
     def reader(path):
         if path == "/api/2.0/preview/scim/v2/Me":

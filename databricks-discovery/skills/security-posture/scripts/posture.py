@@ -441,14 +441,98 @@ SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".terraform
 SECRET_RE = re.compile(r"""(client_secret|password|api_key|access_token|secret)\s*[:=]\s*["']([^"'${}\s]{8,})["']""", re.I)
 PAT_RE = re.compile(r"\bdapi[0-9a-f]{32}\b")
 GRANT_RE = re.compile(r"GRANT\s+(.+?)\s+ON\s+.+?\s+TO\s+[`'\"]?(account users|users)[`'\"]?", re.I)
+DEPLOY_FILES = ("*.sh", "*.ps1", "Makefile", "*.mk")   # deploy scripts: read only for bundle --var overrides
+DEPLOY_VAR_RE = re.compile(r"""--var[=\s]+["']?([^"'\s]+)|BUNDLE_VAR_(\w+)""")
+RUN_AS_KINDS = ("user_name", "service_principal_name", "group_name")
+
+
+def yaml_keys(lines):
+    """(path, value, line) for every `key:` in a YAML file's block mappings; a parent key has value ''.
+    ponytail: no flow mappings, anchors or block scalars — stdlib only; enough for run_as/variables/targets."""
+    stack = []  # (indent, key); list items are a "-" segment
+    for n, raw in enumerate(lines, 1):
+        s = raw.split(" #")[0].rstrip()
+        body = s.lstrip()
+        if not body or body.startswith("#"):
+            continue
+        indent = len(s) - len(body)
+        if body.startswith("- "):
+            while stack and stack[-1][0] >= indent:
+                stack.pop()
+            stack.append((indent, "-"))
+            indent, body = indent + 2, body[2:].lstrip()
+        m = re.match(r"""["']?([\w.\-/]+)["']?\s*:(?:\s+(.*))?$""", body)
+        if not m:
+            continue
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+        key, val = m.group(1), (m.group(2) or "").strip().strip("'\"")
+        yield tuple(k for _, k in stack) + (key,), val, n
+        if not val:
+            stack.append((indent, key))
+
+
+def bundle_run_as(rel, lines, deploy_vars):
+    """GOV-42 for one bundle file, graded per target on the EFFECTIVE run_as: a target's own run_as
+    beats the bundle-level one; ${var.x} resolves from the target's variables, then the bundle default,
+    and a --var / BUNDLE_VAR_ set by a deploy script or CI beats both — so it is not determinable here.
+    Returns (status, locator, observed, reason) or None when the file sets no run_as."""
+    keys = list(yaml_keys(lines))
+    val = {p: (v, n) for p, v, n in keys}
+    ras = [(p, v, n) for p, v, n in keys if len(p) >= 2 and p[-2] == "run_as" and p[-1] in RUN_AS_KINDS and v]
+    if not ras:
+        return None
+    targets = sorted({p[1] for p, _, _ in keys if p[0] == "targets" and len(p) >= 2 and p[1] != "-"}) or [None]
+
+    def resolve(v, t):
+        m = re.fullmatch(r"\$\{var\.([\w-]+)\}", v)
+        if not m:
+            return (None, f"{v} is resolved at deploy") if "${" in v else (v, "")
+        name = m.group(1)
+        if name in deploy_vars:
+            return None, f"{v} is set at deploy ({deploy_vars[name]})"
+        for p in (("targets", t, "variables", name), ("targets", t, "variables", name, "default"), ("variables", name, "default")):
+            if val.get(p, ("",))[0]:
+                return val[p][0], f" ← {v} at {rel}:{val[p][1]}"
+        return None, f"{v} has no value in the bundle — CI or the deploy script supplies it"
+
+    fails, unknown, per = [], [], []
+    for t in targets:
+        own = [r for r in ras if t and r[0][:2] == ("targets", t)]
+        for p, v, n in own or [r for r in ras if r[0][0] != "targets"]:
+            name = t or "(no targets)"
+            got, how = resolve(v, t)
+            if got is None:
+                unknown.append(f"{name}: {how}")
+            elif p[-1] == "user_name" and "@" in got:
+                fails.append((f"{rel}:{n}", f"{name}: user_name {got} ({rel}:{n}{how})"))
+            per.append(f"{name}: {p[-1]} {got or '?'}")
+    if fails:
+        return "fail", fails[0][0], "run as a person — " + "; ".join(f for _, f in fails), None
+    loc = f"{rel}:{ras[0][2]}"
+    if unknown:
+        return "not_assessed", loc, "; ".join(per), "run_as not determinable from the bundle: " + "; ".join(unknown)
+    return "pass", loc, "; ".join(per), None
 
 
 def from_iac(root):
-    found = {}  # check id -> list of (locator, observed, status)
+    found = {}  # check id -> list of (status, locator, observed, reason)
     scanned = 0
+    bundles, deploy_vars = [], {}
 
-    def add(cid, status, loc, observed):
-        found.setdefault(cid, []).append((status, loc, observed))
+    def add(cid, status, loc, observed, reason=None):
+        found.setdefault(cid, []).append((status, loc, observed, reason))
+
+    def deploy_overrides(rel, lines):
+        for i, line in enumerate(lines, 1):
+            for m in DEPLOY_VAR_RE.finditer(line):
+                for name in ([a.split("=")[0] for a in m.group(1).split(",")] if m.group(1) else [m.group(2)]):
+                    deploy_vars.setdefault(name, f"{rel}:{i}")
+
+    for pattern in DEPLOY_FILES:
+        for f in Path(root).rglob(pattern):
+            if not any(part in SKIP_DIRS for part in f.parts) and f.is_file():
+                deploy_overrides(f.relative_to(root), f.read_text(encoding="utf-8", errors="replace").splitlines())
 
     for pattern in IAC_FILES:
         for f in Path(root).rglob(pattern):
@@ -460,6 +544,9 @@ def from_iac(root):
                 continue
             rel = f.relative_to(root)
             scanned += 1
+            if f.suffix in (".yml", ".yaml"):
+                bundles.append((rel, lines))
+                deploy_overrides(rel, lines)   # CI workflows and taskfiles pass --var too
             for i, line in enumerate(lines, 1):
                 loc = f"{rel}:{i}"
                 if f.suffix in (".sql", ".py", ".yml", ".yaml", ".tf"):
@@ -477,22 +564,20 @@ def from_iac(root):
                     add("GOV-12", "fail" if re.match(r"NONE|NO_ISOLATION|LEGACY_", m.group(1)) else "pass", loc, line.strip())
                 if re.search(r"enable_local_disk_encryption\s*[:=]\s*false", line, re.I):
                     add("DP-2", "fail", loc, line.strip())
-                if re.match(r"\s*run_as\s*:", line) and i < len(lines):
-                    nxt = lines[i]
-                    if re.search(r"user_name\s*:\s*\S+@", nxt):
-                        add("GOV-42", "fail", f"{rel}:{i + 1}", nxt.strip())
-                    elif re.search(r"(group_name|service_principal_name)\s*:", nxt):
-                        add("GOV-42", "pass", f"{rel}:{i + 1}", nxt.strip())
                 for cid, (key, want, _) in CONF.items():
                     m = re.search(rf"[\"']?{key}[\"']?\s*[:=]\s*[\"']?(true|false)[\"']?", line, re.I)
                     if m:
                         add(cid, "pass" if m.group(1).lower() == want else "fail", loc, line.strip())
+    for rel, lines in bundles:   # after every file is read: a CI --var anywhere outranks the bundle
+        hit = bundle_run_as(rel, lines, deploy_vars)
+        if hit:
+            add("GOV-42", *hit)
     out = {"_scanned": scanned}
     for cid, hits in found.items():
         fails = [h for h in hits if h[0] == "fail"]
-        status, loc, observed = (fails or hits)[0]
+        status, loc, observed, reason = (fails or [h for h in hits if h[0] == "not_assessed"] or hits)[0]
         more = f" (+{len(fails) - 1} more)" if len(fails) > 1 else ""
-        out[cid] = result(status, observed + more, loc, source="iac")
+        out[cid] = result(status, observed + more, loc, reason, source="iac")
     return out
 
 
@@ -692,7 +777,7 @@ def run(args, fetch=None):
                 r = {**r, "sat_verdict": sat[cid]["status"]}
         if (r is None or r["status"] == "not_assessed") and cid in sat:
             r = sat[cid]
-        if (r is None or r["status"] == "not_assessed") and cid in iac:
+        if cid in iac and (r is None or (r["status"] == "not_assessed" and iac[cid]["status"] != "not_assessed")):
             r = iac[cid]
         if r is None:
             reason = {"account": "account-level API: needs account admin, or SAT results",

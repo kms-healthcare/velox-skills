@@ -139,7 +139,8 @@ Say `medium` when one source supports it, `low` when it is inferred.
 // dependency_edges.jsonl   kind ∈ reads|writes|triggers|calls|depends_on — draw the DAG from this, never by hand
 {"from":"obj-0031","to":"obj-0087","kind":"writes","evidence":[{"source_id":"src-ssis-01","locator":"pkg_pos_load.dtsx:18","kind":"stated"}]}
 
-// findings.jsonl   severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
+// findings.jsonl   severity = the risk left after any guard (a flag, condition or deploy setting that stops it running) — `detail` names the guard, or says there is none; a setting is judged on its effective value per environment, not its definition
+// severity ∈ critical|high|medium|low ; category ∈ data_quality|logic|security|cost|performance|governance|scope|dependency|documentation|concurrency|ops
 // layer ∈ ingest|store|transform|serving|ops ; migration_disposition ∈ resolved-by-target|carried|redesign|none|null — set only by assessment-synthesis; `none` = changes nothing in the migration, kept in the register and the workbook, out of the report — except critical/high and security findings, which stay in the report whatever their disposition
 {"id":"FND-03","severity":"high","category":"data_quality",
  "title":"3% of POS transactions dropped silently by INNER JOIN to DIM_STORE",
