@@ -36,8 +36,9 @@ move (email bodies, chat exports) get a copy under `sources/`.
 **What else a run folder may hold — and nothing else:** `logs/` (what was executed: pytest, a
 repro, posture — `exec-NN-<what>.log`), `tools/` (helper scripts and record drafts you wrote for
 THIS run: a repro, the JSON arrays fed to `write_records.py`), and what a pack script writes there
-by design (`posture.json` from security-posture — its findings cite it as their locator), and
-`cost_scope.json` from cost-performance (the workspaces a cost review could not measure, and why).
+by design (`posture.json` from security-posture — its findings cite it as their locator). A cost
+review's reads, and the workspaces it could not measure, are Velox's files under `system-tables/`,
+not the run's.
 `author-sections.md` is not a run file: it lives once in `assessment/<project>/`. No `scripts/` beside the project files, no `security/` or other sub-run (every
 pack script takes `--out <run dir>` and writes INTO it), no `sources.sha256` sidecar (the manifest
 already carries the hashes — `scripts/write_manifest.py` writes them), no `worker-notes/`. Measured 2026-10-08 across three runs of the same

@@ -15,6 +15,8 @@ A cost review on Velox reads each workspace through its own Velox app **before**
 ```
 assessment/<project>/system-tables/<date>/<env>/<view>.json
   cost_by_day · cost_by_job · cost_by_warehouse · jobs · queries_by_warehouse
+assessment/<project>/system-tables/<date>/not_measured.json
+  {"not_measured": [{"workspace": "PROD", "reason": "Velox not installed"}]}
 ```
 
 The turn names the folder, every view or workspace that was not read and why, and the run folder to
@@ -89,10 +91,9 @@ a one-time run or a deleted job is a fact, not a gap.
   question per view, `ask` the role the words name (an account admin enables a schema, a metastore
   admin grants the app's service principal), `default`: "Leave <view> out of the review", `impact_if_wrong`
   by what the view would have shown. Copy the app's words into `why`; do not reword them.
-- **A workspace not measured** (no Velox, or its app did not answer): no finding about it.
-- Write `cost_scope.json` in the run folder: `{"not_measured": [{"workspace": "PROD", "reason":
-  "Velox not installed"}]}`, one entry per workspace the turn says is not measured, in its words.
-  The report names them (`assessment-synthesis` §8a).
+- **A workspace not measured** (no Velox, or its app did not answer): no finding about it. Velox
+  saves the list with each reason in `system-tables/<date>/not_measured.json`, and the report names
+  them from it (`assessment-synthesis` §8a). Do not write a list of your own.
 
 ## Then
 
@@ -111,4 +112,4 @@ asks for a total platform cost. Optimizations as a migration plan are another wo
 
 `../discovery-intake/references/project-type-cost-performance.md` (the project type, what to
 request beyond these views) · `../discovery-intake/references/run-layout.md` (finding and question
-schemas, `cost_scope.json`) · `../assessment-synthesis/SKILL.md` (§8a).
+schemas) · `../assessment-synthesis/SKILL.md` (§8a).

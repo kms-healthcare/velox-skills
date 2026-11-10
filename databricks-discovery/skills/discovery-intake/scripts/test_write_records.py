@@ -119,6 +119,13 @@ def test_inventory_kinds_are_the_three_layers_and_one_record_per_object():
         "disposition 'maybe' is not one of migrate / modernize / retire / defer / convert / rewrite / keep / repoint / replace"]
 
 
+def test_a_saving_is_a_number():
+    base = {"id": "FND-1", "evidence": EV, **EXPLAIN}
+    assert w.problems("findings", {**base, "saving": {"amount": 43, "currency": "USD", "per": "day"}}) == []
+    assert w.problems("findings", {**base, "saving": None}) == []
+    assert w.problems("findings", {**base, "saving": {"amount": "43"}}) == ['saving.amount \'43\' must be a number (43, not "43")']
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

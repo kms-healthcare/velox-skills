@@ -371,8 +371,10 @@ def read_json(p: Path):
 
 def cost_review(root: Path):
     """The latest cost review's reads, as the desktop saved them under system-tables/<date>/<env>/<view>.json
-    (velox-spec databricks-cost-review), and what the run said was not measured (runs/*/cost_scope.json).
-    None when no cost review ran. Every number in the section comes from these files, never from a record."""
+    (velox-spec databricks-cost-review), and the workspaces it could not measure, with why (system-tables/<date>/
+    not_measured.json, saved by the desktop too). None when no cost review ran. Every line of the section comes from
+    Velox's files, never from a record or a file the agent wrote; a review saved before not_measured.json existed
+    falls back to the run's cost_scope.json."""
     base = root / "system-tables"
     dates = sorted(d.name for d in base.glob("*/") if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d.name)) if base.exists() else []
     if not dates:
@@ -388,8 +390,11 @@ def cost_review(root: Path):
             measured.append({"name": name, "dir": f"system-tables/{date}/{env_dir.name}", "views": read, "refused": refused})
         elif refused:
             not_measured.append((name, next(iter(refused.values()))))
-    scopes = [read_json(f) for f in sorted((root / "runs").glob("*/cost_scope.json"))] if (root / "runs").exists() else []
-    for w in ((scopes[-1] or {}).get("not_measured") or []) if scopes else []:
+    saved = read_json(base / date / "not_measured.json")
+    if saved is None:  # ponytail: older reads only; drop once every desktop saves not_measured.json
+        scopes = [read_json(f) for f in sorted((root / "runs").glob("*/cost_scope.json"))] if (root / "runs").exists() else []
+        saved = (scopes[-1] if scopes else None) or {}
+    for w in (saved.get("not_measured") if isinstance(saved, dict) else None) or []:
         if w.get("workspace") and w["workspace"].upper() not in {n for n, _ in not_measured} | {m["name"] for m in measured}:
             not_measured.append((w["workspace"].upper(), w.get("reason") or "no reason given"))
     return {"date": date, "measured": measured, "not_measured": not_measured}
@@ -434,7 +439,8 @@ def cost_section(cr, findings, ev):
 
 
 def saving(s):
-    if not isinstance(s, dict) or s.get("amount") is None:
+    a = s.get("amount") if isinstance(s, dict) else None
+    if isinstance(a, bool) or not isinstance(a, (int, float)):  # "43" from an agent must not cost the whole report
         return None
     return f"about {s['amount']:,} {s.get('currency') or ''} a {s.get('per') or 'month'}, at list price, an estimate".replace("  ", " ")
 

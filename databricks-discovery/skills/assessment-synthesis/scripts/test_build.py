@@ -96,13 +96,17 @@ def cost_project(tmp):
     for v in ("cost_by_day", "jobs"):
         (staging / f"{v}.json").write_text(json.dumps({"view": v, "refused": "Velox cannot read system.billing.usage: grant it."}))
     run.mkdir(parents=True)
-    (run / "cost_scope.json").write_text(json.dumps({"not_measured": [{"workspace": "PROD", "reason": "Velox not installed"}]}))
+    # Velox's own list of what it could not measure; the agent's cost_scope.json names a workspace never reviewed.
+    (root / "system-tables" / "2026-11-05" / "not_measured.json").write_text(
+        json.dumps({"not_measured": [{"workspace": "PROD", "reason": "Velox not installed"}]}))
+    (run / "cost_scope.json").write_text(json.dumps({"not_measured": [{"workspace": "QA", "reason": "made up by the agent"}]}))
     cev = [{"source_id": "src-st", "locator": "assessment/tetra/system-tables/2026-11-05/dev/jobs.json:4", "kind": "stated"}]
     f = lambda i, sev, disp, cat="cost": {"id": f"FND-COST-{i}", "title": f"cost {i}", "severity": sev, "category": cat,
                                           "migration_disposition": disp, "evidence": cev, "status": "confirmed",
                                           "saving": {"amount": 43, "currency": "USD", "per": "day"}}
+    text_saving = {**f("text-saving", "high", None), "saving": {"amount": "43", "currency": "USD", "per": "day"}}
     write(reg / "findings.jsonl", [f("high-none", "high", "none"), f("low-none", "low", "none"), f("medium", "medium", None),
-                                   f("perf", "low", None, "performance")])
+                                   f("perf", "low", None, "performance"), text_saving])
     (root / "intake.md").write_text("# Intake\n")
     return root
 
@@ -118,16 +122,27 @@ with tempfile.TemporaryDirectory() as d:
     # A workspace not measured is named: one the run says had no Velox, one whose app refused every view.
     assert "PROD: not measured: Velox not installed." in sec, sec
     assert "STAGING: not measured: Velox cannot read system.billing.usage: grant it." in sec, sec
+    assert "QA" not in sec, sec                                                      # the agent's file is not read when Velox saved its own
     # Only findings that change a decision: a low `none` stays in the workbook, a high `none` stays in the report.
     assert "FND-COST-high-none" in sec and "FND-COST-medium" in sec and "FND-COST-perf" in sec, sec
     assert "FND-COST-low-none" not in md
     assert "about 43 USD a day, at list price, an estimate" in sec, sec
+    # A saving written as text ("43") is not formatted, and does not cost the rest of the report.
+    row = next(l for l in sec.splitlines() if "FND-COST-text-saving" in l)
+    assert "about" not in row, row
     # Not listed twice: cost findings leave the debt table when the cost section carries them.
     debt = md.split("## 8. Technical debt register")[1].split("## 8a.")[0]
     assert "FND-COST-medium" not in debt, debt
     from openpyxl import load_workbook
     wb = load_workbook(root.parent / "out-final" / "discovery-tetra.xlsx")
     assert any(c.value == "FND-COST-low-none" for row in wb["Findings"].iter_rows() for c in row), "kept in the workbook"
+
+with tempfile.TemporaryDirectory() as d:
+    # Reads saved before the desktop wrote not_measured.json: the run's cost_scope.json still names what was not measured.
+    root = cost_project(Path(d))
+    (root / "system-tables" / "2026-11-05" / "not_measured.json").unlink()
+    sec = build(root).split("## 8a. Cost & performance")[1].split("\n## 9.")[0]
+    assert "QA: not measured: made up by the agent." in sec and "PROD: not measured" not in sec, sec
 
 with tempfile.TemporaryDirectory() as d:
     # No cost review: no cost section.

@@ -116,6 +116,9 @@ def problems(register, rec):
         allowed = tuple(dict.fromkeys(x for v in DISPOSITIONS.values() for x in v))
         if d is not None and d not in allowed:
             out.append(f"disposition {d!r} is not one of {' / '.join(allowed)}")
+    amount = (rec.get("saving") or {}).get("amount") if isinstance(rec.get("saving"), dict) else None
+    if amount is not None and (isinstance(amount, bool) or not isinstance(amount, (int, float))):
+        out.append(f"saving.amount {amount!r} must be a number (43, not \"43\")")
     return out
 
 
