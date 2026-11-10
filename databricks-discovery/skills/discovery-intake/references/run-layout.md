@@ -98,6 +98,8 @@ Say `medium` when one source supports it, `low` when it is inferred.
 // engine ∈ postgresql|mysql|sqlserver|oracle|synapse|snowflake|teradata|redshift|db2|hive|files|api|… as the code names it
 // host / port / database as the code or config names them, null when not found — NEVER a user, a password, a token or a DSN:
 // write_records.py refuses the record (by key), and so does the desktop's register reader. The sign-in is the person's, later, in Scope.
+// optional environments {"<env>": "<resolved host / topic / path>"} — an external endpoint's target per environment, from the
+// deployed value (legacy-etl-archaeology app-estate-guide §4–5); a non-prod entry equal to prod's is checked for risk there
 {"id":"SYS-1","name":"orders","engine":"postgresql","host":"pg-prod.client.local","port":5432,"database":"orders",
  "role":"system of record for POS transactions","evidence":[{"source_id":"src-etl-01","locator":"etl/load_orders.py:14","excerpt":"host='pg-prod.client.local'","kind":"stated"}],
  "meaning":"The PostgreSQL database that holds every order the shop takes",

@@ -126,7 +126,12 @@ and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Se
 `layer`. **Look for the guard before rating:** when code looks dangerous, search for the flag,
 condition or deploy setting that stops it running (an environment check, a target that pauses the
 job) and name both in `detail`; severity is the risk that remains after the guard, and a guarded
-destructive behaviour is still a finding, rated on that remainder. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
+destructive behaviour is still a finding, rated on that remainder. **Wiring is a fact; wiring
+that carries risk is a finding:** for every external endpoint (queue, topic, SFTP, API, shared
+storage) compare its resolved target per environment (step 4); a non-production environment on
+the production resource with a state-changing use — a consumer that commits or acks, an SFTP move
+or delete, a POST — is a finding even when guarded today; a read-only one is a fact
+(`app-estate-guide.md` §5). A finding's `impact` says what it changes in the migration — a wave, a disposition, a
 test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
 keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
 register is not the report — a rule reaches the Plan step as a proposed test for its table, and

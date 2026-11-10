@@ -1,0 +1,20 @@
+resources:
+  jobs:
+    orders_ingest:
+      name: orders-ingest-${bundle.target}
+      schedule:
+        quartz_cron_expression: "0 */15 * * * ?"
+        timezone_id: UTC
+      tasks:
+        - task_key: consume_orders
+          spark_python_task:
+            python_file: ../src/consume_orders.py
+            parameters: ["${var.kafka_bootstrap}", "${var.orders_topic}", "${var.orders_group}", "${var.orders_consumer_enabled}"]
+        - task_key: consume_returns
+          spark_python_task:
+            python_file: ../src/consume_returns.py
+            parameters: ["${var.returns_bootstrap}", "${var.returns_topic}"]
+        - task_key: fx_rates
+          spark_python_task:
+            python_file: ../src/fx_rates.py
+            parameters: ["${var.fx_api_url}"]

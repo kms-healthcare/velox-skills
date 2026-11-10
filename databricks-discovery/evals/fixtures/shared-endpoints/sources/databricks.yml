@@ -1,0 +1,33 @@
+bundle:
+  name: acme-orders
+
+include:
+  - resources/*.yml
+
+variables:
+  kafka_bootstrap:
+    default: kafka-prod.acme.internal:9092
+  orders_topic:
+    default: orders
+  orders_group:
+    default: orders-loader
+  orders_consumer_enabled:
+    default: "true"
+  returns_bootstrap:
+    default: kafka-prod.acme.internal:9092
+  returns_topic:
+    default: returns
+  fx_api_url:
+    default: https://fx.acme.com/v2
+
+targets:
+  dev:
+    workspace:
+      host: https://adb-1111111111111111.11.azuredatabricks.net
+    variables:
+      orders_consumer_enabled: "false"
+      returns_bootstrap: kafka-dev.acme.internal:9092
+      returns_topic: returns-dev
+  prod:
+    workspace:
+      host: https://adb-2222222222222222.12.azuredatabricks.net

@@ -91,3 +91,18 @@ Record the effective value **per environment**, with a locator at the definition
 assignment (`databricks.yml:12` ← `.github/workflows/deploy.yml:40`). A value set from a CI secret
 is "set by CI (`<secret name>`)", not the bundle default; a value you cannot trace is an open
 question, never the default. `security-posture` grades a bundle file's `run_as` this way.
+
+## 5. Shared external resources — one endpoint, several environments
+
+Wiring is a fact; wiring that carries risk is a finding. For every external endpoint — queue,
+topic, SFTP, API, shared storage — resolve its target per environment (§4: host, topic or path,
+and the consumer group or account it uses) and record it on the endpoint's `source_systems` record
+as `environments`. Then, wherever a non-production environment resolves to the production resource:
+
+| Non-production use | Record |
+|---|---|
+| state-changing — a queue consumer that acks or completes, a topic consumer committing in production's consumer group, an SFTP move or delete, a POST/PUT/DELETE to a production API, a write to shared storage | a **finding**, even when a guard disables it today: `detail` names the guard and its locator, severity is the risk that remains. A flag someone can flip (a bundle variable, an env var, a `--var`) is a weak guard; credentials or a network that cannot reach production are a strong one |
+| read-only — a GET, a peek, a list, its own consumer group | a fact: `environments` on the record, no finding |
+
+Each environment on its own resource is no finding at all. Addepto's review (VEL-1687): a run
+recorded a dev consumer on the production queue as a system fact and raised nothing.
