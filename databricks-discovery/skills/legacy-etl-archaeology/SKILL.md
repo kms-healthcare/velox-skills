@@ -103,7 +103,12 @@ staging data before downstream reads it.
 
 **4. Configuration data.** For every `config_driven` rule obtain the (masked) table content, record
 effective values with a locator, and note who can change them. Check whether the code actually
-*reads* the config it appears to be governed by.
+*reads* the config it appears to be governed by. **A variable or setting resolves to its deployed
+value, not its definition** — before concluding anything from one (a schedule, `run_as`, a pause
+or enable flag, a catalog name), trace it through the bundle default, the target override, the
+deploy script or taskfile, and CI (`--var`, `BUNDLE_VAR_*`, env); state the effective value **per
+environment**, with a locator at the definition and at the assignment. Not traceable → say so and
+raise a question; never fall back to the default (`app-estate-guide.md` §4).
 
 **5. Dependencies, critical path, usage.** Complete edges from scheduler + code; generate the DAG
 from the file. Per-step durations from job history → critical path; note full rebuilds. Usage →
@@ -118,7 +123,10 @@ invocations of the same load. For application code, also the serving layer and t
 around it (`app-estate-guide.md` §2): numbers that trace to no query, silent fallbacks, state
 shared across requests, import-time side effects, filters applied in one layer and not another,
 and every store with `holds_pii: true` whose `erasure_reaches` is not `true`. Set each finding's
-`layer`. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
+`layer`. **Look for the guard before rating:** when code looks dangerous, search for the flag,
+condition or deploy setting that stops it running (an environment check, a target that pauses the
+job) and name both in `detail`; severity is the risk that remains after the guard, and a guarded
+destructive behaviour is still a finding, rated on that remainder. A finding's `impact` says what it changes in the migration — a wave, a disposition, a
 test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
 keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
 register is not the report — a rule reaches the Plan step as a proposed test for its table, and

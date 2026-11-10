@@ -69,3 +69,25 @@ settles claims code reading can only suspect (races, fallbacks, stale caches).
 Good first runs: the test suite; the app's own demo or seed script; two concurrent requests to an
 endpoint suspected of sharing state; the deletion path followed by a read of every surface
 marked `holds_pii`.
+
+## 4. Deployed values — a setting means what the deploy makes it
+
+Bundle YAML is where a variable is **defined**, not where it gets its value. Three findings in one
+review of a project already on Databricks (2026-11-06) were wrong for this reason alone: a
+production-only schedule read as a non-prod cost control; "deployments run as the user" when CI
+deploys every environment as a service principal; a "critical" job whose guard disables it outside
+production.
+
+Before concluding anything from a variable or setting, trace it, last one wins:
+
+| Layer | Where |
+|---|---|
+| bundle default | `variables: <name>: default:` in `databricks.yml` and its `include:` files |
+| target override | `targets: <env>:` — its own `variables:`, `run_as:`, `resources:`, `mode:` (development pauses schedules) |
+| deploy script / taskfile | `deploy.sh`, `Makefile`, `Taskfile.yml`: `--var name=…`, `-t <env>`, `export BUNDLE_VAR_name=…` |
+| CI | workflow / pipeline files: `--var`, `BUNDLE_VAR_*` env, which identity authenticates the deploy |
+
+Record the effective value **per environment**, with a locator at the definition and at the
+assignment (`databricks.yml:12` ← `.github/workflows/deploy.yml:40`). A value set from a CI secret
+is "set by CI (`<secret name>`)", not the bundle default; a value you cannot trace is an open
+question, never the default. `security-posture` grades a bundle file's `run_as` this way.
