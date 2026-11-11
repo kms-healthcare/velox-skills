@@ -280,7 +280,7 @@ after the records; never write a manifest builder of your own (measured 2026-10-
 ## Layout, review, and client-data constraints
 
 `assessment/<project>/` per `references/run-layout.md`. The agent writes only into `runs/<run>/`;
-a human reviews in Velox — the Assessment session's **Assess** step, or the Workspace panel's **Review** tab in a chat (or `review.md` by hand) — and the decisions land in
+a human reviews in Velox — the Assessment session's **Assess** step, or the **Discovery** section in a chat (or `review.md` by hand) — and the decisions land in
 `registers/`. Deliverables (`discovery-<project>.xlsx`, `assessment-report.md/.docx`) are generated
 next to the project dir and are what people open — first as a labelled DRAFT from the run, then
 regenerated from `registers/` when the person says "regenerate" (`assessment-synthesis` §6).
