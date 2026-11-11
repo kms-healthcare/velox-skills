@@ -181,7 +181,8 @@ The report follows the delivery template — Part A Discovery (1 executive summa
 context and target-state requirements, 3 data landscape, 4 workload catalogue, 5 dependencies and
 lineage), Part B Assessment (6 governance and PII, 7 security posture, 8 technical debt, 9
 complexity and scope, 10 target architecture and component mapping, 11 roadmap and cost estimate,
-12 risks, assumptions and open decisions), Appendix (evidence, best-practice references,
+12 risks, assumptions and open decisions; and §8a cost & performance when a `cost-performance` review
+ran — computed from the system-table reads Velox saved, never written by hand), Appendix (evidence, best-practice references,
 stakeholder questionnaire). `references/report-template.md` maps each section to its register.
 Workbook tabs in reading order: Summary · Readiness · Decisions · Rationalization · Findings ·
 Business Rules · Requirements · Inventory · Open Questions (grouped by person, with an email draft)

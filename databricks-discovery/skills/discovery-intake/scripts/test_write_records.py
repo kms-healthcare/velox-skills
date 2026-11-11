@@ -146,6 +146,13 @@ def test_rule_status_verified_only_against_code():
                                              {**rule, "id": "BR-02", "rule_status": "DOC-ONLY", "evidence": doc}]) == (2, 0, 2)
 
 
+def test_a_saving_is_a_number():
+    base = {"id": "FND-1", "evidence": EV, **EXPLAIN}
+    assert w.problems("findings", {**base, "saving": {"amount": 43, "currency": "USD", "per": "day"}}) == []
+    assert w.problems("findings", {**base, "saving": None}) == []
+    assert w.problems("findings", {**base, "saving": {"amount": "43"}}) == ['saving.amount \'43\' must be a number (43, not "43")']
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

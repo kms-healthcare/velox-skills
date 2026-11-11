@@ -359,6 +359,93 @@ def readiness_score(r):
     return s
 
 
+# ---------- cost review (system tables) ----------
+COST_VIEWS = ("cost_by_day", "cost_by_job", "cost_by_warehouse", "jobs", "queries_by_warehouse")
+
+
+def read_json(p: Path):
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def cost_review(root: Path):
+    """The latest cost review's reads, as the desktop saved them under system-tables/<date>/<env>/<view>.json
+    (velox-spec databricks-cost-review), and the workspaces it could not measure, with why (system-tables/<date>/
+    not_measured.json, saved by the desktop too). None when no cost review ran. Every line of the section comes from
+    Velox's files, never from a record or a file the agent wrote; a review saved before not_measured.json existed
+    falls back to the run's cost_scope.json."""
+    base = root / "system-tables"
+    dates = sorted(d.name for d in base.glob("*/") if re.fullmatch(r"\d{4}-\d{2}-\d{2}", d.name)) if base.exists() else []
+    if not dates:
+        return None
+    date = dates[-1]
+    measured, not_measured = [], []
+    for env_dir in sorted((base / date).glob("*/")):
+        views = {v: read_json(env_dir / f"{v}.json") for v in COST_VIEWS if (env_dir / f"{v}.json").exists()}
+        read = {v: b for v, b in views.items() if isinstance(b, dict) and "refused" not in b}
+        refused = {v: b["refused"] for v, b in views.items() if isinstance(b, dict) and isinstance(b.get("refused"), str)}
+        name = env_dir.name.upper()
+        if read:
+            measured.append({"name": name, "dir": f"system-tables/{date}/{env_dir.name}", "views": read, "refused": refused})
+        elif refused:
+            not_measured.append((name, next(iter(refused.values()))))
+    saved = read_json(base / date / "not_measured.json")
+    if saved is None:  # ponytail: older reads only; drop once every desktop saves not_measured.json
+        scopes = [read_json(f) for f in sorted((root / "runs").glob("*/cost_scope.json"))] if (root / "runs").exists() else []
+        saved = (scopes[-1] if scopes else None) or {}
+    for w in (saved.get("not_measured") if isinstance(saved, dict) else None) or []:
+        if w.get("workspace") and w["workspace"].upper() not in {n for n, _ in not_measured} | {m["name"] for m in measured}:
+            not_measured.append((w["workspace"].upper(), w.get("reason") or "no reason given"))
+    return {"date": date, "measured": measured, "not_measured": not_measured}
+
+
+def money(v, currency):
+    return "—" if v is None else f"{v:,.2f} {currency or ''}".strip()
+
+
+def cost_section(cr, findings, ev):
+    """§8a: what was measured, where, over which dates, at list price; the most expensive jobs and warehouses;
+    the workspaces not measured; and the cost and performance findings that change a decision."""
+    out = ["\n## 8a. Cost & performance\n\n"]
+    for m in cr["measured"]:
+        v = m["views"]
+        day = v.get("cost_by_day") or {}
+        rows = day.get("rows") or []
+        cur = day.get("currency") or next((b.get("currency") for b in v.values() if b.get("currency")), None)
+        dbu = sum(r.get("dbu") or 0 for r in rows)
+        cost = sum(r.get("list_cost") or 0 for r in rows)
+        since, until = day.get("since") or "?", day.get("until") or "?"
+        out += [f"**{m['name']}** — {since} to {until}: {dbu:,.1f} DBU, {money(cost, cur)} at list price, not the client's rates "
+                f"[{m['dir']}/cost_by_day.json]\n\n" if rows else
+                f"**{m['name']}** — {since} to {until}: no billing rows read [{m['dir']}]\n\n"]
+        jobs = sorted((v.get("jobs") or {}).get("rows") or [], key=lambda r: -(r.get("list_cost") or 0))[:5]
+        out += table(["Job", "DBU", "List cost", "Runs", "Evidence"],
+                     [[r.get("name") or f"job {r.get('job_id')}", r.get("dbu"), money(r.get("list_cost"), cur), r.get("runs"),
+                       f"{m['dir']}/jobs.json"] for r in jobs])
+        whs = sorted((v.get("cost_by_warehouse") or {}).get("rows") or [], key=lambda r: -(r.get("list_cost") or 0))[:5]
+        out += (["\n"] + table(["Warehouse", "DBU", "List cost", "Evidence"],
+                                [[r.get("warehouse_id"), r.get("dbu"), money(r.get("list_cost"), cur),
+                                  f"{m['dir']}/cost_by_warehouse.json"] for r in whs])) if whs else []
+        out += [f"\n{m['name']}'s {view} was not read: {words}\n" for view, words in m["refused"].items()]
+        out += ["\n"]
+    for name, reason in cr["not_measured"]:
+        out += [f"{name}: not measured: {reason.rstrip('.')}.\n\n"]
+    cf = [f for f in findings if f.get("category") in ("cost", "performance")]
+    out += table(["#", "Severity", "Category", "Finding", "Saving", "Evidence"],
+                 [[f.get("id"), f.get("severity"), f.get("category"), f.get("title"), saving(f.get("saving")), ev(f)]
+                  for f in sorted(cf, key=finding_order)], 15, "Findings") or ["No cost or performance finding changes a decision.\n"]
+    return out
+
+
+def saving(s):
+    a = s.get("amount") if isinstance(s, dict) else None
+    if isinstance(a, bool) or not isinstance(a, (int, float)):  # "43" from an agent must not cost the whole report
+        return None
+    return f"about {s['amount']:,} {s.get('currency') or ''} a {s.get('per') or 'month'}, at list price, an estimate".replace("  ", " ")
+
+
 def gap(needs, risk):
     return f"_Insufficient evidence — needs {needs}; risk if skipped: {risk}._\n"
 
@@ -574,6 +661,9 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
                  for f in sorted(sec, key=finding_order)], 15, "Findings") or ["No security finding recorded.\n"]
 
     md += ["\n## 8. Technical debt register\n\n"]
+    cr = cost_review(root)
+    # With a cost review, its findings are read in §8a beside the numbers they rest on, not twice.
+    in_debt = ("security", "governance") + (("cost", "performance") if cr else ())
     if fnd_all:
         disp = Counter(f.get("migration_disposition") or "NOT SET" for f in fnd_all)
         md += ["All findings — when migrated: " + " · ".join(f"{k} {v}" for k, v in sorted(disp.items())) + " (`none` stays in the workbook)  \n",
@@ -581,9 +671,11 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
         md += table(["#", "Severity", "Category", "Layer", "Debt", "When migrated", "Evidence"],
                     [[f.get("id"), f.get("severity"), f.get("category"), f.get("layer"), f.get("title"),
                       f.get("migration_disposition") or "NOT SET", ev(f)]
-                     for f in sorted((f for f in fnd if f.get("category") not in ("security", "governance")), key=finding_order)], 25, "Findings")
+                     for f in sorted((f for f in fnd if f.get("category") not in in_debt), key=finding_order)], 25, "Findings")
     else:
         md += [gap("findings from legacy-etl-archaeology or requirements-extraction", "debt a faithful migration would carry over unseen")]
+    if cr:
+        md += cost_section(cr, fnd, ev)
 
     md += ["\n## 9. Migration complexity & scope\n\n"]
     if rat:
