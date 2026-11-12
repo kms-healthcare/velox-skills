@@ -170,6 +170,17 @@ def test_a_draft_inside_the_run_is_consumed_and_one_outside_is_kept():
         assert mine.exists()
         w.main([str(run), "findings", str(run / "findings.jsonl")])        # the register itself stays
         assert (run / "findings.jsonl").exists()
+        posture = run / "posture.json"                                    # a pack script's output stays
+        posture.write_text(json.dumps(rec))
+        w.main([str(run), "findings", str(posture)])
+        assert posture.exists()
+        (run / "tools").mkdir()                                           # a link into tools/ is not followed
+        target = run / "tools" / "kept.json"
+        target.write_text(json.dumps(rec))
+        link = Path(out) / "link.json"
+        link.symlink_to(target)
+        w.main([str(run), "findings", str(link)])
+        assert target.exists()
 
 
 if __name__ == "__main__":

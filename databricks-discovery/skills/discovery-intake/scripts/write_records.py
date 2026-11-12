@@ -14,6 +14,7 @@ file at a time. Records that live in a throwaway script are records the reviewer
 Stdlib only.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -247,13 +248,15 @@ def consume_draft(run_dir, src):
     """
     if src == "-":
         return
-    draft, run = Path(src).resolve(), Path(run_dir).resolve()
-    registers = {f"{r}.jsonl" for r in [*PREFIX, "dependency_edges"]}
-    if run not in draft.parents or (draft.parent == run and draft.name in registers | {"manifest.json"}):
+    # Only `<run>/tools/`, where drafts live (run-layout.md): never a register, the manifest, a
+    # pack script's own output (`posture.json`) or a copied source, whatever the caller passed.
+    draft = Path(os.path.abspath(src))
+    tools = Path(os.path.abspath(run_dir)) / "tools"
+    if tools not in draft.parents or draft.suffix not in (".json", ".jsonl"):
         return
     draft.unlink()
     folder = draft.parent
-    while folder != run and not any(folder.iterdir()):
+    while folder != tools.parent and not any(folder.iterdir()):
         folder.rmdir()
         folder = folder.parent
 

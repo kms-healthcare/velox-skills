@@ -275,7 +275,7 @@ Records reach a register through ONE door: `python3 "<directory>/scripts/write_r
 <run dir> <register> <records.json | ->` — a JSON array in, validated JSON Lines out, upserted by
 id (edges by `from|to|kind`). It refuses a record with the wrong id prefix, no evidence, an
 evidence entry without a locator, or text over budget, and then writes nothing. Draft the array in
-a file under `runs/<run>/tools/` or pipe it on stdin — a draft inside the run folder is deleted once
+a file under `runs/<run>/tools/` or pipe it on stdin — a draft under `tools/` is deleted once
 its records are in the register (a second copy beside the register goes stale the moment a reviewer
 edits one), so to change a record later, draft it again; never write JSONL by hand and never keep the
 records inside a Python script that prints them (measured 2026-10-08: 27 KB of records lived in
