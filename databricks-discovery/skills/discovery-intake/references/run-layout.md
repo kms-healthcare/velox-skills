@@ -35,7 +35,7 @@ move (email bodies, chat exports) get a copy under `sources/`.
 
 **What else a run folder may hold — and nothing else:** `logs/` (what was executed: pytest, a
 repro, posture — `exec-NN-<what>.log`), `tools/` (helper scripts and record drafts you wrote for
-THIS run: a repro, the JSON arrays fed to `write_records.py`), and what a pack script writes there
+THIS run: a repro; a JSON array fed to `write_records.py` is deleted once it is written), and what a pack script writes there
 by design (`posture.json` from security-posture — its findings cite it as their locator). A cost
 review's reads, and the workspaces it could not measure, are Velox's files under `system-tables/`,
 not the run's.

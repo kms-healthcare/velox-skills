@@ -233,6 +233,29 @@ def main(argv=None):
     run_dir, register, src = argv
     added, replaced, total = write(run_dir, register, load(src))
     print(f"{register}: +{added} new, {replaced} replaced, {total} in {Path(run_dir) / (register + '.jsonl')}")
+    consume_draft(run_dir, src)
+
+
+def consume_draft(run_dir, src):
+    """A draft file inside the run folder is spent once its records are in the register.
+
+    Measured 2026-11-12: an agent wrote each register as a JSON draft under `<run>/tools/` (the
+    write tool takes a file), passed it here, and left eight drafts beside the registers — a second
+    copy of every record that the reviewer meets in Changes and nobody updates. The records are in
+    `<register>.jsonl` now, so the draft goes, and its folder with it when that leaves it empty.
+    A file outside the run folder is the caller's and stays.
+    """
+    if src == "-":
+        return
+    draft, run = Path(src).resolve(), Path(run_dir).resolve()
+    registers = {f"{r}.jsonl" for r in [*PREFIX, "dependency_edges"]}
+    if run not in draft.parents or (draft.parent == run and draft.name in registers | {"manifest.json"}):
+        return
+    draft.unlink()
+    folder = draft.parent
+    while folder != run and not any(folder.iterdir()):
+        folder.rmdir()
+        folder = folder.parent
 
 
 if __name__ == "__main__":

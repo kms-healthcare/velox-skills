@@ -153,6 +153,25 @@ def test_a_saving_is_a_number():
     assert w.problems("findings", {**base, "saving": {"amount": "43"}}) == ['saving.amount \'43\' must be a number (43, not "43")']
 
 
+def test_a_draft_inside_the_run_is_consumed_and_one_outside_is_kept():
+    # Measured 2026-11-12: eight drafts left under <run>/tools/ beside the registers they fed.
+    rec = [{"id": "FND-01", "title": "a", "evidence": EV, **EXPLAIN}]
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as out:
+        run = Path(d) / "runs" / "2026-11-12_run-01-m"
+        (run / "tools").mkdir(parents=True)
+        draft = run / "tools" / "findings.json"
+        draft.write_text(json.dumps(rec))
+        w.main([str(run), "findings", str(draft)])
+        assert not draft.exists() and not (run / "tools").exists()
+        assert (run / "findings.jsonl").exists()                          # the records are kept
+        mine = Path(out) / "findings.json"                                # not the run's: the caller's
+        mine.write_text(json.dumps(rec))
+        w.main([str(run), "findings", str(mine)])
+        assert mine.exists()
+        w.main([str(run), "findings", str(run / "findings.jsonl")])        # the register itself stays
+        assert (run / "findings.jsonl").exists()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

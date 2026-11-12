@@ -29,6 +29,15 @@ tagging / cost-allocation model; whether serverless pays off **for these workloa
 
 ### Required
 
+**Velox reads three of these itself** when its app is installed in the workspace: a cost review
+reads `system.billing`, `system.lakeflow` and `system.query` through the app as its service
+principal (`cost-performance`). For those, the access to ask for is ONE grant per workspace — an
+account admin enables the schema, a metastore admin grants it to the app's service principal —
+never a login or an export. Everything else in this table (`system.compute`, policies, tags, SLAs)
+Velox does not read: ask for it as an export the client sends, and say so in `source_request.md`.
+Measured 2026-11-12: a run asked for "read-only access to system.billing, system.lakeflow and
+system.compute" — one question mixing what Velox reads with what it cannot.
+
 | Source | Why | How |
 |---|---|---|
 | `system.billing.usage` joined to `system.billing.list_prices`, **≥ 90 days** | Cost by SKU, workspace, cluster/warehouse/job/endpoint; trend | Read on `system.billing`; account admin enables the schema |
