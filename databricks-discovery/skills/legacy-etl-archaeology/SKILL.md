@@ -131,8 +131,9 @@ that carries risk is a finding:** for every external endpoint (queue, topic, SFT
 storage) compare its resolved target per environment (step 4); a non-production environment on
 the production resource with a state-changing use — a consumer that commits or acks, an SFTP move
 or delete, a POST — is a finding even when guarded today; a read-only one is a fact
-(`app-estate-guide.md` §5). A finding's `impact` says what it changes in the migration — a wave, a disposition, a
-test, a prerequisite; one that changes nothing is still recorded (the register and the workbook
+(`app-estate-guide.md` §5). A finding's `impact` says what it changes in the decision this report serves (`intake.md` Axis C) —
+in a migration a wave, a disposition, a test, a prerequisite; in a cost review a backlog item or
+its order; one that changes nothing is still recorded (the register and the workbook
 keep it) and `assessment-synthesis` marks it `none`, out of the report. Record every rule: the
 register is not the report — a rule reaches the Plan step as a proposed test for its table, and
 a rule left out is a test nobody writes. Every `CONFLICT`, high-impact `CODE-ONLY`, ownerless

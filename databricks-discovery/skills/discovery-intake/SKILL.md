@@ -248,6 +248,15 @@ default · impact_if_wrong · blocking`. ≤ 5 to the user per turn, ordered by 
 
 After each return, update `sufficiency.md` and the question list. Discovery is a loop.
 
+**Every run ends with the DRAFT, gate passed or not.** Write `assessment/<project>/author-sections.md`
+(`## decision` first — the sentence from Axis C and what the evidence lets you recommend so far —
+then `## risks`) and build the report with `assessment-synthesis`'s generator and
+`--include-unreviewed`. A gate that has not passed is what the decision section says is still
+missing; it is never a reason to skip the draft. Measured 2026-11-12: a run that read the gate as
+"not yet" wrote no author sections, so the Velox Assess step's summary — which reads `## decision`
+and `## risks` from that file — showed "The run wrote no decision section" over a run that had
+asked for and recorded its decision.
+
 **What the next run inherits.** The reviewed registers stay in the project (`registers/`), and in
 Velox the session's lesson — what was tried, decided and left open — is drafted by session memory
 when the session ends and shared to the team's Knowledge Hub once its owner approves it. Say so in
@@ -266,7 +275,9 @@ Records reach a register through ONE door: `python3 "<directory>/scripts/write_r
 <run dir> <register> <records.json | ->` — a JSON array in, validated JSON Lines out, upserted by
 id (edges by `from|to|kind`). It refuses a record with the wrong id prefix, no evidence, an
 evidence entry without a locator, or text over budget, and then writes nothing. Draft the array in
-a file under `runs/<run>/tools/` or pipe it on stdin; never write JSONL by hand and never keep the
+a file under `runs/<run>/tools/` or pipe it on stdin — a draft under `tools/` is deleted once
+its records are in the register (a second copy beside the register goes stale the moment a reviewer
+edits one), so to change a record later, draft it again; never write JSONL by hand and never keep the
 records inside a Python script that prints them (measured 2026-10-08: 27 KB of records lived in
 `build_run01_registers.py`, where no reviewer would look).
 
