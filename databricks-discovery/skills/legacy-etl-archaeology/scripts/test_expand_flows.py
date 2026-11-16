@@ -240,6 +240,31 @@ def test_cli_prints_the_summary():
         assert json.loads(out)["flows"] == 1
 
 
+def test_decide_writes_one_row_per_flow_and_the_runner_follows():
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}", active=a) for n, a in (("a", 1), ("b", 1), ("c", 0))}
+        root, run = project(d, files, fw(fields={"source": "src", "target": "tgt", "enabled": "active"}, dispatcher="obj-0002"),
+                            inventory=[obj("obj-0002", "pipeline", "PL_All")])
+        x.expand(run, "obj-0001")
+        s = x.decide(run, "obj-0001", "convert", {"obj-0001-b": "rewrite"})
+        rat = {r["object_id"]: r for r in rows(run, "rationalization")}
+        assert {k: r["disposition"] for k, r in rat.items()} == {
+            "obj-0001-a": "convert", "obj-0001-b": "rewrite", "obj-0001-c": "retire", "obj-0001": "convert", "obj-0002": "convert"}
+        assert rat["obj-0001-a"]["target_component"] == "generic Databricks runner — entry a"
+        assert rat["obj-0001-b"]["target_component"] == "<catalog>.bronze.b (native ingestion)"
+        assert (rat["obj-0001-a"]["runner"], rat["obj-0001-a"]["kind"]) == ("obj-0001", "pipeline")
+        assert "owner confirms" in rat["obj-0001-c"]["notes"]
+        assert s["by_disposition"] == {"convert": 1, "rewrite": 1, "retire": 1} and s["flows"] == 3
+        x.decide(run, "obj-0001", "rewrite", {})
+        rat = {r["object_id"]: r["disposition"] for r in rows(run, "rationalization")}
+        assert (rat["obj-0001"], rat["obj-0002"]) == ("retire", "retire")              # no flow left on the runner
+        x.decide(run, "obj-0001", "keep", {"obj-0001-c": "keep"})                      # an explicit exception beats the disabled rule
+        rat = {r["object_id"]: r["disposition"] for r in rows(run, "rationalization")}
+        assert (rat["obj-0001-c"], rat["obj-0001"]) == ("keep", "keep")
+        assert_refused(lambda: x.decide(run, "obj-0001", "migrate", {}), "migrate")
+        assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-9999": "keep"}), "obj-9999")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

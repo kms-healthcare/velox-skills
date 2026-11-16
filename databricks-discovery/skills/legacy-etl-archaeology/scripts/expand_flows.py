@@ -400,6 +400,67 @@ def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None
             "gone": gone, "files": sorted(files)}
 
 
+# ---------- decide ----------
+
+DISABLED_NOTE = "disabled in the configuration (enabled = false); the owner confirms retirement"
+
+
+def _target_component(disposition: str, name: str, writes: list, runner_name: str) -> Optional[str]:
+    if disposition == "convert":
+        return f"generic Databricks runner — entry {name}"
+    if disposition == "rewrite":
+        table = str(writes[0]).split(".")[-1] if writes else "<table>"
+        return f"<catalog>.bronze.{table} (native ingestion)"
+    if disposition == "keep":
+        return f"stays where it runs ({runner_name})"
+    return None
+
+
+def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registers: Any = None) -> dict:
+    """A framework's rationalization rows: every flow (default, exception, disabled → retire), then the runner
+    and its dispatchers, which follow their flows. Written into the run; returns the summary."""
+    run_dir, _, registers = _locations(run_dir, None, registers)
+    words = write_records.DISPOSITIONS["workloads"]
+    for d in [default, *exceptions.values()]:
+        if d not in words:
+            raise SystemExit(f"disposition {d!r} is not a workload's: {' / '.join(words)}")
+    inv = inventory_of(run_dir, registers)
+    runner = inv.get(runner_id)
+    if runner is None:
+        raise SystemExit(f"runner {runner_id} is not in the run's or the registers' inventory")
+    flows = sorted((r for r in inv.values() if r.get("runner") == runner_id and r.get("kind") == "pipeline"),
+                   key=lambda r: r["id"])
+    unknown = sorted(set(exceptions) - {r["id"] for r in flows})
+    if unknown:
+        raise SystemExit(f"{', '.join(unknown)} is not a flow of {runner_id}")
+    runner_name = runner.get("name") or runner_id
+    rows, counts = [], {}
+    for f in flows:
+        if f["id"] in exceptions:
+            disp, note = exceptions[f["id"]], None
+        elif f.get("enabled") is False:
+            disp, note = "retire", DISABLED_NOTE
+        else:
+            disp, note = default, None
+        counts[disp] = counts.get(disp, 0) + 1
+        rows.append({"object_id": f["id"], "kind": "pipeline", "name": f.get("name"), "runner": runner_id,
+                     "disposition": disp, "wave": None,
+                     "target_component": _target_component(disp, f.get("name"), f.get("writes") or [], runner_name),
+                     "criteria": {}, "evidence": f.get("evidence") or [], "blocking": [], "notes": note})
+    follows = "convert" if "convert" in counts else "keep" if "keep" in counts else "retire"
+    component = {"convert": "generic Databricks runner", "keep": "stays where it runs"}.get(follows)
+    dispatchers = sorted({d.get("dispatcher") for d in _descriptions(runner_id, runner) if d.get("dispatcher")})
+    for oid in [runner_id, *dispatchers]:
+        rec = inv.get(oid) or {}
+        rows.append({"object_id": oid, "kind": rec.get("kind") or "pipeline", "name": rec.get("name") or oid,
+                     "disposition": follows, "wave": None, "target_component": component, "criteria": {},
+                     "evidence": rec.get("evidence") or [], "blocking": [], "notes": f"follows its {len(flows)} flows"})
+    _refuse_if_bad("rationalization", rows)
+    write_records.write(run_dir, "rationalization", rows)
+    return {"runner": follows, "dispatchers": {d: follows for d in dispatchers}, "flows": len(flows),
+            "by_disposition": counts}
+
+
 # ---------- command line ----------
 
 def main(argv: Optional[list] = None) -> None:
@@ -411,8 +472,21 @@ def main(argv: Optional[list] = None) -> None:
     ex.add_argument("runner_id")
     ex.add_argument("--root", help="the project root (default: four levels above the run folder)")
     ex.add_argument("--registers", help="the registers folder (default: <project>/registers)")
+    de = sub.add_parser("decide", help="the framework's rationalization rows")
+    de.add_argument("run_dir")
+    de.add_argument("runner_id")
+    de.add_argument("disposition", help="the default for every flow: " + " / ".join(write_records.DISPOSITIONS["workloads"]))
+    de.add_argument("--except", dest="exceptions", action="append", default=[], metavar="FLOW_ID=DISPOSITION")
+    de.add_argument("--registers", help="the registers folder (default: <project>/registers)")
     args = p.parse_args(argv)
-    summary = expand(args.run_dir, args.runner_id, args.root, args.registers)
+    if args.cmd == "expand":
+        summary = expand(args.run_dir, args.runner_id, args.root, args.registers)
+    else:
+        bad = [e for e in args.exceptions if "=" not in e]
+        if bad:
+            raise SystemExit(f"--except takes FLOW_ID=DISPOSITION, not {bad[0]!r}")
+        exceptions = dict(e.split("=", 1) for e in args.exceptions)
+        summary = decide(args.run_dir, args.runner_id, args.disposition, exceptions, args.registers)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 
