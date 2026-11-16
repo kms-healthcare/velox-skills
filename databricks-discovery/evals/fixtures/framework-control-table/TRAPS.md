@@ -27,7 +27,7 @@ dispatcher and its trigger's schedule; target `{SinkSchema}.{SinkTable}`; `sourc
    must not appear in any register, `review.md` or `manifest.json`. A description that maps it is
    refused by the script.
 6. **Disposition.** The runner is a Copy activity — nothing to move — so `decide` defaults to
-   `rewrite` (native Databricks ingestion), with `keep` named in the reason (the copy can stay and
-   land where Databricks reads it); the two disabled flows `retire`; the runner and both dispatchers
+   `rewrite` (native Databricks ingestion), with `keep` named in its `--note` — the reason every
+   rewritten flow's `notes` carry (the copy can stay and land where Databricks reads it); the two disabled flows `retire`; the runner and both dispatchers
    `retire` (no flow converts or keeps).
 7. **Counting.** Every flow number the agent states comes from the script's summary.

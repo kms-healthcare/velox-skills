@@ -265,6 +265,25 @@ def test_decide_writes_one_row_per_flow_and_the_runner_follows():
         assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-9999": "keep"}), "obj-9999")
 
 
+def test_decide_note_is_the_reason_on_every_flow_decided_by_default():
+    import subprocess
+    import sys
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}", active=a) for n, a in (("a", 1), ("b", 1), ("c", 0))}
+        root, run = project(d, files, fw(fields={"source": "src", "target": "tgt", "enabled": "active"}))
+        x.expand(run, "obj-0001")
+        note = "a Copy has no runner to move; keep is the option if the copy stays in Data Factory"
+        x.decide(run, "obj-0001", "rewrite", {"obj-0001-b": "convert"}, note=note)
+        rat = {r["object_id"]: r for r in rows(run, "rationalization")}
+        assert rat["obj-0001-a"]["notes"] == note
+        assert rat["obj-0001-b"]["notes"] is None                      # an exception is not the default's reason
+        assert "owner confirms" in rat["obj-0001-c"]["notes"]           # a disabled flow keeps its own note
+        out = subprocess.run([sys.executable, str(Path(x.__file__)), "decide", str(run), "obj-0001", "convert",
+                              "--note", "carried as configuration"], check=True, capture_output=True, text=True).stdout
+        assert json.loads(out)["runner"] == "convert"
+        assert {r["object_id"]: r for r in rows(run, "rationalization")}["obj-0001-a"]["notes"] == "carried as configuration"
+
+
 def test_a_flow_rejected_in_the_registers_stays_out_of_decide():
     with tempfile.TemporaryDirectory() as d:
         files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "junk")}

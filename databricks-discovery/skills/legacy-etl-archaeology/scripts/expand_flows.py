@@ -2,7 +2,7 @@
 """expand_flows.py — a metadata-driven framework's configuration entries as pipeline records.
 
     python3 expand_flows.py expand <run-dir> <runner-id> [--root R] [--registers G]
-    python3 expand_flows.py decide <run-dir> <runner-id> <disposition> [--except ID=DISP ...] [--registers G]
+    python3 expand_flows.py decide <run-dir> <runner-id> <disposition> [--except ID=DISP ...] [--note TEXT] [--registers G]
 
 A framework is one generic runner (a notebook, a Copy, a procedure) that runs one flow per
 configuration entry (a JSON file, an element of a JSON array, a JSONL line, a control-table row),
@@ -420,9 +420,11 @@ def _target_component(disposition: str, name: str, writes: list, runner_name: st
     return None
 
 
-def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registers: Any = None) -> dict:
+def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registers: Any = None,
+           note: Optional[str] = None) -> dict:
     """A framework's rationalization rows: every flow (default, exception, disabled → retire), then the runner
-    and its dispatchers, which follow their flows. Written into the run; returns the summary."""
+    and its dispatchers, which follow their flows. `note` is the reason for the default, kept in the `notes` of
+    every flow it decides (a Copy framework's names keep there). Written into the run; returns the summary."""
     run_dir, _, registers = _locations(run_dir, None, registers)
     words = write_records.DISPOSITIONS["workloads"]
     for d in [default, *exceptions.values()]:
@@ -441,16 +443,16 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
     rows, counts = [], {}
     for f in flows:
         if f["id"] in exceptions:
-            disp, note = exceptions[f["id"]], None
+            disp, note_ = exceptions[f["id"]], None
         elif f.get("enabled") is False:
-            disp, note = "retire", DISABLED_NOTE
+            disp, note_ = "retire", DISABLED_NOTE
         else:
-            disp, note = default, None
+            disp, note_ = default, note
         counts[disp] = counts.get(disp, 0) + 1
         rows.append({"object_id": f["id"], "kind": "pipeline", "name": f.get("name"), "runner": runner_id,
                      "disposition": disp, "wave": None,
                      "target_component": _target_component(disp, f.get("name"), f.get("writes") or [], runner_name),
-                     "criteria": {}, "evidence": f.get("evidence") or [], "blocking": [], "notes": note})
+                     "criteria": {}, "evidence": f.get("evidence") or [], "blocking": [], "notes": note_})
     follows = "convert" if "convert" in counts else "keep" if "keep" in counts else "retire"
     component = {"convert": "generic Databricks runner", "keep": "stays where it runs"}.get(follows)
     dispatchers = sorted({d.get("dispatcher") for d in _descriptions(runner_id, runner) if d.get("dispatcher")})
@@ -481,6 +483,7 @@ def main(argv: Optional[list] = None) -> None:
     de.add_argument("runner_id")
     de.add_argument("disposition", help="the default for every flow: " + " / ".join(write_records.DISPOSITIONS["workloads"]))
     de.add_argument("--except", dest="exceptions", action="append", default=[], metavar="FLOW_ID=DISPOSITION")
+    de.add_argument("--note", help="the reason for the default, kept in the notes of every flow it decides")
     de.add_argument("--registers", help="the registers folder (default: <project>/registers)")
     args = p.parse_args(argv)
     if args.cmd == "expand":
@@ -490,7 +493,7 @@ def main(argv: Optional[list] = None) -> None:
         if bad:
             raise SystemExit(f"--except takes FLOW_ID=DISPOSITION, not {bad[0]!r}")
         exceptions = dict(e.split("=", 1) for e in args.exceptions)
-        summary = decide(args.run_dir, args.runner_id, args.disposition, exceptions, args.registers)
+        summary = decide(args.run_dir, args.runner_id, args.disposition, exceptions, args.registers, args.note)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 

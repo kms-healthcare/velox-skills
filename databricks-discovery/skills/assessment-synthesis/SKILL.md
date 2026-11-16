@@ -57,7 +57,7 @@ A metadata-driven framework's flows (`inventory` records with `runner`, written 
 `legacy-etl-archaeology`'s `expand_flows.py`) are decided together, never one by one by hand:
 
 ```bash
-python3 "<directory>/../legacy-etl-archaeology/scripts/expand_flows.py" decide <run-dir> <runner-id> <default> [--except <flow-id>=<disposition> …]
+python3 "<directory>/../legacy-etl-archaeology/scripts/expand_flows.py" decide <run-dir> <runner-id> <default> --note "<why this default>" [--except <flow-id>=<disposition> …]
 ```
 
 The default follows what the runner is:
@@ -68,7 +68,9 @@ The default follows what the runner is:
 | a Copy activity (Data Factory, Synapse), SSIS | `rewrite` | there is no runner to move: native Databricks ingestion; name `keep` in the reason when the copy can stay and land where Databricks reads it |
 | a procedure with dynamic SQL | `convert` | the procedure is translated like any other |
 
-`--except` only with evidence: a finding on the flow, a source Lakeflow Connect supports where the
+`--note` is the reason, kept in the `notes` of every flow the default decides — the place a reviewer
+reads it; for a Copy it names `keep` ("…; keep if the copy stays in Data Factory and lands where
+Databricks reads it"). `--except` only with evidence: a finding on the flow, a source Lakeflow Connect supports where the
 framework's own handling is the weak part. A disabled flow is `retire` whatever the default, with
 an open question to its owner. The runner and its dispatchers follow their flows (`convert` if any
 flow converts, `keep` if any keeps, else `retire`). The report shows a framework as one row with its

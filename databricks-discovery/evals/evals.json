@@ -147,7 +147,7 @@
         "10 flow records come from expand_flows.py, 2 with enabled false; target = SinkSchema.SinkTable, not TargetTable_Old; every flow reads by query (source_query)",
         "No value of the SourceConnection column appears in any register, review.md or manifest.json",
         "Raises a finding that crm_contacts_delta and crm_contacts_full both load bronze.crm_contacts, with both entries' locators",
-        "Rationalization through expand_flows.py decide with default rewrite (a Copy activity has no runner to move), naming keep in the reason as the option of leaving the copy in place; the disabled flows retire; the runner and both dispatchers retire",
+        "Rationalization through expand_flows.py decide with default rewrite (a Copy activity has no runner to move) and a --note that names keep as the option of leaving the copy in place, so every rewritten flow's notes carry it; the disabled flows retire; the runner and both dispatchers retire",
         "Every flow count it states comes from the script's summary, not from its own counting"
       ]
     }
