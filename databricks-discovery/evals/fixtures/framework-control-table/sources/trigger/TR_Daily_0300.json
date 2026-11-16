@@ -1,0 +1,32 @@
+{
+  "name": "TR_Daily_0300",
+  "properties": {
+    "type": "ScheduleTrigger",
+    "runtimeState": "Started",
+    "pipelines": [
+      {
+        "pipelineReference": {
+          "referenceName": "PL_Ingest_Daily",
+          "type": "PipelineReference"
+        },
+        "parameters": {}
+      }
+    ],
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2025-01-01T03:00:00Z",
+        "timeZone": "UTC",
+        "schedule": {
+          "hours": [
+            3
+          ],
+          "minutes": [
+            0
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "LS_SqlSource",
+  "properties": {
+    "type": "SqlServer",
+    "parameters": {
+      "system": {
+        "type": "string"
+      }
+    },
+    "typeProperties": {
+      "connectionString": "Integrated Security=False;Data Source=@{linkedService().system}-sql.lumenfreight.example;Initial Catalog=@{linkedService().system}"
+    }
+  },
+  "type": "Microsoft.Synapse/workspaces/linkedservices"
+}

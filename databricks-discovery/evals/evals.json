@@ -132,6 +132,24 @@
         "review.md carries the script's summary — the disabled and query-read flows and the names with no inventory match — and manifest.json lists the config files read",
         "The report's workload catalogue shows the framework as one row with its flow count"
       ]
+    },
+    {
+      "id": 7,
+      "name": "framework-control-table",
+      "prompt": "Lumen Freight also lands ERP and CRM tables with Synapse pipelines driven by a control table; sources/ holds the pipeline and trigger JSON, the table's DDL and an export of its rows. Run the archaeology and draft the rationalization.",
+      "files": [
+        "evals/fixtures/framework-control-table/sources/"
+      ],
+      "expected_output": "The control-table framework read as 10 pipeline records through expand_flows.py, routed between two dispatchers, disabled rows kept as disabled flows, no connection string in any register, and rewrite recommended per flow.",
+      "assertions": [
+        "Recognises PL_Copy_One (a parameterised Copy) as the runner, fed by two dispatchers, PL_Ingest_Hourly and PL_Ingest_Daily, each a Lookup on ctl.IngestControl → ForEach → ExecutePipeline",
+        "`framework` on the runner is a list of two descriptions routed by `where` Frequency = 'H' / 'D', each with its dispatcher and its trigger's schedule; IsEnabled is mapped as `enabled`, not used as a `where`",
+        "10 flow records come from expand_flows.py, 2 with enabled false; target = SinkSchema.SinkTable, not TargetTable_Old; every flow reads by query (source_query)",
+        "No value of the SourceConnection column appears in any register, review.md or manifest.json",
+        "Raises a finding that crm_contacts_delta and crm_contacts_full both load bronze.crm_contacts, with both entries' locators",
+        "Rationalization through expand_flows.py decide with default rewrite (a Copy activity has no runner to move), naming keep in the reason as the option of leaving the copy in place; the disabled flows retire; the runner and both dispatchers retire",
+        "Every flow count it states comes from the script's summary, not from its own counting"
+      ]
     }
   ]
 }

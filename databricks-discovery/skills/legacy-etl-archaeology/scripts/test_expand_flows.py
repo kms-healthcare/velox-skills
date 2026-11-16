@@ -295,6 +295,24 @@ def test_fixture_config_files():
         assert len(writes) == 7 and not any(t.startswith("stg_") for t in writes), writes
 
 
+def test_fixture_control_table():
+    one = lambda f, disp, sched: fw(
+        entries={"format": "csv", "path": "sources/exports/ctl_IngestControl.csv", "where": [{"field": "Frequency", "equals": f}]},
+        key="FlowName", fields={"source_query": "SourceQuery", "target": "{SinkSchema}.{SinkTable}", "enabled": "IsEnabled"},
+        schedule=sched, dispatcher=disp, source_id="src-ctl-01")
+    with tempfile.TemporaryDirectory() as d:
+        root, run = fixture_project(d, "framework-control-table",
+                                    [one("H", "obj-0010", "hourly at :15 (trigger TR_Hourly)"),
+                                     one("D", "obj-0011", "daily 03:00 UTC (trigger TR_Daily_0300)")],
+                                    runner_extra={"kind": "pipeline", "name": "PL_Copy_One"})
+        s = x.expand(run, "obj-0001")
+        assert s["flows"] == 10 and len(s["disabled"]) == 2 and len(s["by_query"]) == 10, s
+        flows = [r for r in rows(run, "inventory") if r.get("runner")]
+        assert sum(1 for r in flows if r["writes"] == ["bronze.crm_contacts"]) == 2
+        text = "".join((run / f).read_text() for f in ("inventory.jsonl", "dependency_edges.jsonl"))
+        assert "Password" not in text and "TargetTable_Old" not in text
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
