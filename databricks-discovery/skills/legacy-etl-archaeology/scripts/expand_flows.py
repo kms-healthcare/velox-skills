@@ -223,3 +223,198 @@ def read_entries(root: Path, spec: dict, key: str) -> list:
                 out.append(Entry({k: v for k, v in row.items() if k is not None}, rel, last + 1))
                 last = reader.line_num
     return sorted(out, key=lambda e: (e.path, e.line))
+
+
+# ---------- the run's records ----------
+
+def _jsonl(path: Path) -> list:
+    if not path.exists():
+        return []
+    return [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+
+def inventory_of(run_dir: Path, registers: Path) -> dict:
+    """The run's inventory over the registers' (the run wins), rejected records left out."""
+    out = {}
+    for r in _jsonl(Path(registers) / "inventory.jsonl") + _jsonl(Path(run_dir) / "inventory.jsonl"):
+        if r.get("id"):
+            out[r["id"]] = r
+    return {k: v for k, v in out.items() if v.get("status") != "rejected"}
+
+
+def _locations(run_dir: Any, root: Any, registers: Any) -> tuple:
+    run_dir = Path(run_dir).resolve()
+    root = Path(root).resolve() if root else run_dir.parents[3]          # <root>/assessment/<project>/runs/<run>
+    registers = Path(registers).resolve() if registers else run_dir.parents[1] / "registers"
+    return run_dir, root, registers
+
+
+def _descriptions(runner_id: str, runner: dict) -> list:
+    fw = runner.get("framework")
+    if not fw:
+        raise SystemExit(f"{runner_id} has no framework description — write `framework` on its record first "
+                         f"(framework-guide.md)")
+    return fw if isinstance(fw, list) else [fw]
+
+
+def _paths_of(spec: Any) -> list:
+    if isinstance(spec, list):
+        return [p for s in spec for p in _paths_of(s)]
+    if spec is None:
+        return []
+    found = PLACEHOLDER.findall(str(spec))
+    return found or [str(spec)]
+
+
+def _check(desc: dict) -> list:
+    """What is missing or unsafe in one description, before anything is read."""
+    out = []
+    fields = desc.get("fields") or {}
+    if not isinstance(desc.get("entries"), dict):
+        out.append("entries is missing")
+    if not desc.get("key"):
+        out.append("key is missing")
+    if not fields.get("target"):
+        out.append("fields.target is missing")
+    if not (fields.get("source") or fields.get("source_query")):
+        out.append("fields.source or fields.source_query is missing")
+    if not desc.get("source_id"):
+        out.append("source_id is missing")
+    if not any(isinstance(e, dict) and e.get("locator") for e in desc.get("evidence") or []):
+        out.append("evidence with a locator into the runner's code is missing")
+    for name, spec in [("key", desc.get("key"))] + list(fields.items()):
+        for path in _paths_of(spec):
+            if any(write_records.CREDENTIAL_KEY.match(seg.strip()) for seg in path.split(".")):
+                out.append(f"{name} ({path}) names a credential — never map a secret into a register")
+    return out
+
+
+def _cut(text: str, n: int) -> str:
+    return text if len(text) <= n else text[:n - 1] + "…"
+
+
+def _norm(name: Any) -> str:
+    return re.sub(r'[\[\]`"]', "", str(name or "")).strip().lower()
+
+
+def _same_name(a: Any, b: Any) -> bool:
+    a, b = _norm(a), _norm(b)
+    return bool(a and b) and (a == b or a.endswith("." + b) or b.endswith("." + a))
+
+
+def _refuse_if_bad(register: str, records: list) -> None:
+    bad = [f"{write_records.key(register, r)}: {'; '.join(p)}" for r in records
+           for p in [write_records.problems(register, r)] if p]
+    if bad:
+        raise SystemExit(f"{len(bad)} {register} records refused; nothing written:\n  " + "\n  ".join(bad))
+
+
+# ---------- expand ----------
+
+def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None) -> dict:
+    """One `pipeline` record per configured flow, with its edges, written into the run. Returns the summary."""
+    run_dir, root, registers = _locations(run_dir, root, registers)
+    inv = inventory_of(run_dir, registers)
+    runner = inv.get(runner_id)
+    if runner is None:
+        raise SystemExit(f"runner {runner_id} is not in the run's or the registers' inventory")
+    descs = _descriptions(runner_id, runner)
+    bad = [f"description {i + 1}: {p}" for i, d in enumerate(descs) for p in _check(d)]
+    if bad:
+        raise SystemExit("framework refused:\n  " + "\n  ".join(bad))
+
+    files, skipped, covered, flows = set(), [], {}, []
+    for i, d in enumerate(descs):
+        seen = {}
+        for e in read_entries(root, d["entries"], str(d["key"])):
+            files.add(e.path)
+            n = seen[(e.path, e.line)] = seen.get((e.path, e.line), 0) + 1
+            if not matches(e.data, d["entries"].get("where")):
+                continue
+            loc = f"{e.path}:{e.line}"
+            if (e.path, e.line, n) in covered:
+                raise SystemExit(f"{loc} is covered by two descriptions — their `where` overlap, and the flow would count twice")
+            covered[(e.path, e.line, n)] = i
+            if resolve(e.data, d["key"]) is None:
+                skipped.append(loc)
+                continue
+            flows.append((e, d))
+    if not flows:
+        raise SystemExit(f"no entry of {runner_id}'s framework has a key value or matches its `where` — "
+                         f"check `key` and `where`; a framework is never 0 flows")
+
+    runner_name = runner.get("name") or runner_id
+    data_objs = [r for r in inv.values() if r.get("kind") in write_records.KINDS["data"]]
+    ids, records, edges = {}, [], []
+    disabled, incomplete, by_query, unmatched, ambiguous = [], [], [], set(), set()
+    for e, d in flows:
+        f = d.get("fields") or {}
+        name = resolve(e.data, d["key"])
+        loc = f"{e.path}:{e.line}"
+        fid = f"{runner_id}-{slug(name)}"
+        if not slug(name):
+            raise SystemExit(f"{loc}: the key {name!r} gives an empty id")
+        if fid in ids:
+            raise SystemExit(f"{ids[fid]} and {loc} give the same id {fid} — keys must differ in more than case or punctuation")
+        ids[fid] = loc
+        source, query, target = resolve(e.data, f.get("source")), resolve(e.data, f.get("source_query")), resolve(e.data, f.get("target"))
+        enabled = truthy(resolve(e.data, f["enabled"], raw=True)) if f.get("enabled") else None
+        ev = [{"source_id": d["source_id"], "locator": loc, "excerpt": _cut(f"{d['key']}={name}", 120), "kind": "stated"}]
+        shown = source or ("by query" if query else "?")
+        records.append({
+            "id": fid, "kind": "pipeline", "name": name, "system": runner.get("system"), "runner": runner_id,
+            "config_entry": loc, "reads": [source] if source else [], "source_query": query,
+            "writes": [target] if target else [], "schedule": resolve(e.data, f.get("schedule")) or _text(d.get("schedule")),
+            "load": resolve(e.data, f.get("load")), "enabled": enabled,
+            "meaning": _cut(f"Flow {name} run by {runner_name}: {shown} → {target or '?'}", 160), "evidence": ev})
+        if enabled is False:
+            disabled.append(fid)
+        if not target or not (source or query):
+            incomplete.append(fid)
+        if query and not source:
+            by_query.append(fid)
+        edges.append({"from": fid, "to": runner_id, "kind": "calls", "evidence": ev,
+                      "meaning": _cut(f"Flow {name} runs on {runner_name}", 160)})
+        if d.get("dispatcher"):
+            disp = d["dispatcher"]
+            edges.append({"from": disp, "to": fid, "kind": "triggers", "evidence": d["evidence"],
+                          "meaning": _cut(f"{(inv.get(disp) or {}).get('name') or disp} runs flow {name}", 160)})
+        for kind, value in (("reads", source), ("writes", target)):
+            if not value:
+                continue
+            hits = [o for o in data_objs if _same_name(o.get("name"), value)]
+            if len(hits) == 1:
+                edges.append({"from": fid, "to": hits[0]["id"], "kind": kind, "evidence": ev,
+                              "meaning": _cut(f"Flow {name} {kind} {hits[0].get('name')}", 160)})
+            else:
+                (ambiguous if hits else unmatched).add(value)
+
+    _refuse_if_bad("inventory", records)
+    _refuse_if_bad("dependency_edges", edges)
+    gone = sorted(k for k, r in inv.items() if r.get("runner") == runner_id and r.get("kind") == "pipeline" and k not in ids)
+    added, replaced, _ = write_records.write(run_dir, "inventory", records)
+    write_records.write(run_dir, "dependency_edges", edges)
+    return {"runner": runner_id, "flows": len(records), "new": added, "replaced": replaced,
+            "disabled": sorted(disabled), "incomplete": sorted(incomplete), "by_query": sorted(by_query),
+            "unmatched": sorted(unmatched), "ambiguous": sorted(ambiguous), "skipped": sorted(skipped),
+            "gone": gone, "files": sorted(files)}
+
+
+# ---------- command line ----------
+
+def main(argv: Optional[list] = None) -> None:
+    import argparse
+    p = argparse.ArgumentParser(prog="expand_flows.py", description=__doc__.split("\n\n")[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+    ex = sub.add_parser("expand", help="one pipeline record per configured flow")
+    ex.add_argument("run_dir")
+    ex.add_argument("runner_id")
+    ex.add_argument("--root", help="the project root (default: four levels above the run folder)")
+    ex.add_argument("--registers", help="the registers folder (default: <project>/registers)")
+    args = p.parse_args(argv)
+    summary = expand(args.run_dir, args.runner_id, args.root, args.registers)
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
