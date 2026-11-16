@@ -1,0 +1,69 @@
+{
+  "name": "PL_Ingest_All",
+  "properties": {
+    "description": "Runs every ingestion config in the config/ingest folder through the generic notebook.",
+    "activities": [
+      {
+        "name": "List configs",
+        "type": "GetMetadata",
+        "typeProperties": {
+          "dataset": {
+            "referenceName": "DS_IngestConfigFolder",
+            "type": "DatasetReference"
+          },
+          "fieldList": [
+            "childItems"
+          ]
+        }
+      },
+      {
+        "name": "For each config",
+        "type": "ForEach",
+        "dependsOn": [
+          {
+            "activity": "List configs",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "items": {
+            "value": "@activity('List configs').output.childItems",
+            "type": "Expression"
+          },
+          "isSequential": false,
+          "batchCount": 4,
+          "activities": [
+            {
+              "name": "Run ingest",
+              "type": "SynapseNotebook",
+              "typeProperties": {
+                "notebook": {
+                  "referenceName": "nb_ingest_generic",
+                  "type": "NotebookReference"
+                },
+                "parameters": {
+                  "config_path": {
+                    "value": {
+                      "value": "@concat('ingest/', item().name)",
+                      "type": "Expression"
+                    },
+                    "type": "string"
+                  }
+                },
+                "snapshot": true,
+                "sparkPool": {
+                  "referenceName": "sparkpool01",
+                  "type": "BigDataPoolReference"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": []
+  },
+  "type": "Microsoft.Synapse/workspaces/pipelines"
+}

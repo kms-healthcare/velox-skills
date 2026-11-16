@@ -1,0 +1,14 @@
+{
+  "flow_name": "wms_stock_snapshot",
+  "source": {
+    "system": "WMS",
+    "table": "wms.StockSnapshot"
+  },
+  "sink": {
+    "schema": "wms",
+    "table": "stock_snapshot"
+  },
+  "load_type": "full",
+  "active": false,
+  "target_table": "stg_stock_snapshot"
+}

@@ -265,6 +265,36 @@ def test_decide_writes_one_row_per_flow_and_the_runner_follows():
         assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-9999": "keep"}), "obj-9999")
 
 
+FIXTURES = Path(__file__).resolve().parents[3] / "evals" / "fixtures"
+
+
+def fixture_project(tmp, name, framework, runner_extra=None, inventory=()):
+    import shutil
+    root = Path(tmp)
+    shutil.copytree(FIXTURES / name / "sources", root / "sources")
+    run = root / "assessment" / "proj" / "runs" / "2026-11-16_run-01"
+    runner = {"id": "obj-0001", "kind": "notebook", "name": "nb_ingest_generic", "system": "SYS-1", "evidence": EV,
+              "meaning": "the generic ingestion notebook", "framework": framework, **(runner_extra or {})}
+    w.write(run, "inventory", [runner, *inventory])
+    return root, run
+
+
+def test_fixture_config_files():
+    with tempfile.TemporaryDirectory() as d:
+        root, run = fixture_project(d, "framework-config-files", fw(
+            entries={"format": "json_files", "path": "sources/config/ingest/*.json"}, key="flow_name",
+            fields={"source": "source.table", "source_query": "source.query", "target": "{sink.schema}.{sink.table}",
+                    "load": "load_type", "enabled": "active"},
+            schedule="daily 02:00 UTC (trigger TR_Ingest_Daily)", dispatcher="obj-0002"),
+            inventory=[obj("obj-0002", "pipeline", "PL_Ingest_All")])
+        s = x.expand(run, "obj-0001")
+        assert s["flows"] == 7 and len(s["disabled"]) == 1 and len(s["by_query"]) == 1, s
+        assert s["skipped"] == ["sources/config/ingest/_defaults.json:1"], s
+        assert s["incomplete"] == [], s
+        writes = [t for r in rows(run, "inventory") if r.get("runner") for t in r["writes"]]
+        assert len(writes) == 7 and not any(t.startswith("stg_") for t in writes), writes
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
