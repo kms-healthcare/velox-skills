@@ -209,4 +209,19 @@ with tempfile.TemporaryDirectory() as d:
     assert sum(1 for r in wb["Rationalization"].iter_rows(min_row=2) if r[0].value) == 47        # one row per flow
     summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows() if r[0].value}
     assert (summary.get("convert"), summary.get("rewrite"), summary.get("undecided")) == (44, 2, 0), summary
+
+# ---------- every data-layer kind is a store, never a workload (evals 6 and 7: lake folders read as workloads) ----------
+assert set(write_records.KINDS["data"]) <= bd.STORE_KINDS, set(write_records.KINDS["data"]) - bd.STORE_KINDS
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d) / "assessment" / "stores"
+    write(root / "registers" / "inventory.jsonl",
+          [{"id": f"obj-{i}", "kind": k, "name": n, "evidence": EV, "status": "reviewed", "holds_pii": None}
+           for i, (k, n) in enumerate([("table", "dbo.Orders"), ("file_dataset", "lake/bronze/erp/orders"),
+                                       ("topic", "orders-events"), ("notebook", "nb_load"), ("report", "Daily sales")])])
+    (root / "intake.md").write_text("# Intake\n")
+    md = build(root)
+    s3 = md.split("## 3. Data landscape")[1].split("\n## 4.")[0]
+    s4 = md.split("## 4. Workload catalogue")[1].split("\n## 5.")[0]
+    assert "| lake/bronze/erp/orders | file_dataset |" in s3 and "| orders-events | topic |" in s3, s3
+    assert "2 workloads" in s4 and "lake/bronze" not in s4 and "orders-events" not in s4, s4
 print("test_build: ok")

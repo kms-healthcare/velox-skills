@@ -349,7 +349,11 @@ def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
 # The report follows the delivery template: Part A (discovery, 1–5) describes what is there and is
 # generated tables only; Part B (assessment, 6–12) is what to do about it. A section with nothing
 # behind it prints one sentence — what it needs and what skipping it risks — never filler prose.
-STORE_KINDS = {"table", "view", "file_store", "queue", "log", "cache", "object_store", "export"}
+# Every data-layer kind of write_records.KINDS is a store (test_build checks it), plus the cache and the export
+# that hold personal data too. Measured on evals 6 and 7: lake folders (`file_dataset`) and topics were missing,
+# so the workload catalogue listed them as workloads and the PII counts left them out.
+STORE_KINDS = {"table", "view", "materialized_view", "sequence", "file_store", "file_dataset", "queue", "topic", "log",
+               "object_store", "model", "cache", "export"}
 READINESS = [("data", "Data"), ("logic", "Logic / code"), ("governance", "Governance & PII"),
              ("security", "Security"), ("operations", "Operations")]
 

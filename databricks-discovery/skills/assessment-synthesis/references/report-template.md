@@ -12,7 +12,7 @@ pandoc reads it as GFM), and every inventory id (`obj-…`) is printed as the ob
 | **Part A — Discovery** | | |
 | 1 Executive summary | `intake.md` Axis C · `readiness.jsonl` · `findings` · `## decision` · `sufficiency.md` ❌ ⚠️ | readiness per dimension and overall; top 5 risks (critical/high, `carried` first); recommendation; what the evidence does not yet support |
 | 2 Business context & target-state requirements | `intake.md` Axis A · `requirements` | counts by type × status; NFR / security / scope / integration rows first (SLAs, residency live there), then the use cases |
-| 3 Data landscape & current-state architecture | `inventory` | counts by kind with `holds_pii`; every store (`table`, `file_store`, `queue`, `log`, `cache`, `object_store`, `export`, `view`) with volume; complexity by source |
+| 3 Data landscape & current-state architecture | `inventory` | counts by kind with `holds_pii`; every store (every data-layer kind of `run-layout.md` — a lake folder `file_dataset` and a `topic` included — plus `cache` and `export`) with volume; complexity by source |
 | 4 Workload catalogue | `inventory` — every kind that is not a store | frequency = `schedule`; volume = rows / GB / runs / runtime; `owner` (NOT SET is counted, a flow answers to its runner's); a framework's flows are one row (its runner, the count by disposition) — the workbook keeps one row per flow |
 | 5 Dependencies & lineage, incl. external services | `dependency_edges` · `inventory` `external_consumer` | an edge end with no inventory record is listed as an external or unmapped service; Mermaid DAG |
 | **Part B — Assessment** | | |
