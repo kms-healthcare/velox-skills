@@ -1,6 +1,6 @@
 # Config-driven flows: a metadata-driven framework read as pipelines — design
 
-Status: for approval · 2026-11-16 · Jira VEL-1723 (epic VEL-1714) · pack `databricks-discovery` 0.12.1 → 0.13.0
+Status: approved 2026-11-16, built on `feat/vel-1723-config-driven-flows` (§10 lists what the build added) · 2026-11-16 · Jira VEL-1723 (epic VEL-1714) · pack `databricks-discovery` 0.12.1 → 0.13.0
 
 ## 1. Intent
 
@@ -296,3 +296,21 @@ framework).
 Function and module structure inside `expand_flows.py`; the exact wording of the guide and of
 generated `meaning` lines within their budgets; fixture names and contents beyond the traps listed;
 the eval assertion wording.
+
+## 10. As built — what the implementation added to this design
+
+Decisions taken while building, each covered by a test or stated in the skill text:
+
+- `expand` **refuses a framework that yields no flow** (no entry has a key value, or none matches
+  `where`), with "a framework is never 0 flows" — the anti-goal in §4 made a rule.
+- Two descriptions overlap when they cover the same entry, identified by file, line and its order at
+  that line (an array whose key lookup falls back to line 1 is not an overlap).
+- **A record a reviewer rejected in `registers/` stays out of `decide` and of the gone list**, even
+  when the run proposes it again: an entry that still exists is expanded every run, and its new copy
+  must not undo the decision.
+- The report's §4 counts "no owner recorded" over workloads outside a framework: a flow answers to its
+  runner's owner.
+- `assessment-synthesis`'s section is **§1a** (§1c, Readiness, already existed).
+- The control-table fixture keeps the table's DDL in `ddl/` (an export from the pool), not `sqlscript/`.
+- `run-layout.md` and step 0c say "never by hand **while the script can read the entries**", in line
+  with the fallback in §6.5.
