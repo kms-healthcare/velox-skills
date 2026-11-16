@@ -1,9 +1,9 @@
 ---
 name: legacy-etl-archaeology
-description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / DOC-ONLY / CONFIG-ONLY / DEAD / UNRESOLVED statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
+description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints), and metadata-driven frameworks (one generic runner, one flow per configuration entry). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / DOC-ONLY / CONFIG-ONLY / DEAD / UNRESOLVED statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ optional. Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
   parent: discovery-intake
 ---
 
@@ -75,6 +75,14 @@ and the report), and state in `review.md` that the Analyzer was not run.
 `holds_pii` and `erasure_reaches` (`references/app-estate-guide.md` §1). So is every API endpoint
 and dashboard view, with what it reads and what it serves when its source fails (§2). A store
 missing from the inventory is a store no erasure, retention or migration decision covers.
+
+**0c. Metadata-driven frameworks.** One generic runner called with an entry (`item()`, a row, a
+file) from a loop over a list kept as data is N flows, not one pipeline. Recognise it, write
+`framework` on the runner's inventory record — the mapping from the keys the runner's code reads,
+with a locator — and run `"<directory>/scripts/expand_flows.py" expand <run-dir> <runner-id>`, where it
+is, never copied. Never count the flows or write them yourself: the script's summary goes into
+`review.md` and its files into the manifest. Forms, the description, routing, fallback:
+`references/framework-guide.md`.
 
 **1. Units.** One coherent behaviour a reviewer holds in their head; 10–20 rules, split above ~25.
 Start on the **critical path** and behind the **most-used reports**, not alphabetically.
@@ -166,7 +174,9 @@ own `databricks-pipelines` and `databricks-jobs` (where rebuilt logic and the DA
 ## References
 
 `../discovery-intake/references/run-layout.md` (required) · `references/app-estate-guide.md` —
-data surfaces, the serving layer and running it, for application code · `references/dw-artifact-guide.md` —
+data surfaces, the serving layer and running it, for application code · `references/framework-guide.md` — a metadata-driven framework read as one
+pipeline per configured flow: the forms, the `framework` description, `scripts/expand_flows.py`, the
+fallback · `references/dw-artifact-guide.md` —
 where rules hide in T-SQL / Synapse (the pool's DDL, pipelines, notebooks, linked services,
 triggers) / SSIS / SQL Agent / SSRS / Informatica / Oracle / Teradata, export queries, the
 month-end trap · `references/ml-estate-guide.md` — an Azure ML workspace as inventory: pipelines,

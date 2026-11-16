@@ -146,6 +146,10 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"status":"extracted"}
 // every record may carry owner (a person or role who answers for it) — the workload catalogue counts the ones without
 // pipelines add: schedule, avg_runtime_min, run_as, reads[], writes[] ; reports add: consumers[], exec_count_90d, last_exec_at
+// a flow of a metadata-driven framework is a pipeline written by legacy-etl-archaeology/scripts/expand_flows.py, never by hand:
+//   adds runner (the runner's id), config_entry (the entry's locator), source_query, load, enabled ; reads[] / writes[] hold
+//   names as configured (edges carry the ids) ; the runner carries `framework`, the description the script reads
+//   (legacy-etl-archaeology/references/framework-guide.md §3)
 // api_endpoint / ui_view add: reads[], fallback (what it serves when its source fails or is empty), consumers[]
 
 // dependency_edges.jsonl   kind ∈ reads|writes|triggers|calls|depends_on — draw the DAG from this, never by hand
@@ -171,6 +175,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "impact_if_wrong":"high","blocking":["FR-01","BR-014"],"status":"open","answer":null}
 
 // rationalization.jsonl   disposition — data: migrate|modernize|retire|defer ; workloads: convert|rewrite|retire|keep ; consumers: repoint|replace|retire ; a `model` is always defer (the ML team moves it) ; set by assessment-synthesis, changed by the reviewer on the Scope step
+// a flow's row carries runner ; a framework's rows (flows, runner, dispatchers) are written by expand_flows.py decide
 // status ∈ extracted|reviewed|rejected — the reviewer may change `disposition` when marking reviewed
 // target_component = what it becomes on the target (placeholders until agreed) — the report's component mapping
 {"object_id":"obj-0087","kind":"table","name":"MP_DWH.dbo.STG_POS_TXN","disposition":"migrate","wave":1,"target_component":"<catalog>.bronze.pos_txn (Lakeflow Connect)",

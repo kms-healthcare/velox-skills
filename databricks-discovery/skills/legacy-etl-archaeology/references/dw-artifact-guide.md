@@ -105,6 +105,8 @@ Register the export as a source with the date; the live workspace may have moved
   `activities[].dependsOn` is the DAG inside a pipeline; `ForEach` / `IfCondition` /
   `Switch` hold rules in their `expression`. `@pipeline().parameters.x`, `@concat(…)`,
   `@formatDateTime(…)` are the dynamic SQL of this estate — read the expression, not the type.
+  A ForEach that calls one notebook, Copy or ExecutePipeline per `item()` of a Lookup or a
+  GetMetadata list is a **framework**: one flow per entry, not one pipeline → `framework-guide.md`.
 - **Triggers** (`trigger/*.json`): `ScheduleTrigger` (`recurrence`: frequency, interval, hours,
   minutes, `monthDays` — `-1` is the last day), `TumblingWindowTrigger` (window + `dependsOn` other
   windows = a cross-pipeline edge), `BlobEventsTrigger` / `CustomEventsTrigger` (event-driven: no
