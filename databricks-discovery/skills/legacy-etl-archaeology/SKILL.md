@@ -80,8 +80,8 @@ missing from the inventory is a store no erasure, retention or migration decisio
 file) from a loop over a list kept as data is N flows, not one pipeline. Recognise it, write
 `framework` on the runner's inventory record — the mapping from the keys the runner's code reads,
 with a locator — and run `"<directory>/scripts/expand_flows.py" expand <run-dir> <runner-id>`, where it
-is, never copied. Never count the flows or write them yourself: the script's summary goes into
-`review.md` and its files into the manifest. Forms, the description, routing, fallback:
+is, never copied. Never count the flows or write them yourself while the script can read the
+entries: its summary goes into `review.md` and its files into the manifest. Forms, the description, routing, fallback:
 `references/framework-guide.md`.
 
 **1. Units.** One coherent behaviour a reviewer holds in their head; 10–20 rules, split above ~25.

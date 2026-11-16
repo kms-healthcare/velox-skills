@@ -146,7 +146,7 @@ Say `medium` when one source supports it, `low` when it is inferred.
  "evidence":[{"source_id":"src-usage-01","locator":"querystore_396d.csv:row 3","kind":"stated"}],"status":"extracted"}
 // every record may carry owner (a person or role who answers for it) — the workload catalogue counts the ones without
 // pipelines add: schedule, avg_runtime_min, run_as, reads[], writes[] ; reports add: consumers[], exec_count_90d, last_exec_at
-// a flow of a metadata-driven framework is a pipeline written by legacy-etl-archaeology/scripts/expand_flows.py, never by hand:
+// a flow of a metadata-driven framework is a pipeline written by legacy-etl-archaeology/scripts/expand_flows.py (by hand only in framework-guide.md's fallback):
 //   adds runner (the runner's id), config_entry (the entry's locator), source_query, load, enabled ; reads[] / writes[] hold
 //   names as configured (edges carry the ids) ; the runner carries `framework`, the description the script reads
 //   (legacy-etl-archaeology/references/framework-guide.md §3)

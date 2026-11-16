@@ -234,12 +234,16 @@ def _jsonl(path: Path) -> list:
 
 
 def inventory_of(run_dir: Path, registers: Path) -> dict:
-    """The run's inventory over the registers' (the run wins), rejected records left out."""
+    """The run's inventory over the registers' (the run wins), rejected records left out. A record a
+    reviewer rejected in the registers stays out even when the run proposes it again: an entry that
+    still exists is expanded every run, and its new copy must not undo the reviewer's decision."""
+    reg = _jsonl(Path(registers) / "inventory.jsonl")
+    rejected = {r.get("id") for r in reg if r.get("status") == "rejected"}
     out = {}
-    for r in _jsonl(Path(registers) / "inventory.jsonl") + _jsonl(Path(run_dir) / "inventory.jsonl"):
+    for r in reg + _jsonl(Path(run_dir) / "inventory.jsonl"):
         if r.get("id"):
             out[r["id"]] = r
-    return {k: v for k, v in out.items() if v.get("status") != "rejected"}
+    return {k: v for k, v in out.items() if v.get("status") != "rejected" and k not in rejected}
 
 
 def _locations(run_dir: Any, root: Any, registers: Any) -> tuple:

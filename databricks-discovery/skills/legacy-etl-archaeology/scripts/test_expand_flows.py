@@ -265,6 +265,19 @@ def test_decide_writes_one_row_per_flow_and_the_runner_follows():
         assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-9999": "keep"}), "obj-9999")
 
 
+def test_a_flow_rejected_in_the_registers_stays_out_of_decide():
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "junk")}
+        root, run = project(d, files, fw())
+        x.expand(run, "obj-0001")                                   # the run proposes both again
+        reg = run.parents[1] / "registers"
+        reg.mkdir()
+        rejected = {**next(r for r in rows(run, "inventory") if r["id"] == "obj-0001-junk"), "status": "rejected"}
+        (reg / "inventory.jsonl").write_text(json.dumps(rejected) + "\n")
+        s = x.decide(run, "obj-0001", "convert", {})
+        assert s["flows"] == 1 and "obj-0001-junk" not in {r["object_id"] for r in rows(run, "rationalization")}
+
+
 FIXTURES = Path(__file__).resolve().parents[3] / "evals" / "fixtures"
 
 
