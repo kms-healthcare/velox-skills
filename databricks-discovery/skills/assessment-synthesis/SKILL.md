@@ -1,9 +1,9 @@
 ---
 name: assessment-synthesis
-description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
+description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per data object, convert / rewrite / keep / retire per workload, a metadata-driven framework's flows decided per runner), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ for scripts/build_deliverables.py; openpyxl for the .xlsx (without it only the workbook is skipped); pandoc optional for .docx."
 metadata:
-  version: "0.5.1"
+  version: "0.6.0"
   parent: discovery-intake
 ---
 
@@ -50,6 +50,31 @@ disputed rule faithfully delivers wrong numbers with a certificate. Complexity u
 A `model` (Azure ML) is always `defer`, with the reason "moved by the ML team; the inventory is the
 handover": the Scope step treats it as a data object, and one marked `migrate` would reach a wave
 and be planned as a table.
+
+## 1a. Frameworks — one decision per runner, a row per flow
+
+A metadata-driven framework's flows (`inventory` records with `runner`, written by
+`legacy-etl-archaeology`'s `expand_flows.py`) are decided together, never one by one by hand:
+
+```bash
+python3 "<directory>/../legacy-etl-archaeology/scripts/expand_flows.py" decide <run-dir> <runner-id> <default> --note "<why this default>" [--except <flow-id>=<disposition> …]
+```
+
+The default follows what the runner is:
+
+| Runner | Default | Because |
+|---|---|---|
+| PySpark / Python notebook or script | `convert` | the entries are carried as configuration of a generic Databricks runner — the cheapest faithful path |
+| a Copy activity (Data Factory, Synapse), SSIS | `rewrite` | there is no runner to move: native Databricks ingestion; name `keep` in the reason when the copy can stay and land where Databricks reads it |
+| a procedure with dynamic SQL | `convert` | the procedure is translated like any other |
+
+`--note` is the reason, kept in the `notes` of every flow the default decides — the place a reviewer
+reads it; for a Copy it names `keep` ("…; keep if the copy stays in Data Factory and lands where
+Databricks reads it"). `--except` only with evidence: a finding on the flow, a source Lakeflow Connect supports where the
+framework's own handling is the weak part. A disabled flow is `retire` whatever the default, with
+an open question to its owner. The runner and its dispatchers follow their flows (`convert` if any
+flow converts, `keep` if any keeps, else `retire`). The report shows a framework as one row with its
+count by disposition; the workbook keeps one row per flow.
 
 ## 1b. Findings → what the migration does with each
 
@@ -201,4 +226,5 @@ Databricks' own skills for the architecture section, when listed — `databricks
 ## References
 
 `../discovery-intake/references/run-layout.md` · `references/report-template.md` — section ↔
-register map and the `rationalization.jsonl` schema · `scripts/build_deliverables.py --help`.
+register map and the `rationalization.jsonl` schema · `scripts/build_deliverables.py --help` ·
+`../legacy-etl-archaeology/references/framework-guide.md` — what a framework's flows are.

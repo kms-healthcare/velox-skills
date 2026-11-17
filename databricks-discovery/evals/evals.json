@@ -113,6 +113,43 @@
         "Raises NO shared-resource finding for the returns consumer: dev and prod resolve to separate brokers and topics, even though it commits and has no guard; does not read the bundle default kafka-prod as dev's value",
         "Does not treat the Databricks tables as shared: dev and prod deploy to different workspaces (databricks.yml:26, 33)"
       ]
+    },
+    {
+      "id": 6,
+      "name": "framework-config-files",
+      "prompt": "Lumen Freight's ingestion runs in an Azure Synapse workspace; the Git export of its pipelines, notebooks, triggers and the ingestion config folder is in sources/. Run the archaeology on it before we plan the move to Databricks: inventory, dependencies and a rationalization draft.",
+      "files": [
+        "evals/fixtures/framework-config-files/sources/"
+      ],
+      "expected_output": "The notebook framework read as 7 pipeline records through expand_flows.py, mapped from the notebook's code, with the runner and dispatcher linked to every flow and convert recommended per flow.",
+      "assertions": [
+        "Recognises a metadata-driven framework: nb_ingest_generic is the runner, the JSON files in sources/config/ingest/ its entries, PL_Ingest_All (GetMetadata → ForEach → notebook) the dispatcher and TR_Ingest_Daily its schedule",
+        "Writes `framework` on the runner's inventory record with the mapping taken from the notebook's code — target from sink.schema + sink.table, source from source.table, source_query from source.query, enabled from active — with a locator into the notebook; does NOT map the legacy target_table key the notebook never reads",
+        "Runs expand_flows.py expand and does not write the flow records by hand: 7 pipeline records, one per entry; _defaults.json skipped; the inactive entry recorded with enabled false; the query entry with source_query",
+        "Each flow has a calls edge to the runner and a triggers edge from PL_Ingest_All",
+        "Does NOT expand PL_Refresh_Dim_Date: it stays one ordinary pipeline record calling a procedure",
+        "Rationalization through expand_flows.py decide with default convert (the runner is a PySpark notebook); the inactive flow retire with the owner to confirm; the runner and the dispatcher convert",
+        "review.md carries the script's summary — the disabled and query-read flows and the names with no inventory match — and manifest.json lists the config files read",
+        "The report's workload catalogue shows the framework as one row with its flow count"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "framework-control-table",
+      "prompt": "Lumen Freight also lands ERP and CRM tables with Synapse pipelines driven by a control table; sources/ holds the pipeline and trigger JSON, the table's DDL and an export of its rows. Run the archaeology and draft the rationalization.",
+      "files": [
+        "evals/fixtures/framework-control-table/sources/"
+      ],
+      "expected_output": "The control-table framework read as 10 pipeline records through expand_flows.py, routed between two dispatchers, disabled rows kept as disabled flows, no connection string in any register, and rewrite recommended per flow.",
+      "assertions": [
+        "Recognises PL_Copy_One (a parameterised Copy) as the runner, fed by two dispatchers, PL_Ingest_Hourly and PL_Ingest_Daily, each a Lookup on ctl.IngestControl → ForEach → ExecutePipeline",
+        "`framework` on the runner is a list of two descriptions routed by `where` Frequency = 'H' / 'D', each with its dispatcher and its trigger's schedule; IsEnabled is mapped as `enabled`, not used as a `where`",
+        "10 flow records come from expand_flows.py, 2 with enabled false; target = SinkSchema.SinkTable, not TargetTable_Old; every flow reads by query (source_query)",
+        "No value of the SourceConnection column appears in any register, review.md or manifest.json",
+        "Raises a finding that crm_contacts_delta and crm_contacts_full both load bronze.crm_contacts, with both entries' locators",
+        "Rationalization through expand_flows.py decide with default rewrite (a Copy activity has no runner to move) and a --note that names keep as the option of leaving the copy in place, so every rewritten flow's notes carry it; the disabled flows retire; the runner and both dispatchers retire",
+        "Every flow count it states comes from the script's summary, not from its own counting"
+      ]
     }
   ]
 }

@@ -1,0 +1,10 @@
+{
+  "name": "LS_DwPool",
+  "properties": {
+    "type": "AzureSqlDW",
+    "typeProperties": {
+      "connectionString": "Integrated Security=False;Encrypt=True;Data Source=lumenfreight-syn.sql.azuresynapse.net;Initial Catalog=dwpool01"
+    }
+  },
+  "type": "Microsoft.Synapse/workspaces/linkedservices"
+}

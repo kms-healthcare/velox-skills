@@ -1,0 +1,11 @@
+FlowId,FlowName,SourceSystem,SourceConnection,SourceQuery,SinkSchema,SinkTable,TargetTable_Old,Frequency,IsEnabled
+1,erp_orders,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,"SELECT * FROM dbo.SalesOrder WHERE ModifiedAt >= DATEADD(hour, -2, SYSUTCDATETIME())",bronze,erp_sales_order,STG_SALES_ORDER,H,1
+2,erp_order_lines,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,"SELECT * FROM dbo.SalesOrderLine WHERE ModifiedAt >= DATEADD(hour, -2, SYSUTCDATETIME())",bronze,erp_sales_order_line,STG_SALES_ORDER_LINE,H,1
+3,erp_invoices,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,"SELECT * FROM dbo.Invoice WHERE ModifiedAt >= DATEADD(hour, -2, SYSUTCDATETIME())",bronze,erp_invoice,STG_INVOICE,H,1
+4,crm_contacts_delta,CRM,Server=crm-sql.lumenfreight.example;Database=CRM;User Id=etl_reader;Password=SyntheticCRM2024!,"SELECT * FROM crm.Contact WHERE UpdatedOn >= DATEADD(hour, -2, SYSUTCDATETIME())",bronze,crm_contacts,STG_CONTACT,H,1
+5,crm_accounts,CRM,Server=crm-sql.lumenfreight.example;Database=CRM;User Id=etl_reader;Password=SyntheticCRM2024!,"SELECT * FROM crm.Account WHERE UpdatedOn >= DATEADD(hour, -2, SYSUTCDATETIME())",bronze,crm_accounts,STG_ACCOUNT,H,1
+6,erp_stock,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,SELECT * FROM dbo.StockLevel,bronze,erp_stock_level,STG_STOCK,H,0
+7,erp_customers,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,SELECT * FROM dbo.Customer,bronze,erp_customer,STG_CUSTOMER,D,1
+8,erp_products,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,SELECT * FROM dbo.Product,bronze,erp_product,STG_PRODUCT,D,1
+9,crm_contacts_full,CRM,Server=crm-sql.lumenfreight.example;Database=CRM;User Id=etl_reader;Password=SyntheticCRM2024!,SELECT * FROM crm.Contact,bronze,crm_contacts,STG_CONTACT_FULL,D,1
+10,hr_employees,HR,Server=hr-sql.lumenfreight.example;Database=HR;User Id=etl_reader;Password=SyntheticHR2024!,"SELECT EmployeeId, DepotId, Role FROM hr.Employee",bronze,hr_employee,STG_EMPLOYEE,D,0

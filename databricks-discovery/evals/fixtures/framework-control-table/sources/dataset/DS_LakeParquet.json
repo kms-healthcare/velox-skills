@@ -1,0 +1,26 @@
+{
+  "name": "DS_LakeParquet",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_ADLS_Lake",
+      "type": "LinkedServiceReference"
+    },
+    "parameters": {
+      "folder": {
+        "type": "string"
+      }
+    },
+    "type": "Parquet",
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobFSLocation",
+        "fileSystem": "lake",
+        "folderPath": {
+          "value": "@dataset().folder",
+          "type": "Expression"
+        }
+      }
+    }
+  },
+  "type": "Microsoft.Synapse/workspaces/datasets"
+}

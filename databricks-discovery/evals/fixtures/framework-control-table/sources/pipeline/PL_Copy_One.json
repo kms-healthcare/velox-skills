@@ -1,0 +1,62 @@
+{
+  "name": "PL_Copy_One",
+  "properties": {
+    "description": "Copies one source query to the lake as Parquet. Called once per control-table row.",
+    "parameters": {
+      "SourceSystem": {
+        "type": "string"
+      },
+      "SourceQuery": {
+        "type": "string"
+      },
+      "SinkSchema": {
+        "type": "string"
+      },
+      "SinkTable": {
+        "type": "string"
+      }
+    },
+    "activities": [
+      {
+        "name": "Copy query to lake",
+        "type": "Copy",
+        "inputs": [
+          {
+            "referenceName": "DS_SourceGeneric",
+            "type": "DatasetReference",
+            "parameters": {
+              "system": "@pipeline().parameters.SourceSystem"
+            }
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "DS_LakeParquet",
+            "type": "DatasetReference",
+            "parameters": {
+              "folder": "@concat(pipeline().parameters.SinkSchema, '/', pipeline().parameters.SinkTable)"
+            }
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlServerSource",
+            "sqlReaderQuery": {
+              "value": "@pipeline().parameters.SourceQuery",
+              "type": "Expression"
+            }
+          },
+          "sink": {
+            "type": "ParquetSink",
+            "storeSettings": {
+              "type": "AzureBlobFSWriteSettings",
+              "copyBehavior": "FlattenHierarchy"
+            }
+          }
+        }
+      }
+    ],
+    "annotations": []
+  },
+  "type": "Microsoft.Synapse/workspaces/pipelines"
+}

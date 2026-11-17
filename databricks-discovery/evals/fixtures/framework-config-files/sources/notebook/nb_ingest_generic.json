@@ -1,0 +1,69 @@
+{
+  "name": "nb_ingest_generic",
+  "properties": {
+    "nbformat": 4,
+    "nbformat_minor": 2,
+    "bigDataPool": {
+      "referenceName": "sparkpool01",
+      "type": "BigDataPoolReference"
+    },
+    "metadata": {
+      "language_info": {
+        "name": "python"
+      },
+      "kernelspec": {
+        "name": "synapse_pyspark",
+        "display_name": "Synapse PySpark"
+      }
+    },
+    "cells": [
+      {
+        "cell_type": "code",
+        "metadata": {
+          "tags": [
+            "parameters"
+          ]
+        },
+        "source": [
+          "config_path = \"\"\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {},
+        "source": [
+          "# One run = one flow: the config file names the source, the sink and how to load.\n",
+          "import json\n",
+          "raw = mssparkutils.fs.head(f\"abfss://config@lumenfreightlake.dfs.core.windows.net/{config_path}\", 1024 * 1024)\n",
+          "cfg = json.loads(raw)\n",
+          "flow = cfg[\"flow_name\"]\n",
+          "if not cfg.get(\"active\", True):\n",
+          "    mssparkutils.notebook.exit(f\"{flow}: inactive, skipped\")\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {},
+        "source": [
+          "jdbc_url = mssparkutils.credentials.getConnectionStringOrCreds(f\"LS_{cfg['source']['system']}\")\n",
+          "reader = spark.read.format(\"jdbc\").option(\"url\", jdbc_url)\n",
+          "if cfg[\"source\"].get(\"query\"):\n",
+          "    df = reader.option(\"query\", cfg[\"source\"].get(\"query\")).load()\n",
+          "else:\n",
+          "    df = reader.option(\"dbtable\", cfg[\"source\"].get(\"table\")).load()\n"
+        ]
+      },
+      {
+        "cell_type": "code",
+        "metadata": {},
+        "source": [
+          "schema, table = cfg[\"sink\"][\"schema\"], cfg[\"sink\"][\"table\"]\n",
+          "mode = \"overwrite\" if cfg.get(\"load_type\", \"full\") == \"full\" else \"append\"\n",
+          "df.write.mode(mode).format(\"delta\").save(f\"abfss://lake@lumenfreightlake.dfs.core.windows.net/bronze/{schema}/{table}\")\n",
+          "print(f\"{flow}: {df.count()} rows -> bronze/{schema}/{table}\")\n"
+        ]
+      }
+    ]
+  },
+  "type": "Microsoft.Synapse/workspaces/notebooks"
+}

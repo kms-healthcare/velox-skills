@@ -160,4 +160,68 @@ with tempfile.TemporaryDirectory() as d:
 with tempfile.TemporaryDirectory() as d:
     # No cost review: no cost section.
     assert "## 8a." not in build(project(Path(d)))
+
+# ---------- frameworks (VEL-1723): workload dispositions are decisions; a framework is one row in the report ----------
+sys.path.insert(0, str(HERE.parents[1] / "discovery-intake" / "scripts"))
+import build_deliverables as bd  # noqa: E402
+import theme  # noqa: E402
+import write_records  # noqa: E402
+assert {k: list(v) for k, v in write_records.DISPOSITIONS.items()} == bd.LAYER_DISPOSITIONS   # keep the two in step
+
+
+def framework_project(tmp):
+    root = tmp / "assessment" / "flows"
+    reg = root / "registers"
+    flows = range(45)
+    write(reg / "inventory.jsonl",
+          [{"id": "obj-1", "kind": "notebook", "name": "nb_ingest", "evidence": EV, "status": "reviewed"},
+           {"id": "obj-2", "kind": "procedure", "name": "sp_load", "evidence": EV, "status": "reviewed"}]
+          + [{"id": f"obj-1-f{i}", "kind": "pipeline", "name": f"f{i}", "runner": "obj-1", "schedule": "daily",
+              "enabled": i != 0, "evidence": EV, "status": "reviewed"} for i in flows])
+    write(reg / "rationalization.jsonl",
+          [{"object_id": "obj-1", "kind": "notebook", "name": "nb_ingest", "disposition": "convert",
+            "target_component": "generic Databricks runner", "status": "reviewed"},
+           {"object_id": "obj-2", "kind": "procedure", "name": "sp_load", "disposition": "rewrite",
+            "target_component": "<catalog>.silver.x", "status": "reviewed"}]
+          + [{"object_id": f"obj-1-f{i}", "kind": "pipeline", "name": f"f{i}", "runner": "obj-1",
+              "disposition": "retire" if i == 0 else "rewrite" if i == 1 else "convert",
+              "target_component": None if i == 0 else f"generic Databricks runner — entry f{i}", "status": "reviewed"} for i in flows])
+    (root / "intake.md").write_text("# Intake\n")
+    return root
+
+
+with tempfile.TemporaryDirectory() as d:
+    root = framework_project(Path(d))
+    md = build(root)
+    s4 = md.split("## 4. Workload catalogue")[1].split("\n## 5.")[0]
+    assert "47 workloads (45 of them flows of 1 framework)" in s4, s4[:300]
+    assert "nb_ingest — 45 flows (1 disabled)" in s4 and "| f7 |" not in s4, s4
+    s9 = md.split("## 9. Migration complexity & scope")[1].split("\n## 10.")[0]
+    assert "**47 of 47 objects decided (100%)" in s9, s9[:300]                       # convert / rewrite / retire are decisions
+    assert "| Kind | retire | convert | rewrite | undecided |" in s9 and "| pipeline | 1 | 43 | 1 | 0 |" in s9, s9
+    assert "nb_ingest — 45 flows" in s9 and "retire 1 · convert 43 · rewrite 1" in s9 and "| f7 |" not in s9, s9
+    s10 = md.split("## 10. Target architecture & component mapping")[1].split("\n## 11.")[0]
+    assert "nb_ingest — 45 flows" in s10 and "entry f7" not in s10 and "<catalog>.silver.x" in s10, s10
+    from openpyxl import load_workbook
+    wb = load_workbook(root.parent / "out-final" / "discovery-flows.xlsx")
+    hdr = [c.value for c in next(wb["Inventory"].iter_rows(max_row=1))]
+    assert hdr[2:4] == [theme.header_label("name"), theme.header_label("runner")], hdr
+    assert sum(1 for r in wb["Rationalization"].iter_rows(min_row=2) if r[0].value) == 47        # one row per flow
+    summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows() if r[0].value}
+    assert (summary.get("convert"), summary.get("rewrite"), summary.get("undecided")) == (44, 2, 0), summary
+
+# ---------- every data-layer kind is a store, never a workload (evals 6 and 7: lake folders read as workloads) ----------
+assert set(write_records.KINDS["data"]) <= bd.STORE_KINDS, set(write_records.KINDS["data"]) - bd.STORE_KINDS
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d) / "assessment" / "stores"
+    write(root / "registers" / "inventory.jsonl",
+          [{"id": f"obj-{i}", "kind": k, "name": n, "evidence": EV, "status": "reviewed", "holds_pii": None}
+           for i, (k, n) in enumerate([("table", "dbo.Orders"), ("file_dataset", "lake/bronze/erp/orders"),
+                                       ("topic", "orders-events"), ("notebook", "nb_load"), ("report", "Daily sales")])])
+    (root / "intake.md").write_text("# Intake\n")
+    md = build(root)
+    s3 = md.split("## 3. Data landscape")[1].split("\n## 4.")[0]
+    s4 = md.split("## 4. Workload catalogue")[1].split("\n## 5.")[0]
+    assert "| lake/bronze/erp/orders | file_dataset |" in s3 and "| orders-events | topic |" in s3, s3
+    assert "2 workloads" in s4 and "lake/bronze" not in s4 and "orders-events" not in s4, s4
 print("test_build: ok")

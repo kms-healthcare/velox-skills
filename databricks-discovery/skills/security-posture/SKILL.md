@@ -3,7 +3,7 @@ name: security-posture
 description: "Score a Databricks workspace's security posture against the Security Analysis Tool (SAT) check catalog - read-only, with every check passed, failed or reported as not assessed and why. Reads the live workspace through the Databricks CLI (GET only), imports SAT's own results when the client already runs SAT, and checks Terraform / bundle / grant SQL when there is no workspace yet. Writes security findings and the security readiness score into the discovery run. Use when asked for the security posture, a SAT-style check, the security section of the assessment, or a before/after security comparison of a migration. Never installs SAT or changes a setting."
 compatibility: "Python 3.9+, stdlib only. Live mode needs the Databricks CLI signed in to the workspace (a read-only service principal by default)."
 metadata:
-  version: "0.2.3"
+  version: "0.2.4"
   parent: discovery-intake
 ---
 
@@ -22,7 +22,7 @@ the agent judges what a failure means for the client, the code decides pass or f
 |---|---|---|---|
 | Live workspace | `posture.py run --workspace [--profile <p>]` | `workspace` | a workspace exists and the CLI is signed in to it |
 | SAT's own results | `posture.py sat-sql …` → run the SQL read-only → save rows as JSON → `--sat-results rows.json` | `sat` | the client already runs SAT; fills the 12 account-level and network checks a workspace identity cannot see |
-| Infrastructure code | `--iac <repo path>` | `code` | pre-sales, or to compare the design with what is deployed. A bundle's `run_as` is graded per target on its effective value (target override → `${var.x}` from the target, then the default); one a deploy script or CI sets (`--var`, `BUNDLE_VAR_`) is not assessed, never "runs as a person" |
+| Infrastructure code | `--iac <repo path>` | `code` | pre-sales, or to compare the design with what is deployed. A bundle's `run_as` is graded per target on its effective value (target override → `${var.x}` from the target, then the default); one a deploy script or CI sets (`--var`, `BUNDLE_VAR_`) is not assessed, never "runs as a person". The plaintext-credential check (VX-SEC-1) also reads packages, report definitions, app configs and exported tables (`.dtsx`, `.rdl`, `.config`, `.csv`, …), and a password inside a connection string |
 | The client's admin, by file | `posture.py bundle` → they run it → `--from-posture posture.json` | `workspace` | the person chose it (below); only what the admin observed live counts |
 
 Pass them together in one run; a check takes its answer from the live workspace first, then SAT,

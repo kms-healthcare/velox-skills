@@ -436,10 +436,16 @@ def from_sat(rows, table="security_analysis.security_checks"):
 
 
 # ---------- infrastructure code ----------
-IAC_FILES = ("*.tf", "*.yml", "*.yaml", "*.sql", "*.json", "*.py")
+# Credentials hide beyond the infrastructure code itself: SSIS / DataStage packages, report definitions, app
+# configs and a control table's exported rows (measured on evals 0 and 7: both scanned as a pass).
+IAC_FILES = ("*.tf", "*.yml", "*.yaml", "*.sql", "*.json", "*.py", "*.dtsx", "*.dsx", "*.rdl", "*.xml", "*.config",
+             "*.ini", "*.env", "*.properties", "*.cfg", "*.conf", "*.csv", "*.sh", "*.ps1")
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".terraform"}
 SECRET_RE = re.compile(r"""(client_secret|password|api_key|access_token|secret)\s*[:=]\s*["']([^"'${}\s]{8,})["']""", re.I)
 PAT_RE = re.compile(r"\bdapi[0-9a-f]{32}\b")
+# A password inside a connection string ("…;Password=Etl@2019!;"), unquoted. A reference resolved elsewhere
+# (`@{…}` Data Factory, `${…}`, `%…%`, `{{secrets/…}}`) is not plaintext.
+CONN_SECRET_RE = re.compile(r"(?<![\w-])(password|pwd)\s*=\s*(?![@${%<])([^;\"'<>\s,]{4,})", re.I)
 GRANT_RE = re.compile(r"GRANT\s+(.+?)\s+ON\s+.+?\s+TO\s+[`'\"]?(account users|users)[`'\"]?", re.I)
 DEPLOY_FILES = ("*.sh", "*.ps1", "Makefile", "*.mk")   # deploy scripts: read only for bundle --var overrides
 DEPLOY_VAR_RE = re.compile(r"""--var[=\s]+["']?([^"'\s]+)|BUNDLE_VAR_(\w+)""")
@@ -557,8 +563,9 @@ def from_iac(root):
                     window = " ".join(lines[max(0, i - 4):i + 4])
                     if BROAD_PRIVS.search(window):
                         add("VX-UC-1", "fail", loc, line.strip())
-                if "secrets/" not in line and (SECRET_RE.search(line) or PAT_RE.search(line)):
-                    add("VX-SEC-1", "fail", loc, re.sub(r"(['\"])[^'\"]{4,}(['\"])", r"\1***\2", line.strip()))
+                if "secrets/" not in line and (SECRET_RE.search(line) or PAT_RE.search(line) or CONN_SECRET_RE.search(line)):
+                    masked = CONN_SECRET_RE.sub(lambda m: m.group(0)[:m.start(2) - m.start(0)] + "***", line.strip())
+                    add("VX-SEC-1", "fail", loc, re.sub(r"(['\"])[^'\"]{4,}(['\"])", r"\1***\2", masked)[:200])
                 m = re.search(r"data_security_mode\s*[:=]\s*[\"']?(\w+)", line)
                 if m:
                     add("GOV-12", "fail" if re.match(r"NONE|NO_ISOLATION|LEGACY_", m.group(1)) else "pass", loc, line.strip())
