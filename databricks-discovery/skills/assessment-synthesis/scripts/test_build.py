@@ -161,3 +161,15 @@ with tempfile.TemporaryDirectory() as d:
     # No cost review: no cost section.
     assert "## 8a." not in build(project(Path(d)))
 print("test_build: ok")
+
+# A run with inventory but no rationalization still gets its draft, and fails loudly.
+with tempfile.TemporaryDirectory() as d:
+    root = project(Path(d))
+    (root / "registers" / "rationalization.jsonl").unlink()
+    out = root.parent / "out-unfinished"
+    r = subprocess.run([sys.executable, str(HERE / "build_deliverables.py"), str(root), "--out-dir", str(out),
+                        "--no-docx", "--include-unreviewed"], capture_output=True, text=True)
+    assert r.returncode == 3 and "UNFINISHED" in r.stderr, (r.returncode, r.stderr)
+    assert (out / "assessment-report.md").exists()
+print("test_build unfinished: ok")
+
