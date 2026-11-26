@@ -4,7 +4,10 @@ edges an assessment must not drop. Stdlib only.
     python3 orchestration_steps.py <project root>            # TSV on stdout
     python3 orchestration_steps.py <project root> --json
 
-One row per step: from_kind, from_name, step, edge_kind, to_kind, to_name, locator.
+One row per (pipeline, step, target): from_kind, from_name, step, edge_kind, to_kind, to_name,
+unresolved, locator. `unresolved` is empty when the target is known; otherwise it holds the
+expression (`@item().proc` — to_name is then empty) or the ambiguous candidates. A step seen in
+both a Git and a live export is one row, its locators joined with `; `.
 Reads, wherever they sit under the root:
 - Synapse pipelines in the Git shape (one `pipeline/<name>.json`, `properties.activities`,
   `typeProperties.*`) and the live-export shape (`az synapse pipeline list` — a JSON array, no
@@ -36,25 +39,48 @@ def walk(acts):
             yield from walk(case.get("activities"))
 
 
-def ref_name(v):
+def target(v):
+    """(name, unresolved): a reference or plain name, `[ctl].[usp_Log]` → `ctl.usp_Log`;
+    an expression gives no name and is returned as unresolved."""
     if isinstance(v, dict):
-        return v.get("referenceName") or ref_name(v.get("value"))
-    return v if isinstance(v, str) else None
+        if v.get("type") == "Expression" or str(v.get("value", "")).startswith("@"):
+            return None, str(v.get("value"))
+        return target(v.get("referenceName") or v.get("value"))
+    if not isinstance(v, str) or not v:
+        return None, ""
+    if v.startswith("@"):
+        return None, v
+    return re.sub(r"[\[\]\"`]", "", v), ""
+
+
+# activity type → (to_kind, where the target sits: typeProperties key or (key, subkey))
+STEPS = {
+    "SqlPoolStoredProcedure": [("procedure", "storedProcedureName")],
+    "SqlServerStoredProcedure": [("procedure", "storedProcedureName")],
+    "Lookup": [("procedure", ("source", "sqlReaderStoredProcedureName"))],
+    "Copy": [("procedure", ("source", "sqlReaderStoredProcedureName")),
+             ("procedure", ("sink", "sqlWriterStoredProcedureName"))],
+    "SynapseNotebook": [("notebook", "notebook")],
+    "DatabricksNotebook": [("notebook", "notebookPath")],
+    "ExecutePipeline": [("pipeline", "pipeline")],
+    # Azure ML (v1 published pipeline): the id joins the az ml export, not a display name
+    "AzureMLExecutePipeline": [("pipeline", "mlPipelineEndpointId"), ("pipeline", "mlPipelineId")],
+    "SparkJob": [("spark_job", "sparkJob")],
+    "ExecuteDataFlow": [("dataflow", "dataflow")],
+}
 
 
 def synapse_rows(name, acts, locator):
     for a in walk(acts):
-        t, step = a.get("type"), a.get("name")
-        if t in ("SqlPoolStoredProcedure", "SqlServerStoredProcedure"):
-            yield ("pipeline", name, step, "calls", "procedure", ref_name(tp(a, "storedProcedureName")), locator)
-        elif t == "SynapseNotebook":
-            yield ("pipeline", name, step, "calls", "notebook", ref_name(tp(a, "notebook")), locator)
-        elif t == "ExecutePipeline":
-            yield ("pipeline", name, step, "calls", "pipeline", ref_name(tp(a, "pipeline")), locator)
-        elif t == "SparkJob":
-            yield ("pipeline", name, step, "calls", "spark_job", ref_name(tp(a, "sparkJob")), locator)
-        elif t == "ExecuteDataFlow":
-            yield ("pipeline", name, step, "calls", "dataflow", ref_name(tp(a, "dataflow")), locator)
+        step = a.get("name")
+        for kind, where in STEPS.get(a.get("type"), []):
+            v = (tp(a, where[0]) or {}).get(where[1]) if isinstance(where, tuple) else tp(a, where)
+            if v is None:
+                continue
+            to, unresolved = target(v)
+            yield ("pipeline", name, step, "calls", kind, to or "", unresolved, locator)
+            if a.get("type") == "AzureMLExecutePipeline":
+                break  # endpoint id when set, else the pipeline id
 
 
 def yaml_scalar(text, key):
@@ -84,7 +110,7 @@ def aml_pipeline_rows(path, root):
                 job = yaml_scalar(cfile.read_text(errors="replace"), "name") or step
         elif comp:
             job = comp.group(1).removeprefix("azureml:").split(":")[0].split("@")[0]
-        yield ("pipeline", pname, step, "calls", "job", job, f"{path.relative_to(root)}:jobs.{step}")
+        yield ("pipeline", pname, step, "calls", "job", job, "", f"{path.relative_to(root)}:jobs.{step}")
 
 
 def aml_job_rows(jobs, components):
@@ -94,14 +120,17 @@ def aml_job_rows(jobs, components):
         pname = o.get("display_name") or o.get("experiment_name") or o["name"]
         for step, j in o["jobs"].items():
             comp = str((j or {}).get("component") or "")
-            name = comp.removeprefix("azureml:").split(":")[0].split("@")[0]
+            name, unresolved = comp.removeprefix("azureml:").split(":")[0].split("@")[0], ""
             if not name or name == "azureml_anonymous":
                 # ponytail: an inline step has no registered name; match `<prefix>_<step>` in the
-                # component list, else keep the step key. `az ml job show` would name it exactly.
-                name = next((c for c in sorted(components) if c == step or c.endswith("_" + step)), step)
+                # component list. `az ml job show` would name it exactly.
+                hits = [c for c in sorted(components) if c == step] or \
+                       [c for c in sorted(components) if c.endswith("_" + step)]
+                name = hits[0] if len(hits) == 1 else step
+                unresolved = "ambiguous: " + " | ".join(hits) if len(hits) > 1 else ""
             if (pname, step) not in seen:
                 seen.add((pname, step))
-                yield ("pipeline", pname, step, "calls", "job", name, f"{loc}:jobs.{step}")
+                yield ("pipeline", pname, step, "calls", "job", name, unresolved, f"{loc}:jobs.{step}")
 
 
 def scan(root):
@@ -133,10 +162,15 @@ def scan(root):
             if re.search(r"^type:\s*pipeline\s*$", text, re.M):
                 rows += aml_pipeline_rows(p, root)
     rows += aml_job_rows(aml_jobs, components)
-    return list(dict.fromkeys(rows))
+    merged = {}  # one row per (pipeline, step, target); a Git and a live copy keep both locators
+    for r in rows:
+        locs = merged.setdefault(r[:7], [])
+        if r[7] not in locs:
+            locs.append(r[7])
+    return [k + ("; ".join(v),) for k, v in merged.items()]
 
 
-COLS = ("from_kind", "from_name", "step", "edge_kind", "to_kind", "to_name", "locator")
+COLS = ("from_kind", "from_name", "step", "edge_kind", "to_kind", "to_name", "unresolved", "locator")
 
 if __name__ == "__main__":
     out = scan(sys.argv[1])

@@ -107,8 +107,9 @@ every field below from either place (`a.get("typeProperties", a)`), and walk nes
 (`ForEach.activities`, `IfCondition.ifTrueActivities` / `ifFalseActivities`, `Until.activities`,
 `Switch.cases[].activities` / `defaultActivities`) in both shapes. A stored-procedure step read
 from the wrong place is a `calls` edge that silently disappears — typically the logging and
-watermark steps every pipeline shares. `scripts/orchestration_steps.py` reads both shapes and lists every step; its rows are the edges
-(SKILL.md step 0a).
+watermark steps every pipeline shares. `scripts/orchestration_steps.py` reads both shapes and lists the steps it knows — stored procedures (including a
+Lookup's `sqlReaderStoredProcedureName` and a Copy's `sqlWriterStoredProcedureName`), Synapse and Databricks notebooks,
+Execute Pipeline, Azure ML Execute Pipeline, Spark jobs, data flows; its rows are the floor of the edge list (SKILL.md step 0a).
 
 - **Pipelines** (`pipeline/*.json`, `properties.activities[]` — or top-level `activities[]` in a live export): `SqlPoolStoredProcedure` →
   `procedure` edge; `SynapseNotebook` → `notebook` edge (with `parameters`); `Copy` — rules hide in

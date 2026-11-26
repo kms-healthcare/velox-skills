@@ -3,7 +3,7 @@ name: legacy-etl-archaeology
 description: "Recover business rules, dependencies, and inventory from legacy data code before migrating it to Databricks - DW/ETL (T-SQL, PL/SQL and Teradata procedures, views, SSIS, Informatica, DataStage, Synapse pipelines and notebooks, scheduler jobs, report logic), application code (services, pipelines, message buses, APIs, dashboards) and Azure ML workspaces (pipelines, models, endpoints). Produces a business-rule register with VERIFIED / CONFLICT / CODE-ONLY / DOC-ONLY / CONFIG-ONLY / DEAD / UNRESOLVED statuses, a dependency graph, and inventory with real usage, all with code locators. Use when the user has legacy code and asks what these stored procedures do, which rules are missing from the spec, which tables are orphan, or how to prepare for Lakebridge. Does not convert code and does not replace Lakebridge Analyzer."
 compatibility: "Runs outside Databricks. Filesystem; Python 3.9+ for scripts/orchestration_steps.py (stdlib). Lakebridge Analyzer needs the Databricks CLI with a signed-in workspace."
 metadata:
-  version: "0.4.0"
+  version: "0.4.1"
   parent: discovery-intake
 ---
 
@@ -75,10 +75,14 @@ Synapse / ADF pipelines or Azure ML pipelines (Git or a live export), run
 `python3 "<directory>/scripts/orchestration_steps.py" <project root> > <run>/tools/steps.tsv` and
 make **every row** one `dependency_edges` record (`kind: calls`, from the pipeline to the
 procedure / notebook / pipeline / `job`, locator from the row); a `job` row with no inventory
-record gets one. Read the JSON by eye for rules and expressions, never for the edge list: shared
-steps (logging, watermarks) and the live export's flattened shape are what reading drops. Before
-writing, the count of `calls` edges per pipeline equals the script's count — say so in
-`review.md`, with any row you deliberately left out and why.
+record gets one. A row with `unresolved` is not a target yet: an expression (`@item().proc`) is
+resolved from the config that drives it — one edge per target it takes — and an `ambiguous:` job
+is named from `az ml job show` or the YAML; what stays unresolved is named in `review.md`. Read
+the JSON by eye for rules, expressions and steps the script does not know, never instead of it:
+shared steps (logging, watermarks) and the live export's flattened shape are what reading drops.
+Before writing, each pipeline has **at least** the script's `calls` edges; an edge it does not
+list is added with its locator and named in `review.md`, with any row you deliberately left out
+and why.
 
 **0b. Data surfaces (application code).** Every place the code writes or publishes data is an
 `inventory` record — file stores, queues, logs, caches, object storage, exports — with

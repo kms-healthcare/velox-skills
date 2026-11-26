@@ -22,12 +22,33 @@ def test_git_and_live_shapes_give_the_same_edges():
         (root / "live").mkdir()
         (root / "live/pipeline.json").write_text(json.dumps([{"name": "PL_A", "activities": [live_loop, live_act]}]))
         rows = o.scan(root)
-    git = {r[:6] for r in rows if r[6].startswith("git")}
-    live = {r[:6] for r in rows if r[6].startswith("live")}
-    assert git == live == {
-        ("pipeline", "PL_A", "Run", "calls", "pipeline", "PL_Child"),
-        ("pipeline", "PL_A", "Log", "calls", "procedure", "ctl.usp_Log"),
-    }
+    # one row per step, carrying both locators — not one per source
+    assert rows == [
+        ("pipeline", "PL_A", "Run", "calls", "pipeline", "PL_Child", "", "git/pipeline/PL_A.json; live/pipeline.json[0]"),
+        ("pipeline", "PL_A", "Log", "calls", "procedure", "ctl.usp_Log", "", "git/pipeline/PL_A.json; live/pipeline.json[0]"),
+    ]
+
+
+def test_watermark_lookup_copy_sink_azure_ml_and_databricks_steps_are_edges():
+    acts = [
+        {"name": "WM", "type": "Lookup", "typeProperties": {"source": {"sqlReaderStoredProcedureName": "ctl.usp_GetWatermark"}}},
+        {"name": "Load", "type": "Copy", "typeProperties": {"sink": {"sqlWriterStoredProcedureName": "stg.usp_Upsert"}}},
+        {"name": "ML", "type": "AzureMLExecutePipeline", "mlPipelineId": "pipe-1"},
+        {"name": "DBX", "type": "DatabricksNotebook", "typeProperties": {"notebookPath": "/Shared/clean"}},
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "p.json").write_text(json.dumps([{"name": "PL", "activities": acts}]))
+        assert [(r[2], r[4], r[5]) for r in o.scan(d)] == [
+            ("WM", "procedure", "ctl.usp_GetWatermark"), ("Load", "procedure", "stg.usp_Upsert"),
+            ("ML", "pipeline", "pipe-1"), ("DBX", "notebook", "/Shared/clean")]
+
+
+def test_bracketed_names_join_and_expressions_stay_unresolved():
+    acts = [dict(LOG, storedProcedureName="[ctl].[usp_Log]"),
+            dict(LOG, name="Dyn", storedProcedureName={"value": "@item().proc", "type": "Expression"})]
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "p.json").write_text(json.dumps([{"name": "PL", "activities": acts}]))
+        assert [(r[5], r[6]) for r in o.scan(d)] == [("ctl.usp_Log", ""), ("", "@item().proc")]
 
 
 def test_if_condition_branches_are_walked():
@@ -61,3 +82,13 @@ def test_azure_ml_live_job_export_names_steps_from_the_component_list():
         (Path(d) / "component.json").write_text(json.dumps(comps))
         rows = o.scan(d)
     assert [(r[1], r[2], r[5]) for r in rows] == [("demo-training", "prep", "demo_prep"), ("demo-training", "train", "demo_train")]
+
+
+def test_azure_ml_step_matching_two_components_is_flagged_not_guessed():
+    job = {"name": "r", "type": "pipeline", "jobs": {"prep": {"component": "azureml:azureml_anonymous:1"}}}
+    comps = [{"name": n, "id": "/x/components/" + n, "creation_context": {}} for n in ("a_prep", "b_prep")]
+    with tempfile.TemporaryDirectory() as d:
+        (Path(d) / "job.json").write_text(json.dumps([dict(job, display_name="A"), dict(job, name="r2", display_name="B")]))
+        (Path(d) / "component.json").write_text(json.dumps(comps))
+        rows = o.scan(d)
+    assert [(r[1], r[5], r[6]) for r in rows] == [("A", "prep", "ambiguous: a_prep | b_prep"), ("B", "prep", "ambiguous: a_prep | b_prep")]
