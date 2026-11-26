@@ -6,7 +6,7 @@ rows of `exports/ctl_IngestControl.csv`, two dispatchers — `PL_Ingest_Hourly` 
 `PL_Ingest_Daily` (`'D'`, run by `TR_Daily_0300` at 03:00 UTC) — each Lookup → ForEach →
 ExecutePipeline `PL_Copy_One` with `@item().SourceQuery`, `SinkSchema`, `SinkTable`.
 
-Expected from `expand_flows.py expand`: **10 flows (6 hourly, 4 daily), 2 disabled, all 10 read by query.**
+Expected from `expand_flows.py expand`: **10 flows (6 hourly, 4 daily), 2 disabled, all 10 read by query, 1 unrouted.**
 The description is a list of two, one per dispatcher, each with `where` Frequency = H / D, its
 dispatcher and its trigger's schedule; target `{SinkSchema}.{SinkTable}`; `source_query` SourceQuery;
 `enabled` IsEnabled.
@@ -28,6 +28,13 @@ dispatcher and its trigger's schedule; target `{SinkSchema}.{SinkTable}`; `sourc
    refused by the script.
 6. **Disposition.** The runner is a Copy activity — nothing to move — so `decide` defaults to
    `rewrite` (native Databricks ingestion), with `keep` named in its `--note` — the reason every
-   rewritten flow's `notes` carry (the copy can stay and land where Databricks reads it); the two disabled flows `retire`; the runner and both dispatchers
-   `retire` (no flow converts or keeps).
+   rewritten flow's `notes` carry (the copy can stay and land where Databricks reads it); the two disabled flows `retire`, with one
+   open question to the owner for both; the runner and both dispatchers `retire` (no flow converts or keeps), with the condition that
+   they keep running in the source until the rewritten flows run in Databricks (target component "stays in the source until the
+   last rewrite is live").
 7. **Counting.** Every flow number the agent states comes from the script's summary.
+8. **A row nothing routes.** `fin_budget` (`exports/ctl_IngestControl.csv:12`) is enabled with
+   `Frequency = 'W'`, and neither dispatcher reads `'W'`. It is no flow, and it must not vanish: the
+   script reports it as `unrouted`, and `review.md` lists it with an open question asking who runs it
+   (a weekly dispatcher not in the export, or a row nothing runs). An agent that adds a `'W'`
+   description with no dispatcher invents one.

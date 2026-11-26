@@ -412,6 +412,7 @@ def test_fixture_control_table():
                                     runner_extra={"kind": "pipeline", "name": "PL_Copy_One"})
         s = x.expand(run, "obj-0001")
         assert (s["flows"], s["disabled"]["count"], s["by_query"]["count"]) == (10, 2, 10), s
+        assert listed(s, "unrouted") == ["sources/exports/ctl_IngestControl.csv:12"], s     # fin_budget, 'W': nobody routes it
         flows = [r for r in rows(run, "inventory") if r.get("runner")]
         assert sum(1 for r in flows if r["writes"] == ["bronze.crm_contacts"]) == 2
         text = "".join((run / f).read_text() for f in ("inventory.jsonl", "dependency_edges.jsonl"))

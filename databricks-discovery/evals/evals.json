@@ -148,7 +148,8 @@
         "No value of the SourceConnection column appears in any register, review.md or manifest.json",
         "Raises a finding that crm_contacts_delta and crm_contacts_full both load bronze.crm_contacts, with both entries' locators",
         "Rationalization through expand_flows.py decide with default rewrite (a Copy activity has no runner to move) and a --note that names keep as the option of leaving the copy in place, so every rewritten flow's notes carry it; the disabled flows retire, with one open question to the runner's owner for both; the runner and both dispatchers retire with the condition that they keep running in the source until the rewrites run in Databricks",
-        "Every flow count it states comes from the script's summary, not from its own counting"
+        "Every flow count it states comes from the script's summary, not from its own counting",
+        "Reports fin_budget (Frequency 'W', which neither dispatcher reads) as unrouted in review.md with an open question asking who runs it; it is no flow, and it is not dropped"
       ]
     }
   ]

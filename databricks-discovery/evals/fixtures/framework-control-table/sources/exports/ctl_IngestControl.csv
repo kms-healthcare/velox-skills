@@ -9,3 +9,4 @@ FlowId,FlowName,SourceSystem,SourceConnection,SourceQuery,SinkSchema,SinkTable,T
 8,erp_products,ERP,Server=erp-sql.lumenfreight.example;Database=ERP;User Id=etl_reader;Password=SyntheticERP2024!,SELECT * FROM dbo.Product,bronze,erp_product,STG_PRODUCT,D,1
 9,crm_contacts_full,CRM,Server=crm-sql.lumenfreight.example;Database=CRM;User Id=etl_reader;Password=SyntheticCRM2024!,SELECT * FROM crm.Contact,bronze,crm_contacts,STG_CONTACT_FULL,D,1
 10,hr_employees,HR,Server=hr-sql.lumenfreight.example;Database=HR;User Id=etl_reader;Password=SyntheticHR2024!,"SELECT EmployeeId, DepotId, Role FROM hr.Employee",bronze,hr_employee,STG_EMPLOYEE,D,0
+11,fin_budget,FIN,Server=fin-sql.lumenfreight.example;Database=FIN;User Id=etl_reader;Password=SyntheticFIN2024!,SELECT * FROM fin.BudgetLine,bronze,fin_budget_line,STG_BUDGET,W,1
