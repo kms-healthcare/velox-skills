@@ -81,7 +81,9 @@ file) from a loop over a list kept as data is N flows, not one pipeline. Recogni
 `framework` on the runner's inventory record — the mapping from the keys the runner's code reads,
 with a locator — and run `"<directory>/scripts/expand_flows.py" expand <run-dir> <runner-id>`, where it
 is, never copied. Never count the flows or write them yourself while the script can read the
-entries: its summary goes into `review.md` and its files into the manifest. Forms, the description, routing, fallback:
+entries: its summary goes into `review.md`, each list once with its count and first ten, and its
+files into the manifest. Check that the routing covers every entry: the summary's `unrouted` is an
+entry nothing routes. Forms, the description, routing, fallback:
 `references/framework-guide.md`.
 
 **1. Units.** One coherent behaviour a reviewer holds in their head; 10–20 rules, split above ~25.

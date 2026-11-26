@@ -71,10 +71,15 @@ The default follows what the runner is:
 `--note` is the reason, kept in the `notes` of every flow the default decides — the place a reviewer
 reads it; for a Copy it names `keep` ("…; keep if the copy stays in Data Factory and lands where
 Databricks reads it"). `--except` only with evidence: a finding on the flow, a source Lakeflow Connect supports where the
-framework's own handling is the weak part. A disabled flow is `retire` whatever the default, with
-an open question to its owner. The runner and its dispatchers follow their flows (`convert` if any
-flow converts, `keep` if any keeps, else `retire`). The report shows a framework as one row with its
-count by disposition; the workbook keeps one row per flow.
+framework's own handling is the weak part. A disabled flow is `retire` whatever the default. A
+framework's disabled flows share **one** open question to the runner's owner, with their count and
+the first ten, never a question per flow. The runner and its dispatchers follow their flows
+(`convert` if any flow converts, `keep` if any keeps, else `retire`). A runner that retires while
+some of its flows are `rewrite` keeps running in the source until those rewrites run in Databricks:
+`decide` writes that into its target component and note, and the roadmap retires it after the last
+rewrite's wave, never before. A flow whose entry is gone gets no decision. The report shows a
+framework as one row with its count by disposition and each schedule its flows run on; the workbook
+keeps one row per flow.
 
 ## 1b. Findings → what the migration does with each
 

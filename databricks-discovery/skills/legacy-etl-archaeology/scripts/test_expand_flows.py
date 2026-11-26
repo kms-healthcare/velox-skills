@@ -13,6 +13,13 @@ def cfg(**kv):
     return json.dumps(kv, indent=2)
 
 
+def listed(summary, key):
+    """A summary list as the script prints it: its count and its first ten (review of #17, 5,000 rows)."""
+    got = summary[key]
+    assert set(got) == {"count", "first"} and len(got["first"]) == min(got["count"], 10), got
+    return got["first"]
+
+
 def assert_refused(fn, msg):
     try:
         fn()
@@ -142,9 +149,10 @@ def test_expand_writes_flows_and_edges():
         assert ("obj-0001-erp-orders", "obj-0001", "calls") in edges
         assert ("obj-0002", "obj-0001-erp-orders", "triggers") in edges
         assert ("obj-0001-erp-orders", "obj-0100", "writes") in edges              # [bronze].[orders] matches bronze.orders
-        assert s["disabled"] == ["obj-0001-erp-customers"] and s["by_query"] == ["obj-0001-by-query"]
-        assert s["skipped"] == ["sources/config/_defaults.json:1"]
-        assert "erp.dbo.Orders" in s["unmatched"] and "bronze.orders" not in s["unmatched"]
+        assert listed(s, "disabled") == ["obj-0001-erp-customers"] and listed(s, "by_query") == ["obj-0001-by-query"]
+        assert listed(s, "skipped") == ["sources/config/_defaults.json:1"]
+        assert "erp.dbo.Orders" in listed(s, "unmatched") and "bronze.orders" not in listed(s, "unmatched")
+        assert listed(s, "unrouted") == []
         assert s["files"] == sorted(files)
 
 
@@ -162,7 +170,7 @@ def test_rerun_adds_one_reports_gone_and_is_byte_identical():
         (root / "sources/config/f3.json").write_text(cfg(name="f3", src="s.t3", tgt="b.t3"))
         (root / "sources/config/f0.json").unlink()
         s = x.expand(run, "obj-0001")
-        assert (s["flows"], s["new"], s["replaced"]) == (3, 1, 2) and s["gone"] == ["obj-0001-f0", "obj-0001-old"]
+        assert (s["flows"], s["new"], s["replaced"]) == (3, 1, 2) and listed(s, "gone") == ["obj-0001-f0", "obj-0001-old"]
         ids = [r["id"] for r in rows(run, "inventory")]
         assert len(ids) == len(set(ids)) and "obj-0001-f3" in ids and "obj-0001-f0" in ids     # gone is reported, not deleted
 
@@ -197,6 +205,35 @@ def test_descriptions_route_entries_and_refuse_overlap():
         assert_refused(lambda: x.expand(run, "obj-0001"), "two descriptions")
 
 
+def test_an_entry_no_description_routes_is_counted_never_dropped():
+    # Review of #17: a control table routed 'H' / 'D' with a 'W' row lost that row without a word.
+    weekly = CSV + "w1,s.w1,b.w1,W,1,Server=x;Password=Synthetic1\n"
+    with tempfile.TemporaryDirectory() as d:
+        root, run = project(d, {"sources/ctl.csv": weekly}, [routed("H", "obj-0010", "hourly"), routed("D", "obj-0011", "daily")],
+                            runner_extra={"kind": "pipeline", "name": "PL_Copy_One"})
+        s = x.expand(run, "obj-0001")
+        assert s["flows"] == 3 and listed(s, "unrouted") == ["sources/ctl.csv:5"], s
+        assert "obj-0001-w1" not in {r["id"] for r in rows(run, "inventory")}            # no flow: nobody runs it here
+    with tempfile.TemporaryDirectory() as d:
+        # Runners split by type: another runner's description over the same entries takes the 'W' row.
+        other = {**obj("obj-0005", "pipeline", "PL_Copy_Weekly"), "framework": routed("W", None, "weekly")}
+        root, run = project(d, {"sources/ctl.csv": weekly}, [routed("H", "obj-0010", "hourly"), routed("D", "obj-0011", "daily")],
+                            runner_extra={"kind": "pipeline", "name": "PL_Copy_One"}, inventory=[other])
+        assert listed(x.expand(run, "obj-0001"), "unrouted") == []
+
+
+def test_a_long_list_gives_its_count_and_first_ten():
+    # Review of #17: 5,000 rows gave 1,667 + 10,000 review items, one per flow.
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/f{i:02}.json": cfg(name=f"f{i:02}", src=f"s.t{i}", tgt=f"b.t{i}", active=0) for i in range(25)}
+        root, run = project(d, files, fw(fields={"source": "src", "target": "tgt", "enabled": "active"}))
+        s = x.expand(run, "obj-0001")
+        assert s["disabled"] == {"count": 25, "first": [f"obj-0001-f{i:02}" for i in range(10)]}, s["disabled"]
+        assert s["unmatched"]["count"] == 50 and len(s["unmatched"]["first"]) == 10
+        assert len(s["files"]) == 25                                                     # the files stay whole: manifest.json lists them
+        assert sum(1 for r in rows(run, "inventory") if r.get("runner")) == 25           # every flow is still written
+
+
 def test_expand_refuses_and_writes_nothing():
     one = {"sources/config/a.json": cfg(name="a", src="s", tgt="t")}
     for files, framework, msg in (
@@ -218,7 +255,7 @@ def test_incomplete_entry_is_written_and_listed():
     with tempfile.TemporaryDirectory() as d:
         root, run = project(d, {"sources/config/a.json": cfg(name="a", tgt="b.a"), "sources/config/b.json": cfg(name="b", src="s.b")}, fw())
         s = x.expand(run, "obj-0001")
-        assert s["flows"] == 2 and s["incomplete"] == ["obj-0001-a", "obj-0001-b"]
+        assert s["flows"] == 2 and listed(s, "incomplete") == ["obj-0001-a", "obj-0001-b"]
 
 
 def test_numeric_key():
@@ -284,6 +321,42 @@ def test_decide_note_is_the_reason_on_every_flow_decided_by_default():
         assert {r["object_id"]: r for r in rows(run, "rationalization")}["obj-0001-a"]["notes"] == "carried as configuration"
 
 
+def test_a_gone_flow_gets_no_decision():
+    # Review of #17: delete an entry, expand reports it gone, and decide still wrote `convert` for it.
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "b", "c")}
+        root, run = project(d, files, fw())
+        x.expand(run, "obj-0001")
+        (root / "sources/config/c.json").unlink()
+        assert listed(x.expand(run, "obj-0001"), "gone") == ["obj-0001-c"]
+        s = x.decide(run, "obj-0001", "convert", {})
+        assert s["flows"] == 2 and "obj-0001-c" not in {r["object_id"] for r in rows(run, "rationalization")}, s
+        assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-0001-c": "keep"}), "obj-0001-c")
+
+
+def test_a_runner_retired_while_its_flows_are_rewritten_waits_for_them():
+    # Bartosz, 2026-11-25 (review of #17): rewrites land in waves, and the old runner keeps loading
+    # the flows not yet rewritten, so its retire says when.
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}", active=a) for n, a in (("a", 1), ("b", 1), ("c", 0))}
+        root, run = project(d, files, fw(fields={"source": "src", "target": "tgt", "enabled": "active"}, dispatcher="obj-0002"),
+                            inventory=[obj("obj-0002", "pipeline", "PL_All")])
+        x.expand(run, "obj-0001")
+        x.decide(run, "obj-0001", "rewrite", {})
+        rat = {r["object_id"]: r for r in rows(run, "rationalization")}
+        for oid in ("obj-0001", "obj-0002"):
+            assert rat[oid]["disposition"] == "retire"
+            assert rat[oid]["target_component"] == "stays in the source until the last rewrite is live", rat[oid]
+            assert rat[oid]["notes"] == "Retire after its 2 rewritten flows run in Databricks; until then it keeps running in the source"
+    with tempfile.TemporaryDirectory() as d:                         # every flow retired: nothing to wait for
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}", active=0) for n in ("a", "b", "c")}
+        root, run = project(d, files, fw(fields={"source": "src", "target": "tgt", "enabled": "active"}))
+        x.expand(run, "obj-0001")
+        x.decide(run, "obj-0001", "rewrite", {})
+        runner = {r["object_id"]: r for r in rows(run, "rationalization")}["obj-0001"]
+        assert (runner["disposition"], runner["target_component"], runner["notes"]) == ("retire", None, "follows its 3 flows"), runner
+
+
 def test_a_flow_rejected_in_the_registers_stays_out_of_decide():
     with tempfile.TemporaryDirectory() as d:
         files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "junk")}
@@ -320,9 +393,9 @@ def test_fixture_config_files():
             schedule="daily 02:00 UTC (trigger TR_Ingest_Daily)", dispatcher="obj-0002"),
             inventory=[obj("obj-0002", "pipeline", "PL_Ingest_All")])
         s = x.expand(run, "obj-0001")
-        assert s["flows"] == 7 and len(s["disabled"]) == 1 and len(s["by_query"]) == 1, s
-        assert s["skipped"] == ["sources/config/ingest/_defaults.json:1"], s
-        assert s["incomplete"] == [], s
+        assert (s["flows"], s["disabled"]["count"], s["by_query"]["count"]) == (7, 1, 1), s
+        assert listed(s, "skipped") == ["sources/config/ingest/_defaults.json:1"], s
+        assert listed(s, "incomplete") == [] and listed(s, "unrouted") == [], s
         writes = [t for r in rows(run, "inventory") if r.get("runner") for t in r["writes"]]
         assert len(writes) == 7 and not any(t.startswith("stg_") for t in writes), writes
 
@@ -338,7 +411,7 @@ def test_fixture_control_table():
                                      one("D", "obj-0011", "daily 03:00 UTC (trigger TR_Daily_0300)")],
                                     runner_extra={"kind": "pipeline", "name": "PL_Copy_One"})
         s = x.expand(run, "obj-0001")
-        assert s["flows"] == 10 and len(s["disabled"]) == 2 and len(s["by_query"]) == 10, s
+        assert (s["flows"], s["disabled"]["count"], s["by_query"]["count"]) == (10, 2, 10), s
         flows = [r for r in rows(run, "inventory") if r.get("runner")]
         assert sum(1 for r in flows if r["writes"] == ["bronze.crm_contacts"]) == 2
         text = "".join((run / f).read_text() for f in ("inventory.jsonl", "dependency_edges.jsonl"))

@@ -78,6 +78,11 @@ reviewed with the runner and merged with it, so the next run finds it in `regist
   dispatchers (`Frequency = 'H'` hourly, `'D'` daily), or when a dispatcher sends entries to different
   runners by type. Then write **a list of descriptions**: one per dispatcher, each with its own
   `where`, `dispatcher` and `schedule`, or one on each runner.
+- **Check that the `where` clauses cover every entry.** Read the values the routing field takes in
+  the entries (every `Frequency` in the table, not only the ones the dispatchers you found read). An
+  entry no description covers, on this runner or another over the same entries, is no flow: the
+  script reports it as `unrouted`. A `'W'` row beside `'H'` and `'D'` dispatchers is a dispatcher you
+  have not found, or a row nothing runs; ask.
 - **The on/off switch is `fields.enabled`, never `where`.** A dispatcher's `WHERE IsEnabled = 1` means
   a disabled row does not run. It is still a flow: recorded as disabled, and a retire candidate whose
   owner confirms. Put it in `where` and it disappears from the count.
@@ -99,18 +104,22 @@ Run it where it is, never copied. It reads every entry and writes:
 
 Every record passes through `write_records.py`. **Never count flows yourself, and never write flow
 records by hand when the script can read the entries.** A number in `review.md` or the report comes
-from the script's summary, which prints as JSON:
+from the script's summary, which prints as JSON. Each list in it is its `count` and its `first`
+ten items, however many flows the framework has. Write each list **once** in `review.md`: its count
+and those ten, never an item per flow. 5,000 rows once gave 11,667 review items. The workbook keeps
+every flow.
 
 | Summary key | Goes to |
 |---|---|
 | `flows`, `new`, `replaced` | `review.md` — the count |
-| `disabled` | `review.md`; each is a retire candidate with an owner question |
+| `disabled` | `review.md`; retire candidates — one open question to the runner's owner for all of them, with the count and the first ten |
 | `incomplete` | `review.md`; an entry with no target, or no source or query — a question |
 | `by_query` | `review.md`; the tables a query reads are left to the reviewer, unparsed |
 | `unmatched`, `ambiguous` | `review.md`; a source or target with no (or several) inventory objects — add the object, or raise a question |
+| `unrouted` | `review.md`; entries no description routes, so no flow — an open question asking who runs them |
 | `skipped` | `review.md`; files with no key value (templates, defaults) |
-| `gone` | `review.md`; flows whose entry no longer exists — the reviewer rejects them, nothing is deleted |
-| `files` | `manifest.json` sources |
+| `gone` | `review.md`; flows whose entry no longer exists — the reviewer rejects them, nothing is deleted, and `decide` gives them no decision |
+| `files` | `manifest.json` sources, in full |
 
 Expand again on every run, even when nothing changed. The desktop keeps a reviewed decision only
 while the run's copy is unchanged, and the script writes the same bytes for the same entries.

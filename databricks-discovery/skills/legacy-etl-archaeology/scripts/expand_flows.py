@@ -34,6 +34,9 @@ FORMATS = ("json_files", "json_array", "jsonl", "csv")
 TRUE = {"1", "true", "yes", "y", "t", "on"}
 FALSE = {"0", "false", "no", "n", "f", "off"}
 PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
+#: How many of a summary list's items it prints. 5,000 rows once gave 1,667 + 10,000 review items, one
+#: per flow (review of #17): the count says how big a list is, the first ten what it holds.
+FIRST = 10
 
 
 class Entry(NamedTuple):
@@ -306,6 +309,35 @@ def _same_name(a: Any, b: Any) -> bool:
     return bool(a and b) and (a == b or a.endswith("." + b) or b.endswith("." + a))
 
 
+def _listed(items: Any) -> dict:
+    items = sorted(items)
+    return {"count": len(items), "first": items[:FIRST]}
+
+
+def _same_entries(a: dict, b: dict) -> bool:
+    norm = lambda spec: (spec.get("format"), str(spec.get("path") or "").replace("\\", "/"))
+    return norm(a) == norm(b)
+
+
+def _taken_elsewhere(root: Path, inv: dict, runner_id: str, descs: list) -> set:
+    """Entries another runner's description over the same entries takes: runners split by type read one
+    control table, and a row this runner's `where` leaves out is that runner's, not unrouted."""
+    taken = set()
+    for oid, rec in inv.items():
+        if oid == runner_id or not rec.get("framework"):
+            continue
+        for d in rec["framework"] if isinstance(rec["framework"], list) else [rec["framework"]]:
+            spec = d.get("entries") if isinstance(d, dict) else None
+            if not isinstance(spec, dict) or not any(_same_entries(spec, mine["entries"]) for mine in descs):
+                continue
+            seen = {}
+            for e in read_entries(root, spec, str(d.get("key") or "")):
+                n = seen[(e.path, e.line)] = seen.get((e.path, e.line), 0) + 1
+                if matches(e.data, spec.get("where")):
+                    taken.add((e.path, e.line, n))
+    return taken
+
+
 def _refuse_if_bad(register: str, records: list) -> None:
     bad = [f"{write_records.key(register, r)}: {'; '.join(p)}" for r in records
            for p in [write_records.problems(register, r)] if p]
@@ -315,9 +347,9 @@ def _refuse_if_bad(register: str, records: list) -> None:
 
 # ---------- expand ----------
 
-def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None) -> dict:
-    """One `pipeline` record per configured flow, with its edges, written into the run. Returns the summary."""
-    run_dir, root, registers = _locations(run_dir, root, registers)
+def _plan(run_dir: Path, runner_id: str, root: Path, registers: Path) -> dict:
+    """What `expand` writes, worked out without writing: the flow records, their edges and the summary's
+    lists. `decide` reads it too, so a flow whose entry is gone gets no decision."""
     inv = inventory_of(run_dir, registers)
     runner = inv.get(runner_id)
     if runner is None:
@@ -327,13 +359,14 @@ def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None
     if bad:
         raise SystemExit("framework refused:\n  " + "\n  ".join(bad))
 
-    files, skipped, covered, flows = set(), [], {}, []
+    files, skipped, covered, flows, left_out = set(), [], {}, [], {}
     for i, d in enumerate(descs):
         seen = {}
         for e in read_entries(root, d["entries"], str(d["key"])):
             files.add(e.path)
             n = seen[(e.path, e.line)] = seen.get((e.path, e.line), 0) + 1
             if not matches(e.data, d["entries"].get("where")):
+                left_out.setdefault((e.path, e.line, n), (e, d))
                 continue
             loc = f"{e.path}:{e.line}"
             if (e.path, e.line, n) in covered:
@@ -346,6 +379,14 @@ def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None
     if not flows:
         raise SystemExit(f"no entry of {runner_id}'s framework has a key value or matches its `where` — "
                          f"check `key` and `where`; a framework is never 0 flows")
+    # An entry no description routes is no flow, but never dropped without a word (review of #17: a
+    # control table routed 'H' / 'D' lost its 'W' row). One with no key value is a template: skipped.
+    unrouted = []
+    taken = _taken_elsewhere(root, inv, runner_id, descs) if left_out.keys() - covered.keys() else set()
+    for where_, (e, d) in left_out.items():
+        if where_ in covered or where_ in taken:
+            continue
+        (unrouted if resolve(e.data, d["key"]) is not None else skipped).append(f"{e.path}:{e.line}")
 
     runner_name = runner.get("name") or runner_id
     data_objs = [r for r in inv.values() if r.get("kind") in write_records.KINDS["data"]]
@@ -393,20 +434,36 @@ def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None
             else:
                 (ambiguous if hits else unmatched).add(value)
 
-    _refuse_if_bad("inventory", records)
-    _refuse_if_bad("dependency_edges", edges)
     gone = sorted(k for k, r in inv.items() if r.get("runner") == runner_id and r.get("kind") == "pipeline" and k not in ids)
-    added, replaced, _ = write_records.write(run_dir, "inventory", records)
-    write_records.write(run_dir, "dependency_edges", edges)
-    return {"runner": runner_id, "flows": len(records), "new": added, "replaced": replaced,
-            "disabled": sorted(disabled), "incomplete": sorted(incomplete), "by_query": sorted(by_query),
-            "unmatched": sorted(unmatched), "ambiguous": sorted(ambiguous), "skipped": sorted(skipped),
-            "gone": gone, "files": sorted(files)}
+    return {"records": records, "edges": edges, "ids": set(ids), "lists": {
+        "disabled": disabled, "incomplete": incomplete, "by_query": by_query, "unmatched": unmatched,
+        "ambiguous": ambiguous, "unrouted": unrouted, "skipped": skipped, "gone": gone}, "files": sorted(files)}
+
+
+def expand(run_dir: Any, runner_id: str, root: Any = None, registers: Any = None) -> dict:
+    """One `pipeline` record per configured flow, with its edges, written into the run. Returns the summary:
+    the counts, each list as its count and first ten, and the files read."""
+    run_dir, root, registers = _locations(run_dir, root, registers)
+    plan = _plan(run_dir, runner_id, root, registers)
+    _refuse_if_bad("inventory", plan["records"])
+    _refuse_if_bad("dependency_edges", plan["edges"])
+    added, replaced, _ = write_records.write(run_dir, "inventory", plan["records"])
+    write_records.write(run_dir, "dependency_edges", plan["edges"])
+    return {"runner": runner_id, "flows": len(plan["records"]), "new": added, "replaced": replaced,
+            **{k: _listed(v) for k, v in plan["lists"].items()}, "files": plan["files"]}
 
 
 # ---------- decide ----------
 
 DISABLED_NOTE = "disabled in the configuration (enabled = false); the owner confirms retirement"
+#: A runner retired while some of its flows are rewritten: rewrites land in waves, and until the last one
+#: runs in Databricks the old runner keeps loading the rest (Bartosz, 2026-11-25, review of #17).
+WAITS = "stays in the source until the last rewrite is live"
+
+
+def _waits_note(rewritten: int) -> str:
+    flows = "flow runs" if rewritten == 1 else "flows run"
+    return f"Retire after its {rewritten} rewritten {flows} in Databricks; until then it keeps running in the source"
 
 
 def _target_component(disposition: str, name: str, writes: list, runner_name: str) -> Optional[str]:
@@ -425,7 +482,7 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
     """A framework's rationalization rows: every flow (default, exception, disabled → retire), then the runner
     and its dispatchers, which follow their flows. `note` is the reason for the default, kept in the `notes` of
     every flow it decides (a Copy framework's names keep there). Written into the run; returns the summary."""
-    run_dir, _, registers = _locations(run_dir, None, registers)
+    run_dir, root, registers = _locations(run_dir, None, registers)
     words = write_records.DISPOSITIONS["workloads"]
     for d in [default, *exceptions.values()]:
         if d not in words:
@@ -436,9 +493,14 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
         raise SystemExit(f"runner {runner_id} is not in the run's or the registers' inventory")
     flows = sorted((r for r in inv.values() if r.get("runner") == runner_id and r.get("kind") == "pipeline"),
                    key=lambda r: r["id"])
+    # A flow whose entry is gone is no flow to convert (review of #17). Flows written by hand, for a form
+    # the script does not read (framework-guide.md, fallback), have no entries to check against.
+    if all(isinstance(d, dict) and (d.get("entries") or {}).get("format") in FORMATS for d in _descriptions(runner_id, runner)):
+        current = _plan(run_dir, runner_id, root, registers)["ids"]
+        flows = [f for f in flows if f["id"] in current]
     unknown = sorted(set(exceptions) - {r["id"] for r in flows})
     if unknown:
-        raise SystemExit(f"{', '.join(unknown)} is not a flow of {runner_id}")
+        raise SystemExit(f"{', '.join(unknown)} is not a flow of {runner_id} (unknown, or its entry is gone)")
     runner_name = runner.get("name") or runner_id
     rows, counts = [], {}
     for f in flows:
@@ -455,12 +517,15 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
                      "criteria": {}, "evidence": f.get("evidence") or [], "blocking": [], "notes": note_})
     follows = "convert" if "convert" in counts else "keep" if "keep" in counts else "retire"
     component = {"convert": "generic Databricks runner", "keep": "stays where it runs"}.get(follows)
+    note_ = f"follows its {len(flows)} flows"
+    if follows == "retire" and counts.get("rewrite"):
+        component, note_ = WAITS, _waits_note(counts["rewrite"])
     dispatchers = sorted({d.get("dispatcher") for d in _descriptions(runner_id, runner) if d.get("dispatcher")})
     for oid in [runner_id, *dispatchers]:
         rec = inv.get(oid) or {}
         rows.append({"object_id": oid, "kind": rec.get("kind") or "pipeline", "name": rec.get("name") or oid,
                      "disposition": follows, "wave": None, "target_component": component, "criteria": {},
-                     "evidence": rec.get("evidence") or [], "blocking": [], "notes": f"follows its {len(flows)} flows"})
+                     "evidence": rec.get("evidence") or [], "blocking": [], "notes": note_})
     _refuse_if_bad("rationalization", rows)
     write_records.write(run_dir, "rationalization", rows)
     return {"runner": follows, "dispatchers": {d: follows for d in dispatchers}, "flows": len(flows),

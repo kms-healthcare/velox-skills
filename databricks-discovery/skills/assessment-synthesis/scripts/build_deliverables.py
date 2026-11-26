@@ -656,12 +656,20 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
         md += [f"{len(wl)} workloads{of} · {sum(1 for i in wl if not i.get('runner') and not i.get('owner'))} with no owner recorded — "
                f"a wave cannot take a workload nobody owns.\n\n"]
 
+        def schedules(fl):
+            """Each schedule the flows run on, with its number of flows, "none" last. One schedule never stands
+            for flows that do not run on it: on VEL-1722's estate it read "hourly" for six flows, three of which
+            have no trigger (review of #17)."""
+            count = Counter(str(i["schedule"]) if i.get("schedule") else None for i in fl)
+            named = sorted((k for k in count if k), key=lambda k: (-count[k], k))
+            parts = [f"{k} ({count[k]})" for k in named] + ([f"none ({count[None]})"] if None in count else [])
+            return "various" if len(parts) > 3 else ", ".join(parts)
+
         def framework_row(rid, fl):
             off = sum(1 for i in fl if i.get("enabled") is False)
-            sched = sorted({str(i["schedule"]) for i in fl if i.get("schedule")})
             owner = next((i.get("owner") for i in inv if i.get("id") == rid and i.get("owner")), None)
             return [f"{label_of(rid)} — {len(fl)} flows" + (f" ({off} disabled)" if off else ""), "pipeline (flows)",
-                    (", ".join(sched) if len(sched) <= 3 else "various") or None, None, owner or "NOT SET", "workbook tab Inventory"]
+                    schedules(fl), None, owner or "NOT SET", "workbook tab Inventory"]
 
         md += table(["Workload", "Kind", "Frequency", "Volume", "Owner", "Evidence"],
                     with_frameworks(wl, lambda i: [i.get("name"), i.get("kind"), i.get("schedule"), volume(i), i.get("owner") or "NOT SET", ev(i)],

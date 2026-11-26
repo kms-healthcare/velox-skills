@@ -210,6 +210,28 @@ with tempfile.TemporaryDirectory() as d:
     summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows() if r[0].value}
     assert (summary.get("convert"), summary.get("rewrite"), summary.get("undecided")) == (44, 2, 0), summary
 
+# ---------- a framework's row gives each schedule its flows run on (review of #17, VEL-1722's estate) ----------
+with tempfile.TemporaryDirectory() as d:
+    root = Path(d) / "assessment" / "sched"
+    reg = root / "registers"
+    hourly = "hourly (trigger TR_Hourly)"
+    write(reg / "inventory.jsonl",
+          [{"id": "obj-1", "kind": "notebook", "name": "nb_ingest_entity", "evidence": EV, "status": "reviewed"}]
+          + [{"id": f"obj-1-f{i}", "kind": "pipeline", "name": f"f{i}", "runner": "obj-1", "schedule": hourly if i < 3 else None,
+              "enabled": True, "evidence": EV, "status": "reviewed"} for i in range(6)])
+    write(reg / "rationalization.jsonl",
+          [{"object_id": "obj-1", "kind": "notebook", "name": "nb_ingest_entity", "disposition": "retire",
+            "target_component": "stays in the source until the last rewrite is live", "status": "reviewed"}]
+          + [{"object_id": f"obj-1-f{i}", "kind": "pipeline", "name": f"f{i}", "runner": "obj-1", "disposition": "rewrite",
+              "target_component": f"<catalog>.bronze.f{i} (native ingestion)", "status": "reviewed"} for i in range(6)])
+    (root / "intake.md").write_text("# Intake\n")
+    md = build(root)
+    s4 = md.split("## 4. Workload catalogue")[1].split("\n## 5.")[0]
+    row = next(line for line in s4.splitlines() if "nb_ingest_entity — 6 flows" in line)
+    assert f"| {hourly} (3), none (3) |" in row, row                    # never the hourly schedule alone
+    s10 = md.split("## 10. Target architecture & component mapping")[1].split("\n## 11.")[0]
+    assert "stays in the source until the last rewrite is live" in s10, s10   # the runner's condition reaches the report
+
 # ---------- every data-layer kind is a store, never a workload (evals 6 and 7: lake folders read as workloads) ----------
 assert set(write_records.KINDS["data"]) <= bd.STORE_KINDS, set(write_records.KINDS["data"]) - bd.STORE_KINDS
 with tempfile.TemporaryDirectory() as d:
