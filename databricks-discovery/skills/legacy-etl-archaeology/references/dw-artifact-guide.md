@@ -98,7 +98,20 @@ az synapse spark-job-definition list --workspace-name <ws> -o json > sparkJobDef
 ```
 Register the export as a source with the date; the live workspace may have moved since.
 
-- **Pipelines** (`pipeline/*.json`, `properties.activities[]`): `SqlPoolStoredProcedure` →
+**The live export is not the Git shape.** `az synapse <type> list` returns the SDK model, not the
+authoring JSON: there is no `properties` wrapper (`activities`, `parameters`, `runtimeState`,
+`pipelines` sit at the top of each object) and **`typeProperties` is flattened onto each
+activity** — `storedProcedureName`, `storedProcedureParameters`, `notebook`, `pipeline`,
+`source`, `sink`, `items`, `expression`, `ifTrueActivities` sit beside `name` and `type`. Read
+every field below from either place (`a.get("typeProperties", a)`), and walk nested activities
+(`ForEach.activities`, `IfCondition.ifTrueActivities` / `ifFalseActivities`, `Until.activities`,
+`Switch.cases[].activities` / `defaultActivities`) in both shapes. A stored-procedure step read
+from the wrong place is a `calls` edge that silently disappears — typically the logging and
+watermark steps every pipeline shares. `scripts/orchestration_steps.py` reads both shapes and lists the steps it knows — stored procedures (including a
+Lookup's `sqlReaderStoredProcedureName` and a Copy's `sqlWriterStoredProcedureName`), Synapse and Databricks notebooks,
+Execute Pipeline, Azure ML Execute Pipeline, Spark jobs, data flows; its rows are the floor of the edge list (SKILL.md step 0a).
+
+- **Pipelines** (`pipeline/*.json`, `properties.activities[]` — or top-level `activities[]` in a live export): `SqlPoolStoredProcedure` →
   `procedure` edge; `SynapseNotebook` → `notebook` edge (with `parameters`); `Copy` — rules hide in
   `source.sqlReaderQuery`, `sink.preCopyScript` and the column `translator`; `Script` and `Lookup`
   carry inline SQL; `ExecutePipeline` = pipeline → pipeline edge; `ExecuteDataFlow` → `dataflow/`.
