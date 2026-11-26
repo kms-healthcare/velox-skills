@@ -166,6 +166,17 @@ def test_non_admin_never_passes_a_list():
         assert results["GOV-35"]["status"] == "fail"                      # a setting it CAN read still counts
 
 
+def test_code_that_reads_its_password_correctly_passes():
+    # Review of #17: with .sh and .ps1 read, these failed a scored check. A password counts only inside a
+    # connection string; a call, an identifier, a path and a mask are not one.
+    assert sec1({"etl/load.py": 'password = get_secret("etl")\n        self.password=password\npwd=os.getcwd()\n',
+                 "deploy/env.sh": "export PWD=/home/etl\n",
+                 "deploy/conn.ps1": '$conn = "Server=dwh;User Id=etl;Password=********;"\n'}) is None
+    # the same file still fails on a real one
+    hit = sec1({"etl/load.py": 'password = get_secret("etl")\nconn = "Server=dwh;Uid=etl;Pwd=Synth3tic!;"\n'})
+    assert hit["status"] == "fail" and hit["locator"] == "etl/load.py:2" and "Synth3tic" not in hit["observed"], hit
+
+
 def test_identity_client_file_and_revoke():
     import zipfile
     with tempfile.TemporaryDirectory() as d:

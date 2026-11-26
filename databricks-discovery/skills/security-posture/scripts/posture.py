@@ -446,6 +446,21 @@ PAT_RE = re.compile(r"\bdapi[0-9a-f]{32}\b")
 # A password inside a connection string ("…;Password=Etl@2019!;"), unquoted. A reference resolved elsewhere
 # (`@{…}` Data Factory, `${…}`, `%…%`, `{{secrets/…}}`) is not plaintext.
 CONN_SECRET_RE = re.compile(r"(?<![\w-])(password|pwd)\s*=\s*(?![@${%<])([^;\"'<>\s,]{4,})", re.I)
+# A password counts only inside a connection string: beside another of its keys, with `;` between them.
+# Review of #17: once .sh and .ps1 were read, `password = get_secret(…)`, `self.password=password`,
+# `export PWD=/home/etl`, `pwd=os.getcwd()` and a masked `Password=********` failed code that reads its
+# secrets correctly.
+CONN_KEY_RE = re.compile(r"(?<![\w-])(data source|server|host|address|addr|database|initial catalog|"
+                         r"user id|uid|user|username|provider|driver|dsn)\s*=", re.I)
+MASK_RE = re.compile(r"[*xX•]+")
+
+
+def conn_secret(line: str):
+    """The first plaintext password inside a connection string on this line, or None."""
+    if ";" not in line or not CONN_KEY_RE.search(line):
+        return None
+    return next((m for m in CONN_SECRET_RE.finditer(line)
+                 if not (MASK_RE.fullmatch(m.group(2)) or "(" in m.group(2))), None)
 GRANT_RE = re.compile(r"GRANT\s+(.+?)\s+ON\s+.+?\s+TO\s+[`'\"]?(account users|users)[`'\"]?", re.I)
 DEPLOY_FILES = ("*.sh", "*.ps1", "Makefile", "*.mk")   # deploy scripts: read only for bundle --var overrides
 DEPLOY_VAR_RE = re.compile(r"""--var[=\s]+["']?([^"'\s]+)|BUNDLE_VAR_(\w+)""")
@@ -563,7 +578,7 @@ def from_iac(root):
                     window = " ".join(lines[max(0, i - 4):i + 4])
                     if BROAD_PRIVS.search(window):
                         add("VX-UC-1", "fail", loc, line.strip())
-                if "secrets/" not in line and (SECRET_RE.search(line) or PAT_RE.search(line) or CONN_SECRET_RE.search(line)):
+                if "secrets/" not in line and (SECRET_RE.search(line) or PAT_RE.search(line) or conn_secret(line)):
                     masked = CONN_SECRET_RE.sub(lambda m: m.group(0)[:m.start(2) - m.start(0)] + "***", line.strip())
                     add("VX-SEC-1", "fail", loc, re.sub(r"(['\"])[^'\"]{4,}(['\"])", r"\1***\2", masked)[:200])
                 m = re.search(r"data_security_mode\s*[:=]\s*[\"']?(\w+)", line)
