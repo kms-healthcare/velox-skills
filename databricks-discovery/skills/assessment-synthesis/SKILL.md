@@ -3,7 +3,7 @@ name: assessment-synthesis
 description: "Turn completed discovery registers - requirements, business rules, inventory with usage, dependencies, findings, open questions - into decisions: a rationalization matrix (migrate / modernize / retire / defer per object), estimate drivers, target-architecture outline, risks, and the client deliverables generated from those registers (Excel workbook, assessment report in Markdown and .docx) with an evidence-sufficiency appendix. Use when asked to write the assessment report, decide what to migrate and what to retire, estimate the migration, or build the roadmap. The registers must already exist - this skill does not extract requirements or read code."
 compatibility: "Python 3.9+ for scripts/build_deliverables.py; openpyxl for the .xlsx (without it only the workbook is skipped); pandoc optional for .docx."
 metadata:
-  version: "0.5.1"
+  version: "0.5.2"
   parent: discovery-intake
 ---
 
@@ -158,6 +158,10 @@ python3 "<directory>/scripts/build_deliverables.py" assessment/<project> --inclu
 # 3. final — when the person says "regenerate": same command without --include-unreviewed
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
+
+Exit 3 (`UNFINISHED`) means the inventory has objects and `rationalization.jsonl` is empty: the
+files were written, but the run is not done. Write the rationalization (§1, one record per
+object), then run the same command again. Never report a run as done on exit 3.
 
 The deliverables carry the KMS look (`scripts/theme.py`: Poppins, Electric Blue headers, zebra
 rows, severity / status / disposition chips in the brand palette, a cover block on *Summary*;

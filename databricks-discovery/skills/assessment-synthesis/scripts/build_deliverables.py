@@ -839,6 +839,13 @@ def main():
         print(f"wrote {docx}" if r.returncode == 0 else f"pandoc failed: {r.stderr.strip()}")
     elif not a.no_docx:
         print("pandoc not found — .docx skipped")
+    # The files above are always written (every run ends with a draft), but a run whose inventory
+    # has no rationalization is not finished: the report's scope section is empty. Say so loudly
+    # and fail, so the run writes rationalization.jsonl (§1) and builds again.
+    if regs["inventory"] and not regs["rationalization"]:
+        print(f"UNFINISHED: {len(regs['inventory'])} inventory objects and no rationalization.jsonl — write one "
+              "record per object (§1; a model is always defer), then rebuild.", file=sys.stderr)
+        sys.exit(3)
 
 
 if __name__ == "__main__":
