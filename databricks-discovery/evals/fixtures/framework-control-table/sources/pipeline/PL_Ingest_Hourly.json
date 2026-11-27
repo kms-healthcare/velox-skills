@@ -1,0 +1,64 @@
+{
+  "name": "PL_Ingest_Hourly",
+  "properties": {
+    "description": "Copies every enabled control-table row with Frequency = 'H' through PL_Copy_One.",
+    "activities": [
+      {
+        "name": "Lookup control rows",
+        "type": "Lookup",
+        "typeProperties": {
+          "source": {
+            "type": "SqlDWSource",
+            "sqlReaderQuery": "SELECT * FROM ctl.IngestControl WHERE Frequency = 'H' AND IsEnabled = 1"
+          },
+          "dataset": {
+            "referenceName": "DS_ControlTable",
+            "type": "DatasetReference"
+          },
+          "firstRowOnly": false
+        }
+      },
+      {
+        "name": "For each row",
+        "type": "ForEach",
+        "dependsOn": [
+          {
+            "activity": "Lookup control rows",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "items": {
+            "value": "@activity('Lookup control rows').output.value",
+            "type": "Expression"
+          },
+          "isSequential": false,
+          "batchCount": 8,
+          "activities": [
+            {
+              "name": "Copy one",
+              "type": "ExecutePipeline",
+              "typeProperties": {
+                "pipeline": {
+                  "referenceName": "PL_Copy_One",
+                  "type": "PipelineReference"
+                },
+                "waitOnCompletion": true,
+                "parameters": {
+                  "SourceSystem": "@item().SourceSystem",
+                  "SourceQuery": "@item().SourceQuery",
+                  "SinkSchema": "@item().SinkSchema",
+                  "SinkTable": "@item().SinkTable"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "annotations": []
+  },
+  "type": "Microsoft.Synapse/workspaces/pipelines"
+}

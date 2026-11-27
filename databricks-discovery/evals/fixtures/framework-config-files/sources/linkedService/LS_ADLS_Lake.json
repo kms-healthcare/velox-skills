@@ -1,0 +1,10 @@
+{
+  "name": "LS_ADLS_Lake",
+  "properties": {
+    "type": "AzureBlobFS",
+    "typeProperties": {
+      "url": "https://lumenfreightlake.dfs.core.windows.net/"
+    }
+  },
+  "type": "Microsoft.Synapse/workspaces/linkedservices"
+}

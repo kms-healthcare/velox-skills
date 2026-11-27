@@ -1,0 +1,29 @@
+{
+  "name": "TR_Hourly",
+  "properties": {
+    "type": "ScheduleTrigger",
+    "runtimeState": "Started",
+    "pipelines": [
+      {
+        "pipelineReference": {
+          "referenceName": "PL_Ingest_Hourly",
+          "type": "PipelineReference"
+        },
+        "parameters": {}
+      }
+    ],
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Hour",
+        "interval": 1,
+        "startTime": "2025-01-01T00:15:00Z",
+        "timeZone": "UTC",
+        "schedule": {
+          "minutes": [
+            15
+          ]
+        }
+      }
+    }
+  }
+}

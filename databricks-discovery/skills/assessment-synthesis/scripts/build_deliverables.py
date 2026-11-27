@@ -30,7 +30,13 @@ except ImportError:  # the report is stdlib-only: without openpyxl only the work
 
 REVIEWED = {"reviewed", "confirmed", "deferred"}
 SEV = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-DISPOSITIONS = ["migrate", "modernize", "retire", "defer"]
+# The decisions a rationalization row can carry, per layer — keep in step with
+# discovery-intake/scripts/write_records.py DISPOSITIONS (test_build checks it). Knowing only the data
+# layer's words, the report counted every workload's convert / rewrite / keep as undecided.
+LAYER_DISPOSITIONS = {"data": ["migrate", "modernize", "retire", "defer"],
+                      "workloads": ["convert", "rewrite", "retire", "keep"],
+                      "consumers": ["repoint", "replace", "retire"]}
+ALL_DISPOSITIONS = list(dict.fromkeys(d for words in LAYER_DISPOSITIONS.values() for d in words))
 # Word budgets for the five hand-written sections. The registers cap excerpts and details; without
 # a cap here the prose grew to ~1,900 words and pushed the report past the twelve pages the skill
 # argues for. Over budget is a warning, not an error — the author decides.
@@ -216,7 +222,7 @@ def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
              ["Counts", ""], ["Requirements", len(req)], ["Business rules", len(rules)], ["Inventory objects", len(inv)],
              ["Findings", len(fnd)], ["Readiness (lowest scored of 5)", min((x for x in (readiness_score(r) for r in regs["readiness"]) if x), default="not scored")], ["Open questions (open)", sum(1 for q in oq if is_open(q))],
              ["  of which blocking (impact high)", len(hi)], [],
-             ["Rationalization", ""]] + [[d, disp.get(d, 0)] for d in DISPOSITIONS + ["undecided"]] + [[],
+             ["Rationalization", ""]] + [[d, disp.get(d, 0)] for d in ALL_DISPOSITIONS + ["undecided"]] + [[],
              ["Business rules by status", ""]] + [[k, v] for k, v in sorted(rs.items())] + [[],
              ["Evidence gaps (❌/⚠️)", len(suff_bad)]] + [["", " — ".join(c.strip() for c in l.strip().strip("|").split("|")[:2] if c.strip())] for l in suff_bad[:10]]
     for l in lines:
@@ -278,11 +284,11 @@ def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
             (r.get("target_mapping") or {}).get("object"), r.get("owner"), locs(r), r.get("status")] for r in req],
           {"title": 44, "statement": 60, "conflicts": 44, "evidence": 40})
 
-    sheet(wb, "Inventory", ["id", "kind", "name", "owner", "layer_guess", "row_estimate", "size_gb", "schedule", "avg_runtime_min",
+    sheet(wb, "Inventory", ["id", "kind", "name", "runner", "owner", "layer_guess", "row_estimate", "size_gb", "schedule", "avg_runtime_min",
                             "run_as", "readers", "writers", "reads", "writes", "consumers", "exec_count_90d", "last_read_at",
                             "last_write_at", "last_exec_at", "orphan", "pii_candidates", "holds_pii", "erasure_reaches", "complexity", "complexity_source",
                             "disposition", "evidence", "status"],
-          [[i.get("id"), i.get("kind"), i.get("name"), i.get("owner"), i.get("layer_guess"), i.get("row_estimate"), i.get("size_gb"),
+          [[i.get("id"), i.get("kind"), i.get("name"), i.get("runner"), i.get("owner"), i.get("layer_guess"), i.get("row_estimate"), i.get("size_gb"),
             i.get("schedule"), i.get("avg_runtime_min"), i.get("run_as"), ", ".join(i.get("readers", [])), ", ".join(i.get("writers", [])),
             ", ".join(i.get("reads", [])), ", ".join(i.get("writes", [])), ", ".join(i.get("consumers", [])), i.get("exec_count_90d"),
             i.get("last_read_at"), i.get("last_write_at"), i.get("last_exec_at"), i.get("orphan"), ", ".join(i.get("pii_candidates", [])), i.get("holds_pii"), i.get("erasure_reaches"),
@@ -343,7 +349,11 @@ def build_xlsx(regs, root, out, axis_c, suff_bad, draft=None):
 # The report follows the delivery template: Part A (discovery, 1–5) describes what is there and is
 # generated tables only; Part B (assessment, 6–12) is what to do about it. A section with nothing
 # behind it prints one sentence — what it needs and what skipping it risks — never filler prose.
-STORE_KINDS = {"table", "view", "file_store", "queue", "log", "cache", "object_store", "export"}
+# Every data-layer kind of write_records.KINDS is a store (test_build checks it), plus the cache and the export
+# that hold personal data too. Measured on evals 6 and 7: lake folders (`file_dataset`) and topics were missing,
+# so the workload catalogue listed them as workloads and the PII counts left them out.
+STORE_KINDS = {"table", "view", "materialized_view", "sequence", "file_store", "file_dataset", "queue", "topic", "log",
+               "object_store", "model", "cache", "export"}
 READINESS = [("data", "Data"), ("logic", "Logic / code"), ("governance", "Governance & PII"),
              ("security", "Security"), ("operations", "Operations")]
 
@@ -466,6 +476,37 @@ def table(header, rows, cap=None, tab=None):
     return out
 
 
+def framework_groups(records):
+    """Records outside any framework, and a framework's flows grouped by their `runner` (VEL-1723), in order."""
+    rest, groups = [], {}
+    for r in records:
+        if r.get("runner"):
+            groups.setdefault(r["runner"], []).append(r)
+        else:
+            rest.append(r)
+    return rest, groups
+
+
+def with_frameworks(records, row, group_row):
+    """A report table's rows: a framework's flows become one row, at its first flow's place, so a table's
+    cap goes to the objects a reader decides one by one. The workbook keeps one row per flow."""
+    _, groups = framework_groups(records)
+    out, done = [], set()
+    for r in records:
+        rid = r.get("runner")
+        if not rid:
+            out.append(row(r))
+        elif rid not in done:
+            done.add(rid)
+            out.append(group_row(rid, groups[rid]))
+    return out
+
+
+def disposition_mix(rows):
+    c = Counter(r.get("disposition") or "undecided" for r in rows)
+    return " · ".join(f"{w} {c[w]}" for w in ALL_DISPOSITIONS + ["undecided"] if c.get(w))
+
+
 def volume(i):
     parts = [f"{i['row_estimate']:,} rows" if isinstance(i.get("row_estimate"), int) else None,
              f"{i['size_gb']} GB" if i.get("size_gb") is not None else None,
@@ -510,6 +551,9 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     fnd_all, fnd = fnd, [f for f in fnd if f.get("migration_disposition") != "none"
                          or f.get("severity") in ("critical", "high") or f.get("category") == "security"]
     A = lambda k: author.get(k, f"_Author section `{k}` not provided — pass --author-sections._\n")
+    labels = {r.get("object_id"): r.get("name") for r in rat}
+    labels.update({i.get("id"): i.get("name") for i in inv if i.get("name")})
+    label_of = lambda rid: labels.get(rid) or rid                     # a framework's runner, by id
     ev = lambda r: f"{evidence_kind(r)}: {locs(r)}"
     head = [f"# {root.name} — Discovery & Assessment" + (" — DRAFT, unreviewed" if draft is not None else "") + "\n"]
     # draft = count of unreviewed records in this build (--include-unreviewed); None for the final, registers-only build
@@ -605,10 +649,31 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     md += ["\n## 4. Workload catalogue\n\n"]
     wl = [i for i in inv if i.get("kind") not in STORE_KINDS]
     if wl:
-        md += [f"{len(wl)} workloads · {sum(1 for i in wl if not i.get('owner'))} with no owner recorded — "
+        flows = [i for i in wl if i.get("runner")]
+        nfw = len({i["runner"] for i in flows})
+        of = f" ({len(flows)} of them flows of {nfw} framework{'s' if nfw != 1 else ''})" if flows else ""
+        # a flow answers to its runner's owner, so only workloads outside a framework are counted here
+        md += [f"{len(wl)} workloads{of} · {sum(1 for i in wl if not i.get('runner') and not i.get('owner'))} with no owner recorded — "
                f"a wave cannot take a workload nobody owns.\n\n"]
+
+        def schedules(fl):
+            """Each schedule the flows run on, with its number of flows, "none" last. One schedule never stands
+            for flows that do not run on it: on VEL-1722's estate it read "hourly" for six flows, three of which
+            have no trigger (review of #17)."""
+            count = Counter(str(i["schedule"]) if i.get("schedule") else None for i in fl)
+            named = sorted((k for k in count if k), key=lambda k: (-count[k], k))
+            parts = [f"{k} ({count[k]})" for k in named] + ([f"none ({count[None]})"] if None in count else [])
+            return "various" if len(parts) > 3 else ", ".join(parts)
+
+        def framework_row(rid, fl):
+            off = sum(1 for i in fl if i.get("enabled") is False)
+            owner = next((i.get("owner") for i in inv if i.get("id") == rid and i.get("owner")), None)
+            return [f"{label_of(rid)} — {len(fl)} flows" + (f" ({off} disabled)" if off else ""), "pipeline (flows)",
+                    schedules(fl), None, owner or "NOT SET", "workbook tab Inventory"]
+
         md += table(["Workload", "Kind", "Frequency", "Volume", "Owner", "Evidence"],
-                    [[i.get("name"), i.get("kind"), i.get("schedule"), volume(i), i.get("owner") or "NOT SET", ev(i)] for i in wl], 40, "Inventory")
+                    with_frameworks(wl, lambda i: [i.get("name"), i.get("kind"), i.get("schedule"), volume(i), i.get("owner") or "NOT SET", ev(i)],
+                                    framework_row), 40, "Inventory")
     else:
         md += [gap("pipelines, jobs, procedures, endpoints or reports in the inventory, with schedule and owner",
                    "waves are sized without knowing what runs, how often, or who answers for it")]
@@ -681,19 +746,27 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
     if rat:
         # Scope is the decision this report exists to settle, so it leads with how much of it is
         # actually settled. An undecided share is a number the reader can act on; a table is not.
-        dec = sum(1 for r in rat if r.get("disposition") in DISPOSITIONS and r.get("disposition") != "defer")
+        dec = sum(1 for r in rat if r.get("disposition") in ALL_DISPOSITIONS and r.get("disposition") != "defer")
         md += [f"**{dec} of {len(rat)} objects decided ({dec * 100 // max(len(rat), 1)}%). "
                f"{len(rat) - dec} undecided or deferred; {sum(1 for r in rat if r.get('blocking'))} blocked on an open question.** "
-               f"In scope: migrate + modernize; out: retire; deferred: not yet in or out.\n\n"]
+               f"In scope: migrate + modernize; out: retire; deferred: not yet in or out. "
+               f"Workloads: convert and rewrite in, keep stays where it runs, retire out.\n\n"]
         by = defaultdict(Counter)
         for r in rat:
             by[r.get("kind", "?")][r.get("disposition") or "undecided"] += 1
-        md += ["| Kind | " + " | ".join(DISPOSITIONS) + " | undecided |\n|---|" + "---|" * 5 + "\n"]
-        md += [f"| {k} | " + " | ".join(str(c.get(d, 0)) for d in DISPOSITIONS) + f" | {c.get('undecided', 0)} |\n" for k, c in by.items()]
+        used = [w for w in ALL_DISPOSITIONS if any(r.get("disposition") == w for r in rat)]
+        md += ["| Kind | " + " | ".join(used + ["undecided"]) + " |\n|---|" + "---|" * (len(used) + 1) + "\n"]
+        md += [f"| {k} | " + " | ".join(str(c.get(d, 0)) for d in used + ["undecided"]) + " |\n" for k, c in by.items()]
         cx = lambda r: (lambda c: f"{c.get('complexity')} ({c.get('complexity_source') or 'unknown'})" if c.get("complexity") else None)(r.get("criteria") or {})
+        joined = lambda vals: ", ".join(dict.fromkeys(str(v) for v in vals if v not in (None, ""))) or None
         md += ["\n"] + table(["Object", "Kind", "Disposition", "Complexity (source)", "Wave", "Blocked by"],
-                             [[r.get("name"), r.get("kind"), r.get("disposition") or "undecided", cx(r), r.get("wave"), ", ".join(r.get("blocking", []))]
-                              for r in sorted(rat, key=lambda r: (r.get("wave") is None, r.get("wave") or 0))], 30, "Rationalization")
+                             with_frameworks(sorted(rat, key=lambda r: (r.get("wave") is None, r.get("wave") or 0)),
+                                             lambda r: [r.get("name"), r.get("kind"), r.get("disposition") or "undecided", cx(r), r.get("wave"),
+                                                        ", ".join(r.get("blocking", []))],
+                                             lambda rid, fl: [f"{label_of(rid)} — {len(fl)} flows", "pipeline (flows)", disposition_mix(fl), None,
+                                                              joined(r.get("wave") for r in fl),
+                                                              joined(b for r in fl for b in r.get("blocking", []))]),
+                             30, "Rationalization")
         ret = [r for r in rat if r.get("disposition") == "retire"]
         md += [f"\nRetire recommendations: {len(ret)} (owner agreed: {sum(1 for r in ret if (r.get('criteria') or {}).get('owner_agreed'))}).\n"]
         manual = sum(1 for r in rat if (r.get("criteria") or {}).get("complexity_source") not in (None, "analyzer"))
@@ -711,7 +784,11 @@ def build_md(regs, root, axis_c, suff_bad, author, built_with=None, intake="", n
 
     md += ["\n## 10. Target architecture & component mapping\n\n", A("architecture"), "\n"]
     mapped = [r for r in rat if r.get("target_component")]
-    md += table(["Object", "Disposition", "Target component"], [[r.get("name"), r.get("disposition"), r.get("target_component")] for r in mapped], 30, "Rationalization") \
+    _, every_flow = framework_groups(rat)
+    md += table(["Object", "Disposition", "Target component"],
+                with_frameworks(mapped, lambda r: [r.get("name"), r.get("disposition"), r.get("target_component")],
+                                lambda rid, fl: [f"{label_of(rid)} — {len(every_flow[rid])} flows", disposition_mix(every_flow[rid]),
+                                                 "per flow — workbook tab Rationalization"]), 30, "Rationalization") \
         or ["_No `target_component` set in rationalization.jsonl — the component mapping is not agreed yet._\n"]
 
     md += ["\n## 11. Recommendations, phased roadmap & cost estimate\n\n", A("roadmap"), "\n"]

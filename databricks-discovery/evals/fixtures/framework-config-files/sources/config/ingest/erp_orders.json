@@ -1,0 +1,14 @@
+{
+  "flow_name": "erp_orders",
+  "source": {
+    "system": "ERP",
+    "table": "dbo.SalesOrder"
+  },
+  "sink": {
+    "schema": "erp",
+    "table": "sales_order"
+  },
+  "load_type": "incremental",
+  "active": true,
+  "target_table": "stg_sales_order"
+}

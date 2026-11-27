@@ -1,0 +1,15 @@
+{
+  "name": "DS_ControlTable",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_DwPool",
+      "type": "LinkedServiceReference"
+    },
+    "type": "AzureSqlDWTable",
+    "typeProperties": {
+      "schema": "ctl",
+      "table": "IngestControl"
+    }
+  },
+  "type": "Microsoft.Synapse/workspaces/datasets"
+}

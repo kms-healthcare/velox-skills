@@ -1,0 +1,19 @@
+{
+  "name": "DS_SourceGeneric",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "LS_SqlSource",
+      "type": "LinkedServiceReference",
+      "parameters": {
+        "system": "@dataset().system"
+      }
+    },
+    "parameters": {
+      "system": {
+        "type": "string"
+      }
+    },
+    "type": "SqlServerTable"
+  },
+  "type": "Microsoft.Synapse/workspaces/datasets"
+}

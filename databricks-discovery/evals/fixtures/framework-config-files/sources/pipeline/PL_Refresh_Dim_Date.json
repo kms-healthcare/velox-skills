@@ -1,0 +1,20 @@
+{
+  "name": "PL_Refresh_Dim_Date",
+  "properties": {
+    "activities": [
+      {
+        "name": "Refresh DimDate",
+        "type": "SqlPoolStoredProcedure",
+        "sqlPool": {
+          "referenceName": "dwpool01",
+          "type": "SqlPoolReference"
+        },
+        "typeProperties": {
+          "storedProcedureName": "[dw].[usp_Refresh_DimDate]"
+        }
+      }
+    ],
+    "annotations": []
+  },
+  "type": "Microsoft.Synapse/workspaces/pipelines"
+}

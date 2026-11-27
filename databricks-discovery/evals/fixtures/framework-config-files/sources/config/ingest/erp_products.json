@@ -1,0 +1,14 @@
+{
+  "flow_name": "erp_products",
+  "source": {
+    "system": "ERP",
+    "table": "dbo.Product"
+  },
+  "sink": {
+    "schema": "erp",
+    "table": "product"
+  },
+  "load_type": "full",
+  "active": true,
+  "target_table": "stg_product"
+}
