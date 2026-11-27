@@ -252,6 +252,30 @@ with tempfile.TemporaryDirectory() as d:
     s4 = md.split("## 4. Workload catalogue")[1].split("\n## 5.")[0]
     assert "| lake/bronze/erp/orders | file_dataset |" in s3 and "| orders-events | topic |" in s3, s3
     assert "2 workloads" in s4 and "lake/bronze" not in s4 and "orders-events" not in s4, s4
+
+# ---------- sufficiency.md as run-layout.md writes it: the header's "State ✅⚠️❌" is no gap ----------
+# Eval 6, 2026-11-27: the header holds ⚠️ and ❌, so it was read as a gap row and printed twice in §1.
+with tempfile.TemporaryDirectory() as d:
+    root = project(Path(d))
+    (root / "sufficiency.md").write_text(
+        "| Conclusion needed | Evidence required | In hand | State ✅⚠️❌ | If missing |\n"
+        "|---|---|---|---|---|\n"
+        "| Volumes per table | row counts | none | ❌ | ask the DBA |\n"
+        "| Who reads bronze | consumer list | partial | ⚠️ | ask the owner |\n"
+        "| Schedules | triggers | yes | ✅ | — |\n")
+    md = build(root)
+    gaps = md.split("### What the evidence does not yet support")[1].split("\n## ")[0]
+    assert gaps.count("| Conclusion needed |") == 1, gaps
+    assert "| Volumes per table |" in gaps and "| Who reads bronze |" in gaps and "| Schedules |" not in gaps, gaps
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        load_workbook = None
+    if load_workbook:   # the workbook's Summary counts the gaps, not the header
+        wb = load_workbook(root.parent / "out-final" / f"discovery-{root.name}.xlsx")
+        summary = {r[0].value: r[1].value for r in wb["Summary"].iter_rows() if r[0].value}
+        assert summary.get("Evidence gaps (❌/⚠️)") == 2, summary
+
 print("test_build: ok")
 
 # A run with inventory but no rationalization still gets its draft, and fails loudly.

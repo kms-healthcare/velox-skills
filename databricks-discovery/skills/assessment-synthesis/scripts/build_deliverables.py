@@ -870,6 +870,20 @@ def parse_author_sections(p: Path):
     return out
 
 
+SEPARATOR = re.compile(r"^\|\s*:?-")
+
+
+def evidence_gaps(text: str) -> list:
+    """sufficiency.md's rows still short of evidence (❌ or ⚠️), never a table's header: run-layout.md's
+    header reads "State ✅⚠️❌", so an emoji match alone took it for a gap, counted it in the Summary and
+    printed it twice in §1 (eval 6, 2026-11-27). A header is the row a |---| line follows."""
+    lines = text.splitlines()
+    return [l for i, l in enumerate(lines)
+            if l.startswith("|") and not SEPARATOR.match(l)
+            and not (i + 1 < len(lines) and SEPARATOR.match(lines[i + 1]))
+            and ("❌" in l or "⚠️" in l)]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project_dir")
@@ -889,7 +903,7 @@ def main():
     draft = sum(1 for recs in regs.values() for r in recs if r.get("status") == "extracted") if a.include_unreviewed else None
     intake = md_text(root / "intake.md")
     axis_c = "\n".join(l for l in intake.splitlines() if l.strip().startswith(">"))
-    suff_bad = [l for l in md_text(root / "sufficiency.md").splitlines() if "❌" in l or "⚠️" in l]
+    suff_bad = evidence_gaps(md_text(root / "sufficiency.md"))
     author = parse_author_sections(Path(a.author_sections)) if a.author_sections else {}
 
     xlsx = out / f"discovery-{root.name}.xlsx"
