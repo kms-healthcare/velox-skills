@@ -394,6 +394,20 @@ def test_a_runner_retired_while_its_flows_are_rewritten_waits_for_them():
         assert (runner["disposition"], runner["target_component"], runner["notes"]) == ("retire", None, "follows its 3 flows"), runner
 
 
+def test_a_rewrite_names_its_table_when_the_target_is_a_folder():
+    # Eval 7, 2026-11-27: a target mapped as the lake folder `lake/{SinkSchema}/{SinkTable}` gave the
+    # component "<catalog>.bronze.lake/bronze/crm_accounts (native ingestion)".
+    with tempfile.TemporaryDirectory() as d:
+        files = {"sources/config/a.json": cfg(name="a", src="s.a", tgt="lake/bronze/crm_accounts/"),
+                 "sources/config/b.json": cfg(name="b", src="s.b", tgt="bronze.erp_orders")}
+        root, run = project(d, files, fw())
+        x.expand(run, "obj-0001")
+        x.decide(run, "obj-0001", "rewrite", {})
+        rat = {r["object_id"]: r for r in rows(run, "rationalization")}
+        assert rat["obj-0001-a"]["target_component"] == "<catalog>.bronze.crm_accounts (native ingestion)", rat["obj-0001-a"]
+        assert rat["obj-0001-b"]["target_component"] == "<catalog>.bronze.erp_orders (native ingestion)"
+
+
 def test_a_flow_rejected_in_the_registers_stays_out_of_decide():
     with tempfile.TemporaryDirectory() as d:
         files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "junk")}

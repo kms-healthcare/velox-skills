@@ -485,7 +485,8 @@ def _target_component(disposition: str, name: str, writes: list, runner_name: st
     if disposition == "convert":
         return f"generic Databricks runner — entry {name}"
     if disposition == "rewrite":
-        table = str(writes[0]).split(".")[-1] if writes else "<table>"
+        # The table's own name, whether the target is `schema.table` or a folder `lake/schema/table` (eval 7).
+        table = re.split(r"[./]", str(writes[0]).rstrip("/"))[-1] if writes else "<table>"
         return f"<catalog>.bronze.{table} (native ingestion)"
     if disposition == "keep":
         return f"stays where it runs ({runner_name})"

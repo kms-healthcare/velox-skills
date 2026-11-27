@@ -67,6 +67,9 @@ reviewed with the runner and merged with it, so the next run finds it in `regist
 
   `target` is required, and so is `source` (a table, file or object) or `source_query` (SQL the runner
   executes). `schedule`, `load` and `enabled` are optional.
+- **`target` is the table the flow lands, `<schema>.<table>`** (`{SinkSchema}.{SinkTable}`), even when
+  the runner writes files into a lake folder `<schema>/<table>`: the folder is that table's storage,
+  and inventory names and the rationalization match tables. The path stays in the `evidence`.
 - **The mapping comes from the runner's code, never from the key names in the entries.** Read which
   keys the runner actually reads. An entry often carries keys nothing reads, such as a legacy target
   or a column kept from an earlier version, and mapping one of those writes wrong targets with full
