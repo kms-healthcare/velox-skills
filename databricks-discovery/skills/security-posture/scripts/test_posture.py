@@ -80,6 +80,26 @@ def test_sat_rows_and_iac():
         assert iac["VX-SEC-1"]["locator"] == "databricks.yml:4" and "hunter2" not in iac["VX-SEC-1"]["observed"]
 
 
+def sec1(files):
+    with tempfile.TemporaryDirectory() as d:
+        for name, text in files.items():
+            (Path(d) / name).parent.mkdir(parents=True, exist_ok=True)
+            (Path(d) / name).write_text(text)
+        return posture.from_iac(d).get("VX-SEC-1")
+
+
+def test_plaintext_password_in_a_connection_string_or_an_export_fails():
+    # Measured on evals 0 and 7: a password in an SSIS package and in a control table's export scanned as a pass.
+    hit = sec1({"ssis/pkg.dtsx": '<DTS:ConnectionManager DTS:ConnectionString="Data Source=DWH;User ID=svc_etl;Password=Etl@2019!;" />\n'})
+    assert hit["status"] == "fail" and hit["locator"] == "ssis/pkg.dtsx:1" and "Etl@2019" not in hit["observed"], hit
+    hit = sec1({"exports/ctl.csv": "FlowName,SourceConnection\nh1,Server=erp;User Id=etl;Password=SyntheticPw1\n"})
+    assert hit["status"] == "fail" and hit["locator"] == "exports/ctl.csv:2" and "SyntheticPw1" not in hit["observed"], hit
+    # a reference resolved elsewhere is not a plaintext password
+    assert sec1({"linkedService/ls.json": '{"connectionString": "Data Source=x;Password=@{linkedService().pwd}"}\n',
+                 "app.config": "<add key=\"db\" value=\"Server=x;Password=${DB_PASSWORD}\" />\n",
+                 "jobs.yml": "password: '{{secrets/scope/key}}'\n"}) is None
+
+
 def gov42(files):
     with tempfile.TemporaryDirectory() as d:
         for name, text in files.items():
@@ -144,6 +164,17 @@ def test_non_admin_never_passes_a_list():
         assert results["GOV-42"]["status"] == "not_assessed" and "admin read" in results["GOV-42"]["reason"]
         assert results["DP-5"]["reason"].startswith("permission")
         assert results["GOV-35"]["status"] == "fail"                      # a setting it CAN read still counts
+
+
+def test_code_that_reads_its_password_correctly_passes():
+    # Review of #17: with .sh and .ps1 read, these failed a scored check. A password counts only inside a
+    # connection string; a call, an identifier, a path and a mask are not one.
+    assert sec1({"etl/load.py": 'password = get_secret("etl")\n        self.password=password\npwd=os.getcwd()\n',
+                 "deploy/env.sh": "export PWD=/home/etl\n",
+                 "deploy/conn.ps1": '$conn = "Server=dwh;User Id=etl;Password=********;"\n'}) is None
+    # the same file still fails on a real one
+    hit = sec1({"etl/load.py": 'password = get_secret("etl")\nconn = "Server=dwh;Uid=etl;Pwd=Synth3tic!;"\n'})
+    assert hit["status"] == "fail" and hit["locator"] == "etl/load.py:2" and "Synth3tic" not in hit["observed"], hit
 
 
 def test_identity_client_file_and_revoke():
