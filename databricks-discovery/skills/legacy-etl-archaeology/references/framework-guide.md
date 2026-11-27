@@ -116,9 +116,9 @@ every flow.
 | `incomplete` | `review.md`; an entry with no target, or no source or query — a question |
 | `by_query` | `review.md`; the tables a query reads are left to the reviewer, unparsed |
 | `unmatched`, `ambiguous` | `review.md`; a source or target with no (or several) inventory objects — add the object, or raise a question |
-| `unrouted` | `review.md`; entries no description routes, so no flow — an open question asking who runs them |
+| `unrouted` | `review.md`; entries no description routes, so no flow — an open question asking who runs them. When several runners read one table, the one with the lowest id lists them |
 | `skipped` | `review.md`; files with no key value (templates, defaults) |
-| `gone` | `review.md`; flows whose entry no longer exists — the reviewer rejects them, nothing is deleted, and `decide` gives them no decision |
+| `gone` | `review.md`; flows whose entry no longer exists — the reviewer rejects them, nothing is deleted, and `decide` gives them no decision. `decide`'s `gone_decided` names those that already had one: the reviewer rejects the flow and its decision together |
 | `files` | `manifest.json` sources, in full |
 
 Expand again on every run, even when nothing changed. The desktop keeps a reviewed decision only

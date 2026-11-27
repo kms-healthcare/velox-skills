@@ -77,7 +77,8 @@ the first ten, never a question per flow. The runner and its dispatchers follow 
 (`convert` if any flow converts, `keep` if any keeps, else `retire`). A runner that retires while
 some of its flows are `rewrite` keeps running in the source until those rewrites run in Databricks:
 `decide` writes that into its target component and note, and the roadmap retires it after the last
-rewrite's wave, never before. A flow whose entry is gone gets no decision. The report shows a
+rewrite's wave, never before. A flow whose entry is gone gets no decision; `decide`'s summary names
+any that already had one (`gone_decided`), and `review.md` asks the reviewer to reject it with the flow. The report shows a
 framework as one row with its count by disposition and each schedule its flows run on; the workbook
 keeps one row per flow.
 

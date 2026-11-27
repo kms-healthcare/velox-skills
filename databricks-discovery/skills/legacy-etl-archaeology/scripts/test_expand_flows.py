@@ -334,6 +334,43 @@ def test_a_gone_flow_gets_no_decision():
         assert_refused(lambda: x.decide(run, "obj-0001", "convert", {"obj-0001-c": "keep"}), "obj-0001-c")
 
 
+def test_a_gone_flow_that_was_already_decided_is_listed_for_rejection():
+    # Hieu's re-check of #17: expand, decide, delete c.json, expand, decide left `obj-0001-c: convert` in the
+    # rationalization. Nothing is deleted, so decide names the gone flows that already have a decision.
+    with tempfile.TemporaryDirectory() as d:
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "b", "c")}
+        root, run = project(d, files, fw())
+        x.expand(run, "obj-0001")
+        assert listed(x.decide(run, "obj-0001", "convert", {}), "gone_decided") == []
+        (root / "sources/config/c.json").unlink()
+        x.expand(run, "obj-0001")
+        s = x.decide(run, "obj-0001", "convert", {})
+        assert s["flows"] == 2 and listed(s, "gone_decided") == ["obj-0001-c"], s
+        assert {r["object_id"]: r["disposition"] for r in rows(run, "rationalization")}["obj-0001-c"] == "convert"  # kept
+    with tempfile.TemporaryDirectory() as d:                         # a decision already reviewed into the registers
+        files = {f"sources/config/{n}.json": cfg(name=n, src=f"s.{n}", tgt=f"bronze.{n}") for n in ("a", "b")}
+        root, run = project(d, files, fw())
+        reg = run.parents[1] / "registers"
+        reg.mkdir()
+        old = {"id": "obj-0001-old", "kind": "pipeline", "name": "old", "runner": "obj-0001", "status": "reviewed"}
+        (reg / "inventory.jsonl").write_text(json.dumps(old) + "\n")
+        (reg / "rationalization.jsonl").write_text(json.dumps(
+            {"object_id": "obj-0001-old", "kind": "pipeline", "disposition": "convert", "status": "reviewed"}) + "\n")
+        x.expand(run, "obj-0001")
+        assert listed(x.decide(run, "obj-0001", "convert", {}), "gone_decided") == ["obj-0001-old"]
+
+
+def test_two_runners_over_one_table_list_an_unrouted_row_once():
+    # Hieu's re-check of #17: both runners reported the same 'W' row, so review.md listed it twice.
+    weekly = CSV + "w1,s.w1,b.w1,W,1,Server=x;Password=Synthetic1\n"
+    with tempfile.TemporaryDirectory() as d:
+        other = {**obj("obj-0005", "pipeline", "PL_Copy_Daily"), "framework": routed("D", "obj-0011", "daily")}
+        root, run = project(d, {"sources/ctl.csv": weekly}, routed("H", "obj-0010", "hourly"),
+                            runner_extra={"kind": "pipeline", "name": "PL_Copy_Hourly"}, inventory=[other])
+        assert listed(x.expand(run, "obj-0001"), "unrouted") == ["sources/ctl.csv:5"]     # the lowest id reports it
+        assert listed(x.expand(run, "obj-0005"), "unrouted") == []                       # the other does not
+
+
 def test_a_runner_retired_while_its_flows_are_rewritten_waits_for_them():
     # Bartosz, 2026-11-25 (review of #17): rewrites land in waves, and the old runner keeps loading
     # the flows not yet rewritten, so its retire says when.

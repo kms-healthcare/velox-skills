@@ -319,22 +319,30 @@ def _same_entries(a: dict, b: dict) -> bool:
     return norm(a) == norm(b)
 
 
-def _taken_elsewhere(root: Path, inv: dict, runner_id: str, descs: list) -> set:
-    """Entries another runner's description over the same entries takes: runners split by type read one
-    control table, and a row this runner's `where` leaves out is that runner's, not unrouted."""
-    taken = set()
+def _neighbours(inv: dict, runner_id: str, descs: list) -> list:
+    """(runner id, description) of every other runner's description over the same entries as this one's:
+    runners split by type, or one per dispatcher, reading one control table."""
+    out = []
     for oid, rec in inv.items():
         if oid == runner_id or not rec.get("framework"):
             continue
         for d in rec["framework"] if isinstance(rec["framework"], list) else [rec["framework"]]:
             spec = d.get("entries") if isinstance(d, dict) else None
-            if not isinstance(spec, dict) or not any(_same_entries(spec, mine["entries"]) for mine in descs):
-                continue
-            seen = {}
-            for e in read_entries(root, spec, str(d.get("key") or "")):
-                n = seen[(e.path, e.line)] = seen.get((e.path, e.line), 0) + 1
-                if matches(e.data, spec.get("where")):
-                    taken.add((e.path, e.line, n))
+            if isinstance(spec, dict) and any(_same_entries(spec, mine["entries"]) for mine in descs):
+                out.append((oid, d))
+    return out
+
+
+def _taken_elsewhere(root: Path, neighbours: list) -> set:
+    """Entries another runner's description over the same entries takes: a row this runner's `where`
+    leaves out is that runner's, not unrouted."""
+    taken = set()
+    for _, d in neighbours:
+        spec, seen = d["entries"], {}
+        for e in read_entries(root, spec, str(d.get("key") or "")):
+            n = seen[(e.path, e.line)] = seen.get((e.path, e.line), 0) + 1
+            if matches(e.data, spec.get("where")):
+                taken.add((e.path, e.line, n))
     return taken
 
 
@@ -381,12 +389,19 @@ def _plan(run_dir: Path, runner_id: str, root: Path, registers: Path) -> dict:
                          f"check `key` and `where`; a framework is never 0 flows")
     # An entry no description routes is no flow, but never dropped without a word (review of #17: a
     # control table routed 'H' / 'D' lost its 'W' row). One with no key value is a template: skipped.
+    # Several runners over one table would each list its unrouted rows: the lowest runner id lists them
+    # (review of #17: review.md listed a 'W' row twice).
     unrouted = []
-    taken = _taken_elsewhere(root, inv, runner_id, descs) if left_out.keys() - covered.keys() else set()
+    neighbours = _neighbours(inv, runner_id, descs) if left_out.keys() - covered.keys() else []
+    taken = _taken_elsewhere(root, neighbours)
+    lists_unrouted = all(runner_id < oid for oid, _ in neighbours)
     for where_, (e, d) in left_out.items():
         if where_ in covered or where_ in taken:
             continue
-        (unrouted if resolve(e.data, d["key"]) is not None else skipped).append(f"{e.path}:{e.line}")
+        if resolve(e.data, d["key"]) is None:
+            skipped.append(f"{e.path}:{e.line}")
+        elif lists_unrouted:
+            unrouted.append(f"{e.path}:{e.line}")
 
     runner_name = runner.get("name") or runner_id
     data_objs = [r for r in inv.values() if r.get("kind") in write_records.KINDS["data"]]
@@ -495,9 +510,16 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
                    key=lambda r: r["id"])
     # A flow whose entry is gone is no flow to convert (review of #17). Flows written by hand, for a form
     # the script does not read (framework-guide.md, fallback), have no entries to check against.
+    gone = []
     if all(isinstance(d, dict) and (d.get("entries") or {}).get("format") in FORMATS for d in _descriptions(runner_id, runner)):
         current = _plan(run_dir, runner_id, root, registers)["ids"]
+        gone = [f["id"] for f in flows if f["id"] not in current]
         flows = [f for f in flows if f["id"] in current]
+    # A gone flow keeps a decision it already had, in the run or the registers: nothing is deleted, so the
+    # summary names it for the member to reject with the flow (Hieu's re-check of #17).
+    decided = {r.get("object_id") for r in _jsonl(Path(registers) / "rationalization.jsonl") + _jsonl(Path(run_dir) / "rationalization.jsonl")
+               if r.get("status") != "rejected"}
+    gone_decided = [g for g in gone if g in decided]
     unknown = sorted(set(exceptions) - {r["id"] for r in flows})
     if unknown:
         raise SystemExit(f"{', '.join(unknown)} is not a flow of {runner_id} (unknown, or its entry is gone)")
@@ -529,7 +551,7 @@ def decide(run_dir: Any, runner_id: str, default: str, exceptions: dict, registe
     _refuse_if_bad("rationalization", rows)
     write_records.write(run_dir, "rationalization", rows)
     return {"runner": follows, "dispatchers": {d: follows for d in dispatchers}, "flows": len(flows),
-            "by_disposition": counts}
+            "by_disposition": counts, "gone_decided": _listed(gone_decided)}
 
 
 # ---------- command line ----------
