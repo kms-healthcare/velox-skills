@@ -8,6 +8,7 @@ machine without Poppins falls back to its default sans and the sheet still reads
 Header wording: registers keep their snake_case field names — the Review tab keys on them — and
 only the workbook's visible header row is translated. Unknown fields fall back to Title Case.
 """
+from __future__ import annotations
 
 FONT = "Poppins"
 
