@@ -240,6 +240,12 @@ with tempfile.TemporaryDirectory() as d:
           [{"id": f"obj-{i}", "kind": k, "name": n, "evidence": EV, "status": "reviewed", "holds_pii": None}
            for i, (k, n) in enumerate([("table", "dbo.Orders"), ("file_dataset", "lake/bronze/erp/orders"),
                                        ("topic", "orders-events"), ("notebook", "nb_load"), ("report", "Daily sales")])])
+    # A run with inventory and no rationalization fails its build (exit 3, below): decide every object.
+    write(root / "registers" / "rationalization.jsonl",
+          [{"object_id": f"obj-{i}", "kind": k, "name": n, "disposition": dp, "status": "reviewed"}
+           for i, (k, n, dp) in enumerate([("table", "dbo.Orders", "migrate"), ("file_dataset", "lake/bronze/erp/orders", "migrate"),
+                                           ("topic", "orders-events", "defer"), ("notebook", "nb_load", "convert"),
+                                           ("report", "Daily sales", "repoint")])])
     (root / "intake.md").write_text("# Intake\n")
     md = build(root)
     s3 = md.split("## 3. Data landscape")[1].split("\n## 4.")[0]
@@ -247,3 +253,15 @@ with tempfile.TemporaryDirectory() as d:
     assert "| lake/bronze/erp/orders | file_dataset |" in s3 and "| orders-events | topic |" in s3, s3
     assert "2 workloads" in s4 and "lake/bronze" not in s4 and "orders-events" not in s4, s4
 print("test_build: ok")
+
+# A run with inventory but no rationalization still gets its draft, and fails loudly.
+with tempfile.TemporaryDirectory() as d:
+    root = project(Path(d))
+    (root / "registers" / "rationalization.jsonl").unlink()
+    out = root.parent / "out-unfinished"
+    r = subprocess.run([sys.executable, str(HERE / "build_deliverables.py"), str(root), "--out-dir", str(out),
+                        "--no-docx", "--include-unreviewed"], capture_output=True, text=True)
+    assert r.returncode == 3 and "UNFINISHED" in r.stderr, (r.returncode, r.stderr)
+    assert (out / "assessment-report.md").exists()
+print("test_build unfinished: ok")
+

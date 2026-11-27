@@ -3,7 +3,7 @@ name: discovery-intake
 description: "LOAD THIS FIRST, before any step, for any discovery, assessment, current-state review, migration or consolidation ask on a Databricks data project — the two assessment levels (code and workspace / code only) are defined here, the level arrives in the brief from the Assess step, and a run that does not follow it is not comparable to any other. Entry point for the pack: classify the project type, inventory the evidence that exists, pin down the decision the assessment must serve, then emit a source request, an evidence-sufficiency gate, and confirmation questions before handing off to requirements extraction, legacy code archaeology, or report synthesis. Triggers include a bare 'assess this project', 'client wants to move to Databricks', '300 stored procs to understand', workspace consolidation, rising Databricks cost. Not for writing pipelines, deploying bundles, or tuning queries."
 compatibility: "Runs outside Databricks (Claude Code, Velox or equivalent). Databricks CLI + managed MCP optional. Python 3.9+ and openpyxl for the deliverables generator; pandoc optional for .docx."
 metadata:
-  version: "0.7.3"
+  version: "0.7.4"
 ---
 
 # Discovery intake — the entry point for every assessment
@@ -98,7 +98,8 @@ After the chosen path runs, **check what it left behind and warn rather than blo
 remains (a grant not revoked, a source read under someone else's login) becomes a finding with a
 locator, and the deliverable is still produced — the reviewer decides. Worked example:
 `security-posture` (bound read-only service principal first; under half the catalog readable →
-*own login for this step* · *client grants admin briefly* · *client's admin runs the bundle* ·
+*own login for this step* (in Velox, the workspace connected again from the card as the
+person, never another login's `--profile`) · *client grants admin briefly* · *client's admin runs the bundle* ·
 *skip*; a grant still in place → a high finding).
 
 **A blocked pack script is a stop, never a rewrite.** When a pack script (any `scripts/*.py` of

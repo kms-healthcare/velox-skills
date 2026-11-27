@@ -10,8 +10,8 @@ and read by an endpoint. Load this when the estate has an Azure ML workspace.
 | Command | Inventory record | Notes |
 |---|---|---|
 | `az ml schedule list` | `pipeline`, with `schedule` from `trigger` (cron / recurrence, **time zone**) | The scheduled pipeline jobs: the real DAG. `is_enabled: false` → candidate `DEAD` |
-| the pipeline YAML / SDK code in Git (`jobs:` with `component:` or `command:`, `inputs:` / `outputs:`) | `pipeline` and one `job` per step | `azureml:<data asset>` inputs are read edges; outputs registered as data assets or models are write edges |
-| `az ml component list` | `job` (a registered, reusable step) | The code behind it is where the rules are — §2 |
+| the pipeline YAML / SDK code in Git (`jobs:` with `component:` or `command:`, `inputs:` / `outputs:`) | `pipeline` and **one `job` record per step**, named by the component's `name:` (the step key when the step is inline), with a `calls` edge pipeline → job | `azureml:<data asset>` inputs are read edges; outputs registered as data assets or models are write edges |
+| `az ml component list` | `job` (a registered, reusable step) — in a live export this is the only place the steps appear: one `job` per component, linked to the pipeline the job list or schedule names | The code behind it is where the rules are — §2 |
 | `az ml model list` → `az ml model show -n <name> -v <version>` | `model` | `properties` / `tags` usually name the training job → its writer edge; `path` is where the artefact sits |
 | `az ml online-endpoint list` → `az ml online-deployment list --endpoint-name <e>` | `api_endpoint`, reading the `model` | `instance_type` × `instance_count` and `traffic` split: an always-on GPU for a 9-to-5 tool is a cost finding |
 | `az ml batch-endpoint list` → `az ml batch-deployment list --endpoint-name <e>` | `job` (scoring), writing a `file_dataset` | `output_file_name` / the output datastore path |
@@ -53,7 +53,7 @@ assets.
 
 ## 4. What the move needs from the inventory
 
-Each `model` record names its training `pipeline` (writer), its data assets (the pipeline's
+Each pipeline's steps are `job` records (§1), not just a sentence in the pipeline's `meaning` — `scripts/orchestration_steps.py` lists them from the YAML or from `az ml job list` + `az ml component list`. Each `model` record names its training `pipeline` (writer), its data assets (the pipeline's
 readers), its endpoints (readers) and the owner who answers for the metric. On Databricks these
 become an MLflow experiment, a Unity Catalog registered model (`catalog.schema.model`), Model
 Serving and a Lakeflow job; the move itself is the ML team's — the inventory is the handover,

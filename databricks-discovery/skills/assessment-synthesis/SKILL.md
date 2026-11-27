@@ -189,6 +189,10 @@ python3 "<directory>/scripts/build_deliverables.py" assessment/<project> --inclu
 # → discovery-<project>.xlsx · assessment-report.md · assessment-report.docx (pandoc)
 ```
 
+Exit 3 (`UNFINISHED`) means the inventory has objects and `rationalization.jsonl` is empty: the
+files were written, but the run is not done. Write the rationalization (§1, one record per
+object), then run the same command again. Never report a run as done on exit 3.
+
 The deliverables carry the KMS look (`scripts/theme.py`: Poppins, Electric Blue headers, zebra
 rows, severity / status / disposition chips in the brand palette, a cover block on *Summary*;
 `assets/reference.docx` gives the report the same face and an INTERNAL footer). Workbook headers
